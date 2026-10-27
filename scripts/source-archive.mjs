@@ -1,0 +1,12 @@
+import {execFileSync} from 'node:child_process';
+import {mkdirSync,readFileSync,rmSync} from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const version=JSON.parse(readFileSync(path.join(root,'package.json'),'utf8')).version;
+const output=path.join(root,'dist','downloads',`Gridiron-Director-${version}-source.zip`);
+mkdirSync(path.dirname(output),{recursive:true});rmSync(output,{force:true});
+const files=execFileSync('git',['ls-files','--cached','--others','--exclude-standard','-z'],{cwd:root}).toString().split('\0').filter(Boolean).filter(f=>!f.startsWith('dist/downloads/')&&!f.startsWith('.openai/'));
+if(files.some(f=>f.includes('\n')))throw Error('Source export requires newline-free filenames.');
+execFileSync('zip',['-q',output,'-@'],{cwd:root,input:files.join('\n')+'\n'});
+console.log(output);

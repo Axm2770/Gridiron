@@ -1,0 +1,301 @@
+[
+  {
+    "id": "jerry-rice",
+    "name": "Jerry Rice",
+    "category": "Players",
+    "role": "WR",
+    "team": "49ers \u00b7 Raiders \u00b7 Seahawks",
+    "classYear": 2010,
+    "headline": "The standard for every receiver.",
+    "stats": {
+      "receptions": 1549,
+      "recYards": 22895,
+      "Total touchdowns": 208,
+      "Pro Bowls": 13
+    },
+    "achievements": [
+      "3\u00d7 Super Bowl champion",
+      "Super Bowl XXIII MVP",
+      "NFL 100 All-Time Team"
+    ],
+    "bio": "Rice combined precise routes with extraordinary longevity across a 20-season career. His receiving totals remain landmarks for every future generation.",
+    "image": "assets/legends/jerry-rice.webp",
+    "source": "https://www.profootballhof.com/players/jerry-rice"
+  },
+  {
+    "id": "walter-payton",
+    "name": "Walter Payton",
+    "category": "Players",
+    "role": "RB",
+    "team": "Chicago Bears",
+    "classYear": 1993,
+    "headline": "Sweetness. Strength. Staying power.",
+    "stats": {
+      "rushYards": 16726,
+      "rushTD": 110,
+      "receptions": 492,
+      "Pro Bowls": 9
+    },
+    "achievements": [
+      "1977 NFL MVP",
+      "Super Bowl XX champion",
+      "NFL 100 All-Time Team"
+    ],
+    "bio": "Payton powered Chicago with a blend of balance, durability and all-purpose skill. His impact reached beyond rushing to receiving, blocking and leadership.",
+    "image": "assets/legends/walter-payton.webp",
+    "source": "https://www.profootballhof.com/players/walter-payton"
+  },
+  {
+    "id": "lawrence-taylor",
+    "name": "Lawrence Taylor",
+    "category": "Players",
+    "role": "LB",
+    "team": "New York Giants",
+    "classYear": 1999,
+    "headline": "The edge that changed the game.",
+    "stats": {
+      "sacks": 132.5,
+      "defInterceptions": 9,
+      "Pro Bowls": 10,
+      "Seasons": 13
+    },
+    "achievements": [
+      "1986 NFL MVP",
+      "3\u00d7 NFL Defensive Player of the Year",
+      "2\u00d7 Super Bowl champion"
+    ],
+    "bio": "Taylor forced offenses to rethink protection. His speed and power helped turn the outside linebacker into an attacking focal point. Sack total covers the official-stat era from 1982.",
+    "image": "assets/legends/lawrence-taylor.webp",
+    "source": "https://www.profootballhof.com/players/lawrence-taylor"
+  },
+  {
+    "id": "joe-montana",
+    "name": "Joe Montana",
+    "category": "Players",
+    "role": "QB",
+    "team": "49ers \u00b7 Chiefs",
+    "classYear": 2000,
+    "headline": "Calm when the stakes were highest.",
+    "stats": {
+      "passYards": 40551,
+      "passTD": 273,
+      "completions": 3409,
+      "Pro Bowls": 8
+    },
+    "achievements": [
+      "4\u00d7 Super Bowl champion",
+      "3\u00d7 Super Bowl MVP",
+      "2\u00d7 NFL MVP"
+    ],
+    "bio": "Montana directed a precise passing attack and delivered memorable late-game drives. His career linked the rise of the West Coast offense with championship execution.",
+    "image": "assets/legends/joe-montana.webp",
+    "source": "https://www.profootballhof.com/players/joe-montana"
+  },
+  {
+    "id": "emmitt-smith",
+    "name": "Emmitt Smith",
+    "category": "Players",
+    "role": "RB",
+    "team": "Cowboys \u00b7 Cardinals",
+    "classYear": 2010,
+    "headline": "The long road to the rushing summit.",
+    "stats": {
+      "rushYards": 18355,
+      "rushTD": 164,
+      "receptions": 515,
+      "Pro Bowls": 8
+    },
+    "achievements": [
+      "3\u00d7 Super Bowl champion",
+      "1993 NFL MVP",
+      "Super Bowl XXVIII MVP"
+    ],
+    "bio": "Smith supplied sustained production at the heart of the Dallas dynasty. His patience, vision and durability carried him to the top of the career rushing record book.",
+    "image": "assets/legends/emmitt-smith.webp",
+    "source": "https://www.profootballhof.com/players/emmitt-smith"
+  },
+  {
+    "id": "jim-brown",
+    "name": "Jim Brown",
+    "category": "Players",
+    "role": "RB",
+    "team": "Cleveland Browns",
+    "classYear": 1971,
+    "headline": "Nine seasons. An enduring benchmark.",
+    "stats": {
+      "rushYards": 12312,
+      "rushTD": 106,
+      "receptions": 262,
+      "Pro Bowls": 9
+    },
+    "achievements": [
+      "8\u00d7 NFL rushing champion",
+      "1964 NFL champion",
+      "NFL 100 All-Time Team"
+    ],
+    "bio": "Brown dominated an era with power and acceleration. He left football after nine seasons with rushing records that set the target for the runners who followed.",
+    "image": "assets/legends/jim-brown.webp",
+    "source": "https://www.profootballhof.com/players/jim-brown"
+  },
+  {
+    "id": "peyton-manning",
+    "name": "Peyton Manning",
+    "category": "Players",
+    "role": "QB",
+    "team": "Colts \u00b7 Broncos",
+    "classYear": 2021,
+    "headline": "A master of the line of scrimmage.",
+    "stats": {
+      "passYards": 71940,
+      "passTD": 539,
+      "completions": 6125,
+      "Pro Bowls": 14
+    },
+    "achievements": [
+      "5\u00d7 AP NFL MVP",
+      "2\u00d7 Super Bowl champion",
+      "Super Bowl XLI MVP"
+    ],
+    "bio": "Manning made pre-snap command a defining part of quarterback play. He led championship teams in Indianapolis and Denver over an 18-season playing career.",
+    "image": "assets/legends/peyton-manning.webp",
+    "source": "https://www.profootballhof.com/players/peyton-manning"
+  },
+  {
+    "id": "barry-sanders",
+    "name": "Barry Sanders",
+    "category": "Players",
+    "role": "RB",
+    "team": "Detroit Lions",
+    "classYear": 2004,
+    "headline": "A cut could change everything.",
+    "stats": {
+      "rushYards": 15269,
+      "rushTD": 99,
+      "Pro Bowls": 10,
+      "Seasons": 10
+    },
+    "achievements": [
+      "1997 NFL MVP",
+      "4\u00d7 NFL rushing champion",
+      "2,053 rushing yards in 1997"
+    ],
+    "bio": "Sanders turned balance and sudden changes of direction into an unmistakable style. He rushed for at least 1,000 yards in every season of his ten-year career.",
+    "image": "assets/legends/barry-sanders.webp",
+    "source": "https://www.profootballhof.com/players/barry-sanders"
+  },
+  {
+    "id": "reggie-white",
+    "name": "Reggie White",
+    "category": "Players",
+    "role": "DE",
+    "team": "Eagles \u00b7 Packers \u00b7 Panthers",
+    "classYear": 2006,
+    "headline": "Power at the point of attack.",
+    "stats": {
+      "Pro Bowls": 13,
+      "10+ sack seasons": 12,
+      "Eagles sacks": 124,
+      "Packers sacks": 68.5
+    },
+    "achievements": [
+      "Super Bowl XXXI champion",
+      "NFL 100 All-Time Team",
+      "10\u00d7 first-team All-Pro"
+    ],
+    "bio": "White combined strength with refined pass-rush technique. He anchored formidable fronts in Philadelphia and Green Bay and helped the Packers return to a championship.",
+    "image": "assets/legends/reggie-white.webp",
+    "source": "https://www.profootballhof.com/players/reggie-white"
+  },
+  {
+    "id": "bill-walsh",
+    "name": "Bill Walsh",
+    "category": "Coaches",
+    "role": "Head coach",
+    "team": "San Francisco 49ers",
+    "classYear": 1993,
+    "headline": "An idea became an offensive language.",
+    "stats": {
+      "Overall wins": 102,
+      "Overall losses": 63,
+      "Overall ties": 1,
+      "Super Bowl titles": 3
+    },
+    "achievements": [
+      "Super Bowls XVI, XIX & XXIII",
+      "1981 NFL Coach of the Year",
+      "6 division championships"
+    ],
+    "bio": "Walsh built a championship program through teaching, player evaluation and a structured passing system. His coaching influence extended through generations of assistants.",
+    "image": "assets/legends/bill-walsh.webp",
+    "source": "https://www.profootballhof.com/players/bill-walsh"
+  },
+  {
+    "id": "john-madden",
+    "name": "John Madden",
+    "category": "Coaches",
+    "role": "Head coach \u00b7 Broadcaster",
+    "team": "Oakland Raiders",
+    "classYear": 2006,
+    "headline": "A teacher who brought football closer.",
+    "stats": {
+      "Regular-season wins": 103,
+      "Regular-season losses": 32,
+      "Regular-season ties": 7,
+      "Losing seasons": 0
+    },
+    "achievements": [
+      "Super Bowl XI champion",
+      "8 playoff appearances in 10 seasons",
+      "1969 AFL Coach of the Year"
+    ],
+    "bio": "Madden led consistently successful Raiders teams before becoming a defining football broadcaster. His teaching connected the detail of the game with a broad audience.",
+    "image": "assets/legends/john-madden.webp",
+    "source": "https://www.profootballhof.com/players/john-madden"
+  },
+  {
+    "id": "don-shula",
+    "name": "Don Shula",
+    "category": "Coaches",
+    "role": "Head coach",
+    "team": "Colts \u00b7 Dolphins",
+    "classYear": 1997,
+    "headline": "Consistency measured in decades.",
+    "stats": {
+      "Overall wins": 347,
+      "Overall losses": 173,
+      "Overall ties": 6,
+      "Seasons": 33
+    },
+    "achievements": [
+      "2\u00d7 Super Bowl champion",
+      "1972 perfect 17\u20130 season",
+      "20 postseason appearances"
+    ],
+    "bio": "Shula built winning teams across changing eras. His Miami program delivered consecutive championships and the unbeaten 1972 season.",
+    "image": "assets/legends/don-shula.webp",
+    "source": "https://www.profootballhof.com/players/don-shula"
+  },
+  {
+    "id": "george-halas",
+    "name": "George Halas",
+    "category": "Founders",
+    "role": "Founder \u00b7 Owner \u00b7 Head coach",
+    "team": "Chicago Bears",
+    "classYear": 1963,
+    "headline": "At the foundations of the league.",
+    "stats": {
+      "Coaching wins": 324,
+      "Coaching seasons": 40,
+      "NFL titles as coach": 6,
+      "Playing seasons": 9
+    },
+    "achievements": [
+      "Charter Hall of Fame class",
+      "Founded the Decatur Staleys",
+      "Attended the 1920 league organizational meeting"
+    ],
+    "bio": "Halas helped establish the league and the franchise that became the Chicago Bears. His career spanned playing, coaching, ownership and football administration.",
+    "image": "assets/legends/george-halas.webp",
+    "source": "https://www.profootballhof.com/players/george-halas"
+  }
+]

@@ -1,0 +1,2905 @@
+/* Career meetings, social conversations and a dedicated coaching application. */
+.negotiation-dialog {
+  width: min(1160px, 96vw);
+  max-width: 1160px;
+  padding: 0;
+  border: 1px solid #475c78;
+  max-height: 92vh;
+  background: #121c2b;
+  border-radius: 15px;
+  overflow: hidden;
+}
+.negotiation-scene {
+  width: 100%;
+}
+.neg-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 19px;
+  background: #182438;
+  border-bottom: 1px solid #34445c;
+}
+.neg-topbar > span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 9px;
+  letter-spacing: 1.6px;
+  color: #afc5e3;
+}
+.neg-topbar svg {
+  height: 16px;
+  width: 16px;
+}
+.neg-topbar i {
+  font-size: 7px;
+  color: #73dcc2;
+}
+.neg-topbar .icon-button {
+  padding: 5px 10px;
+  font-size: 22px;
+  background: #263850;
+  color: #acbfd9;
+}
+.neg-workspace {
+  display: grid;
+  grid-template-columns: 40% 60%;
+  height: min(680px, 80vh);
+}
+.neg-cinema {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(#233950, #121c29);
+  border-right: 1px solid #34475e;
+}
+.neg-cinema::after {
+  content: "";
+  position: absolute;
+  inset: 30% 0 0;
+  background: linear-gradient(transparent, #101d2cea);
+  pointer-events: none;
+}
+.neg-cinema #neg-character-stage {
+  position: absolute;
+  inset: 0;
+}
+.neg-cinema canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.neg-location {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: #c0d4ec;
+  z-index: 2;
+  background: #112033b3;
+  padding: 8px 11px;
+  border: 1px solid #55799b55;
+  border-radius: 5px;
+}
+.neg-location small {
+  display: block;
+  font-size: 7px;
+  margin-top: 5px;
+  color: #8caecb;
+}
+.neg-player-dossier {
+  position: absolute;
+  bottom: 40px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  z-index: 2;
+}
+.neg-player-dossier .player-avatar {
+  height: 54px;
+  width: 54px;
+  flex: none;
+  border: 1px solid #5d799c;
+  border-radius: 13px;
+  overflow: hidden;
+  background: #304c67;
+}
+.neg-player-dossier .player-avatar img,
+.neg-player-dossier .player-avatar svg {
+  width: 54px;
+  height: 54px;
+}
+.neg-player-dossier h2 {
+  font-size: 23px;
+  line-height: 1.1;
+  margin: 0 0 7px;
+  letter-spacing: -0.6px;
+}
+.neg-player-dossier p {
+  font-size: 10px;
+  margin: 0;
+  color: #abc1db;
+  line-height: 1.3;
+}
+.neg-player-dossier > div > span {
+  font-size: 9px;
+  color: #9db8d4;
+  display: block;
+  margin-top: 8px;
+}
+.neg-cinema-note {
+  position: absolute;
+  bottom: 15px;
+  left: 20px;
+  z-index: 2;
+  font-size: 8px;
+  color: #7f9ab5;
+}
+.neg-talk {
+  padding: 21px 25px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.neg-cap-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid #324057;
+}
+.neg-cap-strip span {
+  font-size: 8px;
+  color: #7f9ab8;
+  letter-spacing: 1px;
+}
+.neg-cap-strip b {
+  font-size: 19px;
+  display: block;
+  margin-top: 7px;
+  color: #87dfbf;
+  letter-spacing: -0.4px;
+}
+.neg-cap-strip > span:last-child b {
+  color: #b5b6ef;
+}
+.neg-agent-line {
+  padding: 18px 0;
+}
+.neg-agent-line > span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #bfd3ec;
+}
+.neg-agent-line > span small {
+  font-size: 8px;
+  font-weight: 400;
+  color: #758fae;
+  letter-spacing: 0;
+  margin-left: 10px;
+}
+.neg-agent-line p {
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 12px 0 0;
+  color: #d1deef;
+  letter-spacing: 0.1px;
+}
+.neg-talk h3 {
+  font-size: 17px;
+  margin: 0 0 15px;
+}
+.neg-pitches {
+  display: grid;
+  gap: 9px;
+}
+.neg-pitches > button {
+  display: grid;
+  grid-template-columns: 30px 1fr 15px;
+  gap: 3px 10px;
+  text-align: left;
+  padding: 14px;
+  background: linear-gradient(120deg, #25374d, #1d2b40);
+  color: #d5e4f7;
+  border: 1px solid #3c526e;
+  border-radius: 8px;
+}
+.neg-pitches > button > span {
+  grid-row: 1/3;
+  display: flex;
+  align-items: center;
+  color: #92c8e6;
+}
+.neg-pitches svg {
+  width: 19px;
+  height: 19px;
+}
+.neg-pitches b {
+  font-size: 12px;
+}
+.neg-pitches small {
+  font-size: 10px;
+  font-weight: 400;
+  color: #93aac6;
+  line-height: 1.6;
+}
+.neg-pitches > button > svg {
+  grid-row: 1/3;
+  grid-column: 3;
+  align-self: center;
+  width: 13px;
+}
+.neg-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.neg-form-grid label {
+  font-size: 10px;
+  font-weight: 500;
+  color: #a7bdd6;
+  position: relative;
+}
+.neg-form-grid label > span {
+  float: right;
+  font-size: 8px;
+  color: #688aaa;
+}
+.neg-form-grid input,
+.neg-form-grid select {
+  display: block;
+  width: 100%;
+  background: #0e192a;
+  border: 1px solid #3c516d;
+  color: #e7eff9;
+  padding: 10px;
+  font-size: 13px;
+  border-radius: 6px;
+  margin-top: 6px;
+}
+.neg-form-grid input:focus {
+  outline: 2px solid #70b3e8;
+  outline-offset: 1px;
+}
+.neg-form-grid .neg-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.neg-check input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+}
+.neg-advanced {
+  margin: 17px 0;
+  border: 1px solid #2f405b;
+  border-radius: 7px;
+  background: #172438;
+}
+.neg-advanced > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 13px;
+  font-size: 10px;
+  color: #a8c3e2;
+  cursor: pointer;
+}
+.neg-advanced > summary svg {
+  width: 13px;
+  height: 13px;
+}
+.neg-advanced[open] > summary svg {
+  transform: rotate(90deg);
+}
+.neg-advanced > .neg-form-grid {
+  padding: 6px 13px 14px;
+}
+.neg-projection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #365968;
+  border-radius: 8px;
+  background: linear-gradient(120deg, #19363c, #1a293e);
+  padding: 14px;
+  gap: 15px;
+  margin: 16px 0;
+}
+.neg-projection span {
+  display: block;
+  font-size: 9px;
+  color: #8ba9bf;
+}
+.neg-projection b {
+  display: block;
+  font-size: 17px;
+  margin-top: 4px;
+  color: #a2e0ce;
+}
+.neg-projection .negative b {
+  color: #ff9eaa;
+}
+.neg-talk .neg-helper {
+  font-size: 9px;
+  line-height: 1.75;
+  color: #819ab7;
+  margin: 13px 0;
+}
+.neg-primary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 13px;
+  font-size: 12px;
+  background: #c7f45b;
+  color: #1c2d20;
+}
+.neg-primary svg {
+  width: 17px;
+  height: 17px;
+}
+.neg-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 15px 0;
+}
+.neg-summary-grid > div {
+  padding: 14px;
+  border-radius: 7px;
+  background: #1d2d43;
+  border: 1px solid #344963;
+}
+.neg-summary-grid small {
+  display: block;
+  color: #839fbd;
+  font-size: 9px;
+}
+.neg-summary-grid b {
+  display: block;
+  margin-top: 7px;
+  font-size: 16px;
+  color: #ddeafa;
+}
+.neg-status {
+  display: inline-block;
+  padding: 6px 9px;
+  background: #1f473e;
+  color: #8de2bd;
+  font-size: 10px;
+  border: 1px solid #3d6b5f;
+  border-radius: 5px;
+  margin-bottom: 13px;
+}
+.neg-status.caution {
+  background: #443727;
+  color: #e7c18a;
+  border-color: #6d5838;
+}
+.neg-response-options {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 17px 0;
+}
+.neg-response-options button {
+  font-size: 11px;
+  padding: 12px;
+}
+.neg-error {
+  font-size: 11px;
+  color: #ffb1b8;
+  line-height: 1.65;
+  padding: 11px 13px;
+  background: #412735;
+  border: 1px solid #734151;
+  border-radius: 6px;
+  margin-bottom: 14px;
+}
+.neg-outcome > svg {
+  width: 34px;
+  height: 34px;
+  padding: 8px;
+  color: #80ddba;
+  background: #245043;
+  border-radius: 50%;
+  margin-bottom: 14px;
+}
+.neg-outcome > p {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.neg-outcome > button {
+  font-size: 10px;
+  margin: 8px 8px 0 0;
+}
+.neg-ledger {
+  max-height: 190px;
+  overflow: auto;
+  border: 1px solid #2e425e;
+  border-radius: 7px;
+  margin: 16px 0;
+}
+.neg-ledger th {
+  font-size: 8px;
+  background: #1c2c43;
+}
+.neg-ledger td {
+  font-size: 11px;
+  padding: 10px;
+}
+.neg-restructure {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+.neg-restructure label {
+  font-size: 10px;
+  flex: 1;
+  color: #9db6d2;
+}
+.neg-restructure input {
+  width: 100%;
+  margin-top: 7px;
+  padding: 9px;
+  background: #0f1b2d;
+  border: 1px solid #3a516f;
+  border-radius: 5px;
+  color: #e1edfc;
+}
+.neg-restructure button {
+  font-size: 10px;
+  padding: 10px;
+}
+.neg-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.neg-tag-row small {
+  flex-basis: 100%;
+  font-size: 9px;
+  color: #839ab4;
+  margin: 5px 0;
+}
+.neg-scene-fallback {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  color: #97b5d3;
+}
+.neg-scene-fallback svg {
+  width: 50px;
+  height: 50px;
+}
+.neg-scene-fallback small {
+  font-size: 10px;
+  max-width: 210px;
+  text-align: center;
+  line-height: 1.7;
+}
+/* Social is a conversation, with authors, evidence and nested replies. */
+.network-player-post {
+  border-left: 2px solid #70b9b5;
+  padding-left: 14px !important;
+  background: linear-gradient(110deg, #6cb8be05, transparent);
+  margin-left: -14px;
+}
+.network-author-player {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  flex: none;
+}
+.network-author-player .player-avatar {
+  height: 38px;
+  width: 38px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #324b63;
+}
+.network-author-player .player-avatar img,
+.network-author-player .player-avatar svg {
+  height: 38px;
+  width: 38px;
+}
+.network-player-badge {
+  display: inline-flex;
+  vertical-align: middle;
+  color: #8bdbd2;
+  margin-left: 4px;
+}
+.network-player-badge svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 3;
+}
+.network-fan-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 35px;
+  height: 35px;
+  background: linear-gradient(125deg, #5b4d73, #31455e);
+  color: #d2c8ed;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+}
+.network-topic {
+  font-size: 8px;
+  color: #a8b9ce;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: #2e3c54;
+  white-space: nowrap;
+}
+.network-reach {
+  font-size: 9px;
+  color: #829db9;
+  margin: 9px 0 0 47px;
+}
+.network-reach b {
+  color: #d0c0f5;
+}
+.network-reach > span {
+  color: #a5bad0;
+  margin: 0 5px;
+}
+.network-post .network-sample {
+  font-size: 8px;
+  margin: 3px 0 0;
+  line-height: 1.5;
+  color: #8099b6;
+}
+.network-post .hub-comparison span i {
+  font-style: normal;
+  font-size: 9px;
+  color: #b4a2d9;
+}
+.network-poll {
+  margin: 16px 0 4px;
+  border: 1px solid #384a68;
+  background: #1b293e;
+  border-radius: 8px;
+  padding: 14px;
+}
+.network-poll > b {
+  font-size: 11px;
+  font-weight: 600;
+  color: #c9d8ec;
+  display: block;
+  margin-bottom: 12px;
+}
+.network-poll > div {
+  display: grid;
+  gap: 7px;
+}
+.network-poll-option {
+  background: transparent;
+  border: 1px solid #647fa8;
+  border-radius: 20px;
+  color: #aaccf5;
+  font-size: 10px;
+  padding: 9px;
+}
+.network-poll-option:hover {
+  background: #2d4667;
+}
+.network-poll > small {
+  font-size: 8px;
+  line-height: 1.7;
+  display: block;
+  color: #7c96b5;
+  margin-top: 12px;
+}
+.network-poll-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  isolation: isolate;
+  background: #26364f;
+  border: 1px solid transparent;
+  color: #cbdcf1;
+  overflow: hidden;
+  text-align: left;
+  font-size: 10px;
+  padding: 10px;
+}
+.network-poll-result i {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: #51658c88;
+}
+.network-poll-result.voted {
+  border-color: #92afeb;
+}
+.network-poll-result.voted i {
+  background: #627bb099;
+}
+.network-thread > div {
+  padding: 14px 0 !important;
+}
+.network-thread > div > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.network-thread > div > div > small {
+  font-size: 8px;
+  color: #8ea6bd;
+  background: #25374d;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+.network-thread .network-reply {
+  margin-left: 15px;
+  padding-left: 12px !important;
+  border-left: 1px solid #3f536e;
+}
+.network-reply > span {
+  font-size: 8px;
+  color: #788fab;
+  display: block;
+  margin-top: 6px;
+}
+.network-reputation-panel > div:nth-child(2) {
+  padding: 4px 12px;
+}
+.network-reputation-panel > div:nth-child(2) > button {
+  padding: 11px 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #2f3c51;
+  color: #c8d7eb;
+  border-radius: 0;
+}
+.network-reputation-panel .player-avatar {
+  height: 30px;
+  width: 30px;
+  flex: none;
+}
+.network-reputation-panel .player-avatar img,
+.network-reputation-panel .player-avatar svg {
+  height: 30px;
+  width: 30px;
+}
+.network-reputation-panel button > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.network-reputation-panel button b {
+  font-size: 10px;
+  display: block;
+}
+.network-reputation-panel button small {
+  font-size: 8px;
+  color: #8b9fb8;
+  display: block;
+  margin-top: 4px;
+}
+.network-reputation-panel button strong {
+  font-size: 17px;
+  color: #ceb6f4;
+  text-align: center;
+}
+.network-reputation-panel button strong small {
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+.network-reputation-panel > p {
+  padding: 9px 13px 15px;
+  color: #7e97b2;
+  font-size: 9px;
+  line-height: 1.75;
+}
+.preview-reputation {
+  font-size: 10px !important;
+  color: #beace8 !important;
+  margin: 10px 0 !important;
+}
+/* Dedicated sideline workspace. */
+.matchday-app #app > .title-row {
+  margin: 20px 0 15px;
+}
+.matchday-app #app > .title-row h1 {
+  font-size: 28px;
+  text-transform: none;
+  letter-spacing: -0.8px;
+}
+.matchday-app #app > .title-row .subtitle {
+  font-size: 10px;
+  margin-top: 5px;
+}
+.touch-app {
+  min-width: 0;
+  --touch-cyan: #73dbd1;
+  --touch-blue: #82b4f0;
+  --touch-purple: #bea4ef;
+}
+.touch-scoreboard {
+  display: grid;
+  grid-template-columns: 1fr 145px 1fr;
+  gap: 15px;
+  align-items: center;
+  background: linear-gradient(120deg, #1f344e, #17253b 48%, #302941);
+  border: 1px solid #4b6080;
+  border-radius: 12px 12px 0 0;
+  padding: 17px 23px;
+  position: relative;
+  overflow: hidden;
+}
+.touch-scoreboard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.12;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    100deg,
+    transparent 0 90px,
+    #85b8ee 91px 92px,
+    transparent 93px 180px
+  );
+}
+.touch-score-team {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  min-width: 0;
+}
+.touch-score-team > .team-logo {
+  width: 54px;
+  height: 54px;
+  filter: drop-shadow(0 3px 4px #0004);
+  flex: none;
+}
+.touch-score-team > span {
+  min-width: 0;
+  flex: 1;
+}
+.touch-score-team b {
+  font-size: 18px;
+  display: block;
+  letter-spacing: -0.4px;
+  color: #e2ecf9;
+}
+.touch-score-team small {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 1.3px;
+  color: #8ba9c9;
+  margin-top: 6px;
+}
+.touch-score-team > strong {
+  font-size: 43px;
+  letter-spacing: -2px;
+  color: #eff6ff;
+  font-variant-numeric: tabular-nums;
+}
+.touch-score-team.away {
+  text-align: right;
+}
+.touch-score-team.away > strong {
+  color: #d1c1f6;
+}
+.touch-score-team.possession > span::after {
+  content: "● POSSESSION";
+  display: block;
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: #a9e6cc;
+  margin-top: 6px;
+}
+.touch-score-clock {
+  text-align: center;
+  position: relative;
+  border-left: 1px solid #6081a433;
+  border-right: 1px solid #6081a433;
+}
+.touch-score-clock > span {
+  font-size: 8px;
+  letter-spacing: 1.3px;
+  color: #91b9cc;
+  display: block;
+}
+.touch-score-clock b {
+  font-size: 27px;
+  display: block;
+  letter-spacing: 1px;
+  margin: 5px 0;
+  color: #eff5ff;
+  font-variant-numeric: tabular-nums;
+}
+.touch-score-clock small {
+  font-size: 8px;
+  letter-spacing: 1.4px;
+  color: #8da5c1;
+  display: block;
+}
+.touch-situation {
+  display: flex;
+  gap: 17px;
+  align-items: center;
+  background: #17283d;
+  border: 1px solid #3c526f;
+  border-top: 0;
+  border-radius: 0 0 11px 11px;
+  padding: 10px 17px;
+  color: #a7bfdb;
+  font-size: 11px;
+}
+.touch-unit-label {
+  display: inline-flex;
+  padding: 5px 8px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  border-radius: 4px;
+  color: #81dcca;
+  background: #245046;
+}
+.touch-unit-label.defense {
+  background: #3d315c;
+  color: #c9b1f5;
+}
+.touch-situation > strong {
+  font-size: 15px;
+  color: #e2eafb;
+}
+.touch-timeouts {
+  margin-left: auto;
+  font-size: 8px;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.touch-timeouts b {
+  color: #8edcc9;
+  font-size: 12px;
+  letter-spacing: 3px;
+}
+.touch-timeouts i {
+  font-style: normal;
+  color: #596d86;
+}
+.touch-control-rail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 14px 0;
+}
+.touch-view-tabs {
+  display: flex;
+  gap: 5px;
+}
+.touch-view-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: #91a7c2;
+  border: 1px solid transparent;
+  padding: 10px 12px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+.touch-view-tabs svg {
+  width: 15px;
+  height: 15px;
+}
+.touch-view-tabs button.active {
+  background: #253d5a;
+  color: #b9daff;
+  border-color: #496284;
+}
+.touch-sim-menu {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.touch-sim-menu label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 9px;
+  color: #829ebd;
+}
+.touch-sim-menu select {
+  width: 165px;
+  padding: 8px 27px 8px 9px;
+  font-size: 10px;
+  background: #18263b;
+  border: 1px solid #3d526e;
+}
+.touch-sim-menu button {
+  font-size: 10px;
+  padding: 8px 11px;
+}
+.touch-live-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 306px;
+  gap: 15px;
+  align-items: start;
+}
+.touch-broadcast {
+  background: #142034;
+  border: 1px solid #31465f;
+  border-radius: 11px;
+  overflow: hidden;
+  min-width: 0;
+}
+.touch-broadcast-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 15px;
+  border-bottom: 1px solid #34475f;
+  background: #192b42;
+}
+.touch-broadcast-heading > span {
+  font-size: 8px;
+  letter-spacing: 1.2px;
+  color: #8fc2dc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.touch-broadcast-heading > span svg {
+  height: 13px;
+  width: 13px;
+}
+.touch-broadcast-heading > b {
+  font-size: 10px;
+  color: #9bb2cb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.touch-broadcast-heading label {
+  font-size: 0;
+  display: flex;
+  align-items: center;
+}
+.touch-broadcast-heading select {
+  font-size: 9px;
+  padding: 6px 22px 6px 7px;
+  width: 80px;
+  background: #17263a;
+}
+.touch-broadcast .stadium-toolbar {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 9px 12px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  flex-wrap: wrap;
+  background: #15233a;
+  border-bottom: 1px solid #31445f;
+}
+.touch-broadcast .stadium-toolbar .tag {
+  font-size: 7px;
+  padding: 4px 6px;
+  background: #225143;
+  color: #96dfbd;
+}
+.touch-broadcast .stadium-toolbar label {
+  font-size: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.touch-broadcast .stadium-toolbar select {
+  font-size: 9px;
+  padding: 5px 20px 5px 6px;
+  min-width: 90px;
+  width: 110px;
+  background: #142236;
+}
+.touch-broadcast .stadium-toolbar button {
+  font-size: 8px;
+  padding: 6px 8px;
+}
+.touch-broadcast .stadium-toolbar .audio-volume {
+  display: none;
+}
+.touch-broadcast .stadium-host {
+  height: 410px;
+  min-height: 300px;
+}
+.touch-broadcast .stadium-wrap {
+  border: 0;
+  border-radius: 0;
+  margin: 0;
+}
+.touch-broadcast .stadium-caption {
+  font-size: 10px;
+  line-height: 1.5;
+  left: 12px;
+  right: 12px;
+  bottom: 56px;
+  background: #0b172bd4;
+  padding: 8px 10px;
+  max-width: none;
+}
+.touch-broadcast .stadium-bug {
+  font-size: 8px;
+  top: 10px;
+  left: 10px;
+}
+.touch-broadcast .play-transport {
+  font-size: 8px;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #111d30e8;
+}
+.touch-broadcast .play-transport select {
+  font-size: 8px;
+  padding: 4px;
+  min-width: 50px;
+  width: 55px;
+}
+.touch-broadcast .play-transport button {
+  font-size: 8px;
+  padding: 5px 8px;
+}
+.touch-broadcast .play-transport label {
+  font-size: 8px;
+}
+.touch-broadcast #play-phase {
+  font-size: 8px;
+  min-width: 40px;
+}
+.touch-broadcast .stadium-hint {
+  display: none;
+}
+.touch-animation-lab {
+  border-bottom: 1px solid #2e425c;
+  background: #111e32;
+}
+.touch-animation-lab > summary {
+  font-size: 8px;
+  letter-spacing: 0.3px;
+  color: #718caa;
+  padding: 7px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.touch-animation-lab[open] > summary {
+  color: #a8c7e8;
+}
+.touch-animation-lab .motion-preview {
+  padding: 8px 12px;
+  background: #142338;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.touch-animation-lab .motion-preview span {
+  font-size: 8px;
+  color: #7792b0;
+}
+.touch-animation-lab .motion-preview button {
+  font-size: 8px;
+  padding: 5px 7px;
+}
+.touch-match-actions {
+  padding: 12px !important;
+  background: #182940;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-top: 1px solid #334b6a;
+}
+.touch-match-actions button {
+  font-size: 10px;
+  padding: 10px 12px;
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+}
+.touch-match-actions button svg {
+  width: 13px;
+  height: 13px;
+}
+.touch-match-actions button small {
+  font-size: 8px;
+  color: #89a4c5;
+}
+.touch-match-actions .touch-snap {
+  background: #c7f45b;
+  color: #20311e;
+  min-width: 145px;
+  flex: 1;
+  box-shadow: 0 0 15px #c7f45b10;
+}
+.touch-match-actions .secondary {
+  background: #253a54;
+  border-color: #415b7b;
+  color: #c6d9ee;
+}
+.touch-field-key {
+  font-size: 8px;
+  color: #7794b5;
+  padding: 0 13px 11px;
+  background: #182940;
+  line-height: 1.7;
+}
+.touch-coordinator {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 14px;
+  border-top: 1px solid #2d4662;
+  background: linear-gradient(110deg, #1c3543, #18283e);
+}
+.touch-coordinator > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 29px;
+  background: #2f515b;
+  border: 1px solid #4a727a;
+  color: #92d2d0;
+  border-radius: 8px;
+  flex: none;
+}
+.touch-coordinator svg {
+  width: 15px;
+  height: 15px;
+}
+.touch-coordinator b {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #9ccaca;
+}
+.touch-coordinator p {
+  font-size: 10px;
+  line-height: 1.8;
+  color: #a8bed4;
+  margin-top: 7px;
+}
+.touch-booth {
+  padding: 13px 15px;
+  background: #17283e;
+  border-top: 1px solid #30475f;
+}
+.touch-booth > div {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.touch-booth b {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #899ed0;
+  flex: 1;
+}
+.touch-booth button {
+  font-size: 8px;
+  color: #b1bcf3;
+}
+.touch-booth > p {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #c4d6ef;
+  margin-top: 11px;
+  min-height: 20px;
+}
+.touch-mini-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border-top: 1px solid #30445f;
+  background: #142236;
+}
+.touch-mini-stats > div {
+  text-align: center;
+  padding: 14px 8px;
+  border-right: 1px solid #30445f;
+}
+.touch-mini-stats > div:last-child {
+  border: 0;
+}
+.touch-mini-stats b {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  color: #c5d9f3;
+}
+.touch-mini-stats b span {
+  font-size: 11px;
+  color: #5f7c9c;
+  margin: 0 6px;
+}
+.touch-mini-stats small {
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: #7e9cbd;
+  display: block;
+  margin-top: 6px;
+}
+.touch-calls {
+  position: sticky;
+  top: 90px;
+  background: #18263b;
+  border: 1px solid #3a506f;
+  border-radius: 11px;
+  overflow: hidden;
+}
+.touch-panel-heading {
+  padding: 14px 15px;
+  border-bottom: 1px solid #354d6b;
+  background: linear-gradient(120deg, #293656, #1a344b);
+}
+.touch-panel-heading > span {
+  font-size: 9px;
+  letter-spacing: 1.4px;
+  color: #b1c8ef;
+  display: block;
+}
+.touch-panel-heading > b {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  color: #829fbe;
+  margin-top: 7px;
+}
+.touch-call-formation {
+  display: grid;
+  grid-template-columns: 1fr 90px;
+  gap: 8px;
+  padding: 14px 13px;
+}
+.touch-call-formation label {
+  font-size: 8px;
+  color: #8fa9c6;
+  min-width: 0;
+}
+.touch-call-formation select {
+  display: block;
+  margin-top: 6px;
+  padding: 9px 23px 9px 8px;
+  font-size: 10px;
+  border: 1px solid #415a7a;
+  background: #111f33;
+  width: 100%;
+}
+.touch-play-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 13px 14px;
+}
+.touch-play {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  text-align: left;
+  padding: 10px 10px 12px;
+  background: linear-gradient(130deg, #22334c, #1c2b42);
+  border: 1px solid #374d6c;
+  color: #c7d9ef;
+  border-radius: 7px;
+  min-height: 109px;
+  position: relative;
+}
+.touch-play:hover {
+  border-color: #759ccc;
+  background: #2b425e;
+}
+.touch-play.selected {
+  border-color: #83d6bf;
+  background: linear-gradient(130deg, #254c4b, #213947);
+  box-shadow: inset 0 0 0 1px #79d5b92b;
+}
+.touch-play.selected::after {
+  content: "✓";
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  color: #a1e6cd;
+  font-size: 10px;
+}
+.touch-play svg {
+  width: 62px;
+  height: 39px;
+  margin: 0 0 6px;
+  stroke: #7ea9df;
+  stroke-width: 2;
+  fill: none;
+}
+.touch-play.selected svg {
+  stroke: #88dec3;
+}
+.touch-play.special-play svg {
+  stroke: #d6bd86;
+}
+.touch-play b {
+  font-size: 11px;
+  font-weight: 600;
+}
+.touch-play small {
+  font-size: 8px;
+  color: #7e9bbb;
+  line-height: 1.5;
+  margin-top: 5px;
+  font-weight: 400;
+}
+.touch-play.selected small {
+  color: #9dc6c1;
+}
+.touch-tempo {
+  padding: 13px;
+  border-top: 1px solid #344b69;
+}
+.touch-tempo > span {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #7e9ab8;
+  display: block;
+  margin-bottom: 8px;
+}
+.touch-tempo > div {
+  display: flex;
+  gap: 4px;
+}
+.touch-tempo button {
+  padding: 7px;
+  font-size: 8px;
+  background: #1a2e48;
+  color: #8eacca;
+  border: 1px solid #3c5574;
+  border-radius: 4px;
+  flex: 1;
+}
+.touch-tempo button.active {
+  background: #344b69;
+  border-color: #708aae;
+  color: #d2e3f9;
+}
+.touch-playcaller {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 9px;
+  color: #90a9c7;
+  padding: 2px 13px 14px;
+}
+.touch-playcaller select {
+  font-size: 9px;
+  background: #132238;
+  border: 1px solid #3b536f;
+  padding: 8px 24px 8px 9px;
+  flex: 1;
+}
+.touch-open-lineup {
+  margin: 0 13px 14px;
+  width: calc(100% - 26px);
+  display: flex;
+  gap: 9px;
+  justify-content: center;
+  align-items: center;
+  padding: 11px;
+  font-size: 9px;
+}
+.touch-open-lineup svg {
+  width: 14px;
+  height: 14px;
+}
+.touch-rules-note {
+  font-size: 9px;
+  color: #637f9e;
+  line-height: 1.7;
+  margin: 15px 0;
+}
+.touch-sim-notice {
+  padding: 11px 14px;
+  border: 1px solid #37675f;
+  border-radius: 7px;
+  background: #1a363b;
+  margin-bottom: 13px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.touch-sim-notice > span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 10px;
+  color: #9fcfc2;
+}
+.touch-sim-notice svg {
+  width: 14px;
+  height: 14px;
+}
+.touch-sim-notice button {
+  font-size: 9px;
+  color: #b5ddd0;
+}
+.touch-break-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 17px 19px;
+  background: linear-gradient(120deg, #453625, #273447);
+  border: 1px solid #7c6642;
+  border-radius: 9px;
+  margin-bottom: 15px;
+}
+.touch-break-banner b {
+  font-size: 15px;
+  display: block;
+  color: #f0d7a6;
+}
+.touch-break-banner span {
+  display: block;
+  color: #bcae99;
+  font-size: 10px;
+  margin-top: 7px;
+}
+.touch-break-banner button {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.touch-break-banner.final {
+  background: linear-gradient(120deg, #263f3d, #293250);
+  border-color: #496f69;
+}
+.touch-break-banner.final b {
+  color: #a4dbc5;
+}
+.touch-centre-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+}
+.touch-centre-grid .panel-head {
+  padding: 15px 18px;
+}
+.touch-centre-grid .panel-head h2 {
+  font-size: 13px;
+}
+.touch-centre-grid .panel-head > span {
+  font-size: 9px;
+  color: #7d9ab9;
+}
+.touch-event-feed {
+  max-height: 580px;
+  overflow: auto;
+  scrollbar-width: thin;
+  padding: 4px 17px;
+}
+.touch-event-feed > div {
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+  padding: 13px 0;
+  border-bottom: 1px solid #2e4059;
+}
+.touch-event-feed time {
+  font-size: 9px;
+  color: #7295bf;
+  white-space: nowrap;
+  min-width: 55px;
+}
+.touch-event-feed p {
+  font-size: 11px;
+  line-height: 1.7;
+  color: #9bb2ce;
+}
+.touch-event-feed .key-moment p {
+  color: #cadcf1;
+}
+.touch-event-feed .key-moment time {
+  color: #b6ce8b;
+}
+.touch-stat-comparison {
+  padding: 5px 20px 20px;
+}
+.touch-stat-comparison > div {
+  margin-top: 18px;
+}
+.touch-stat-comparison > div > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+  color: #b6d2f6;
+}
+.touch-stat-comparison small {
+  font-size: 10px;
+  color: #91a7c4;
+}
+.touch-stat-comparison > div > i {
+  display: block;
+  height: 5px;
+  background: #8c6fa7;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 9px;
+}
+.touch-stat-comparison em {
+  display: block;
+  background: #73abdd;
+  height: 100%;
+}
+.touch-period-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding: 15px 20px;
+  border-top: 1px solid #34475e;
+  gap: 13px;
+  color: #c1d3eb;
+  font-size: 11px;
+}
+.touch-period-grid > span {
+  font-size: 9px;
+  color: #8da4bf;
+}
+.touch-period-grid b {
+  text-align: center;
+}
+/* Pregame is the launchpad, rather than an empty web page. */
+.touch-prematch-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 21px 27px 0;
+  border: 1px solid #4d6784;
+  border-radius: 14px;
+  background:
+    radial-gradient(ellipse at 20% 20%, #30557b99, transparent 65%),
+    radial-gradient(ellipse at 85% 30%, #71528555, transparent 60%),
+    linear-gradient(#182d47, #152539);
+}
+.touch-prematch-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.1;
+  background: repeating-linear-gradient(
+    95deg,
+    transparent 0 85px,
+    #c0d1ea 86px 87px,
+    transparent 88px 170px
+  );
+}
+.touch-prematch-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #89acca;
+  font-size: 8px;
+  letter-spacing: 1.3px;
+  gap: 15px;
+}
+.touch-prematch-top b {
+  font-weight: 500;
+  color: #c7d7ee;
+}
+.touch-prematch-teams {
+  display: grid;
+  grid-template-columns: 1fr 150px 1fr;
+  align-items: center;
+  padding: 30px 15px 27px;
+  text-align: center;
+}
+.touch-prematch-teams .team-logo {
+  height: 102px;
+  width: 102px;
+  filter: drop-shadow(0 8px 10px #0005);
+  margin: auto;
+}
+.touch-prematch-teams h2 {
+  font-size: 28px;
+  margin: 11px 0 9px;
+  letter-spacing: -0.8px;
+  color: #e8f0ff;
+}
+.touch-prematch-teams > div > span {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: #8fa9ca;
+}
+.touch-vs {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: #667da5;
+}
+.touch-vs > small {
+  display: block;
+  font-size: 7px;
+  letter-spacing: 1.7px;
+  margin-top: 10px;
+  color: #8199bb;
+}
+.touch-match-readiness {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 35px;
+  background: #0e1c2c66;
+  border-top: 1px solid #43617e66;
+  padding: 15px;
+  margin: 0 -27px;
+  font-size: 10px;
+  color: #859fbf;
+}
+.touch-match-readiness b {
+  color: #a5d6c6;
+  font-size: 15px;
+  margin-right: 5px;
+}
+.touch-entry-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr;
+  gap: 13px;
+  margin: 17px 0;
+}
+.touch-entry-card {
+  position: relative;
+  display: block;
+  text-align: left;
+  padding: 21px;
+  border-radius: 11px;
+  border: 1px solid #3d516f;
+  background: linear-gradient(135deg, #22334e, #19283f);
+  color: #bdcfe7;
+  transition:
+    transform 0.15s,
+    border-color 0.15s;
+}
+.touch-entry-card:hover {
+  transform: translateY(-2px);
+  border-color: #7ea4ce;
+}
+.touch-entry-card > svg {
+  height: 25px;
+  width: 25px;
+  color: #9eb6e2;
+  margin-bottom: 17px;
+}
+.touch-entry-card > span {
+  display: block;
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  color: #7e9bbe;
+  font-weight: 500;
+}
+.touch-entry-card h3 {
+  font-size: 21px;
+  letter-spacing: -0.6px;
+  margin: 8px 0 9px;
+  color: #e0ebfa;
+}
+.touch-entry-card p {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #90a6c4;
+  font-weight: 400;
+  min-height: 40px;
+  max-width: 270px;
+}
+.touch-entry-card > b {
+  display: block;
+  font-size: 10px;
+  margin-top: 20px;
+  color: #afd1f8;
+  border-top: 1px solid #485f7e66;
+  padding-top: 13px;
+}
+.touch-entry-card.featured {
+  background: linear-gradient(135deg, #254c46, #1b3545);
+  border-color: #578a77;
+}
+.touch-entry-card.featured > svg {
+  color: #b4e89c;
+}
+.touch-entry-card.featured > span {
+  color: #a1cb9d;
+}
+.touch-entry-card.featured > b {
+  color: #c7f45b;
+  border-color: #5f8a6c77;
+}
+.touch-preparation-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #3c526e;
+  background: #1b2b41;
+  border-radius: 10px;
+  padding: 21px;
+  margin-bottom: 16px;
+}
+.touch-preparation-row > div {
+  flex: 1;
+}
+.touch-preparation-row .eyebrow {
+  font-size: 8px;
+  color: #a9bbdf;
+}
+.touch-preparation-row h3 {
+  font-size: 17px;
+  letter-spacing: -0.5px;
+  margin: 7px 0;
+}
+.touch-preparation-row p {
+  font-size: 10px;
+  color: #89a3c0;
+  line-height: 1.6;
+}
+.touch-preparation-row button {
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 13px;
+  white-space: nowrap;
+}
+.touch-preparation-row svg {
+  width: 14px;
+  height: 14px;
+}
+.touch-last-game {
+  border: 1px solid #354a65;
+  border-radius: 8px;
+  margin-top: 15px;
+  background: #18283c;
+}
+.touch-last-game summary {
+  padding: 13px 18px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  cursor: pointer;
+  color: #92afce;
+}
+.touch-last-game summary svg {
+  height: 14px;
+  width: 14px;
+}
+.touch-last-game[open] > summary {
+  border-bottom: 1px solid #354a65;
+}
+.touch-no-match {
+  padding: 50px 25px;
+  border: 1px solid #3c526e;
+  border-radius: 13px;
+  background: radial-gradient(ellipse at 50% 20%, #304468, #172439 70%);
+  text-align: center;
+}
+.touch-no-match > div {
+  height: 70px;
+  width: 70px;
+  border: 1px solid #536e92;
+  border-radius: 18px;
+  background: #314664;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ebde9;
+  margin: 0 auto 25px;
+}
+.touch-no-match svg {
+  width: 32px;
+  height: 32px;
+}
+.touch-no-match h2 {
+  font-size: 29px;
+  margin: 12px 0;
+}
+.touch-no-match p {
+  font-size: 12px;
+  color: #91a9c7;
+  line-height: 1.8;
+  margin: 12px auto 25px;
+  max-width: 400px;
+}
+.touch-no-match button {
+  font-size: 11px;
+  margin: 0 5px;
+}
+/* Interactive team sheet with a visual pitch and contextual bench. */
+.touch-lineup-dialog {
+  width: min(1140px, 96vw);
+  padding: 0;
+  border: 1px solid #4a6687;
+  max-width: 1140px;
+  max-height: 94vh;
+  overflow: auto;
+  background: #142239;
+  border-radius: 13px;
+}
+.touch-board-title {
+  padding: 19px 22px 14px;
+  background: #1c304a;
+  border-bottom: 1px solid #405777;
+}
+.touch-board-title .eyebrow {
+  font-size: 8px;
+  color: #89b6dd;
+}
+.touch-board-title h2 {
+  font-size: 24px;
+  letter-spacing: -0.6px;
+  margin: 7px 0 0;
+}
+.touch-lineup {
+  border: 1px solid #39516f;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #15263d;
+}
+.touch-board-dialog > .touch-lineup {
+  border: 0;
+  border-radius: 0;
+}
+.touch-lineup-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  justify-content: space-between;
+  padding: 12px 17px;
+  border-bottom: 1px solid #374e6c;
+  background: #1c304b;
+}
+.touch-segments {
+  display: flex;
+  gap: 5px;
+}
+.touch-segments button {
+  font-size: 10px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #8ba8c8;
+  border-radius: 5px;
+}
+.touch-segments button.active {
+  background: #304d70;
+  border-color: #607fa2;
+  color: #c4e2ff;
+}
+.touch-lineup-toolbar > span {
+  font-size: 9px;
+  color: #87a6c7;
+}
+.touch-lineup-toolbar > span i {
+  font-size: 7px;
+  font-style: normal;
+  color: #6e9f96;
+  margin: 0 7px;
+}
+.touch-lineup-toolbar > .icon-button {
+  background: #2c435e;
+  color: #a0bbd9;
+  font-size: 20px;
+  padding: 3px 10px;
+}
+.touch-lineup-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(265px, 1fr);
+}
+.touch-lineup-layout > section:first-child {
+  padding: 14px;
+  border-right: 1px solid #38506f;
+  min-width: 0;
+}
+.touch-formation-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.touch-formation-controls label {
+  flex: 1;
+  font-size: 9px;
+  color: #9cbbdc;
+}
+.touch-formation-controls select {
+  font-size: 11px;
+  background: #112239;
+  border-color: #435f80;
+  padding: 9px 26px 9px 10px;
+  margin-top: 6px;
+  display: block;
+}
+.touch-formation-controls > p {
+  font-size: 10px;
+  line-height: 1.6;
+  margin: 0 0 10px;
+  color: #8da6c5;
+}
+.touch-tactics-field {
+  height: 500px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #518179;
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 calc(10% - 1px),
+      #a3d5c536 calc(10% - 1px) 10%
+    ),
+    repeating-linear-gradient(0deg, #214c49 0 20%, #244e4c 20% 40%);
+  box-shadow: inset 0 0 45px #092c33aa;
+}
+.touch-tactics-field.defense {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 calc(10% - 1px),
+      #a9c6e52a calc(10% - 1px) 10%
+    ),
+    repeating-linear-gradient(0deg, #253d56 0 20%, #28415d 20% 40%);
+  border-color: #52769d;
+}
+.touch-tactics-field::before,
+.touch-tactics-field::after {
+  content: "";
+  position: absolute;
+  top: 5%;
+  bottom: 5%;
+  left: 20%;
+  border-left: 1px dashed #abc3bb40;
+  pointer-events: none;
+}
+.touch-tactics-field::after {
+  left: 80%;
+}
+.touch-field-endzone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 29px;
+  background: #112c40a8;
+  border-top: 1px solid #8ebbb84d;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 7px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #8cb3ba88;
+}
+.touch-field-watermark {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.12;
+  pointer-events: none;
+}
+.touch-field-watermark > .team-logo {
+  height: 130px;
+  width: 130px;
+}
+.touch-field-midline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 2px solid #99c8be66;
+  pointer-events: none;
+}
+.touch-attack-direction {
+  position: absolute;
+  top: 11px;
+  left: 12px;
+  font-size: 8px;
+  letter-spacing: 1.7px;
+  color: #9bc6bb;
+}
+.touch-lineup-player {
+  position: absolute;
+  left: var(--player-x);
+  top: var(--player-y);
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: #e1f0f0;
+  min-width: 46px;
+  width: 66px;
+  text-align: center;
+  border-radius: 8px;
+  z-index: 2;
+}
+.touch-lineup-player:hover {
+  filter: none;
+}
+.touch-lineup-player .player-avatar {
+  height: 40px;
+  width: 40px;
+  border: 2px solid #95b9ad;
+  background: linear-gradient(140deg, #527f77, #274e52);
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 3px 5px #0005;
+}
+.touch-lineup-player .player-avatar img,
+.touch-lineup-player .player-avatar svg {
+  height: 38px;
+  width: 38px;
+}
+.touch-lineup-player > i {
+  position: absolute;
+  top: -3px;
+  right: 5px;
+  font-size: 7px;
+  background: #132b40;
+  color: #a3d5cc;
+  border: 1px solid #58897e;
+  line-height: 1.3;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-style: normal;
+}
+.touch-lineup-player > b {
+  font-size: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px #000;
+  background: #102938cc;
+  border-radius: 3px;
+  padding: 3px 5px;
+  max-width: 95px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+  letter-spacing: 0.1px;
+}
+.touch-lineup-player > span:last-child {
+  font-size: 8px;
+  color: #d3e6e4;
+  display: block;
+  padding-top: 3px;
+}
+.touch-lineup-player em {
+  font-style: normal;
+  color: #9be4ae;
+  padding-left: 4px;
+}
+.touch-lineup-player em.low {
+  color: #ffa7a4;
+}
+.touch-lineup-player.selected .player-avatar {
+  border-color: #d4fa77;
+  box-shadow:
+    0 0 0 3px #d4fa772c,
+    0 3px 8px #0006;
+}
+.touch-lineup-player.selected > b {
+  background: #bded6a;
+  color: #20372e;
+  text-shadow: none;
+}
+.touch-lineup-player.selected > i {
+  background: #bce96b;
+  border-color: #d6f393;
+  color: #1a362e;
+}
+.touch-vacancy {
+  width: 39px;
+  height: 39px;
+  border: 1px dashed #8dafbd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #bad3dd;
+  background: #1c3d4e;
+  font-size: 21px;
+  border-radius: 50%;
+}
+.touch-lineup-note {
+  font-size: 9px;
+  color: #7897b4;
+  line-height: 1.7;
+  margin: 11px 0 0;
+}
+.touch-bench {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 15px;
+  background: #182c44;
+  min-width: 0;
+}
+.touch-bench-heading {
+  padding: 0 0 18px;
+  border-bottom: 1px solid #38516e;
+}
+.touch-bench-heading > span {
+  font-size: 8px;
+  letter-spacing: 1.4px;
+  color: #7fa4c7;
+}
+.touch-bench-heading h3 {
+  font-size: 20px;
+  letter-spacing: -0.6px;
+  margin: 8px 0 10px;
+  color: #dfeafb;
+}
+.touch-bench-heading > div {
+  font-size: 9px;
+  color: #88a7c8;
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.touch-bench-heading .link {
+  font-size: 9px;
+  margin-left: auto;
+  color: #aed8a0;
+}
+.touch-bench-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: #a1b9d7;
+  padding: 16px 0 12px;
+}
+.touch-bench-label span {
+  font-size: 9px;
+  color: #7493b8;
+}
+.touch-reserve-list {
+  max-height: 365px;
+  overflow: auto;
+  scrollbar-width: thin;
+  flex: 1;
+}
+.touch-reserve-list > button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 8px;
+  text-align: left;
+  border: 1px solid #3a5373;
+  background: linear-gradient(120deg, #263f5a, #21354f);
+  color: #c6d9ef;
+  border-radius: 7px;
+  margin-bottom: 8px;
+}
+.touch-reserve-list .player-avatar {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 8px;
+  background: #2e4a67;
+  overflow: hidden;
+}
+.touch-reserve-list .player-avatar img,
+.touch-reserve-list .player-avatar svg {
+  width: 34px;
+  height: 34px;
+}
+.touch-reserve-list > button > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.touch-reserve-list b {
+  font-size: 11px;
+  display: block;
+}
+.touch-reserve-list small {
+  font-size: 8px;
+  font-weight: 400;
+  color: #7d9ec2;
+  line-height: 1.4;
+  margin-top: 5px;
+  display: block;
+}
+.touch-reserve-list strong {
+  font-size: 19px;
+  color: #bedbce;
+  text-align: center;
+}
+.touch-reserve-list strong small {
+  color: #8edbb6;
+  font-size: 9px;
+}
+.touch-reserve-list svg.ui-icon {
+  width: 13px;
+  height: 13px;
+  color: #8cadc8;
+}
+.touch-empty-bench {
+  padding: 24px 10px;
+  border: 1px dashed #46617f;
+  background: #1c324b;
+  border-radius: 8px;
+  margin: 5px 0;
+}
+.touch-empty-bench h3 {
+  font-size: 14px;
+  color: #a9c1df;
+}
+.touch-empty-bench p {
+  font-size: 10px;
+  line-height: 1.7;
+  color: #7f9ebf;
+  margin-top: 10px;
+}
+.touch-bench-foot {
+  padding: 16px 0;
+  color: #829fbe;
+  font-size: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.touch-bench-foot > span {
+  flex-basis: 100%;
+  font-size: 8px;
+  margin-bottom: 3px;
+}
+.touch-bench-foot i {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  border-radius: 50%;
+  margin-left: 6px;
+}
+.green-dot {
+  background: #82d4a3;
+}
+.amber-dot {
+  background: #e1bf75;
+}
+.red-dot {
+  background: #ed979d;
+}
+.touch-bench > .secondary {
+  font-size: 10px;
+  padding: 11px;
+  margin-top: 4px;
+}
+.touch-error {
+  padding: 10px 12px;
+  background: #452b3a;
+  border: 1px solid #78505d;
+  border-radius: 5px;
+  color: #e8a0ad;
+  font-size: 10px;
+  margin-top: 12px;
+  line-height: 1.7;
+}
+@media (min-width: 1600px) {
+  .touch-live-grid {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+  .touch-broadcast .stadium-host {
+    height: 490px;
+  }
+  .touch-play {
+    min-height: 112px;
+  }
+  .touch-tactics-field {
+    height: 550px;
+  }
+}
+@media (max-width: 1200px) {
+  .touch-live-grid {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+  .touch-call-formation {
+    grid-template-columns: 1fr;
+  }
+  .touch-broadcast .stadium-toolbar label {
+    display: none;
+  }
+  .touch-broadcast .stadium-toolbar label:first-of-type {
+    display: inline-flex;
+  }
+  .touch-score-team b {
+    font-size: 15px;
+  }
+  .touch-score-team > .team-logo {
+    width: 44px;
+    height: 44px;
+  }
+  .touch-scoreboard {
+    grid-template-columns: 1fr 120px 1fr;
+    padding: 15px 18px;
+  }
+  .touch-play {
+    padding: 9px;
+    min-height: 106px;
+  }
+  .touch-prematch-teams .team-logo {
+    height: 87px;
+    width: 87px;
+  }
+  .touch-entry-card {
+    padding: 18px;
+  }
+  .touch-preparation-row {
+    flex-wrap: wrap;
+  }
+  .touch-preparation-row > div {
+    min-width: 300px;
+  }
+  .touch-score-team > strong {
+    font-size: 36px;
+  }
+  .touch-lineup-layout {
+    grid-template-columns: minmax(0, 1.45fr) minmax(250px, 1fr);
+  }
+}
+@media (max-width: 980px) {
+  .touch-live-grid {
+    grid-template-columns: 1fr;
+  }
+  .touch-calls {
+    position: static;
+  }
+  .touch-play-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .touch-call-formation {
+    grid-template-columns: 1fr 1fr;
+  }
+  .touch-broadcast .stadium-host {
+    height: 420px;
+  }
+  .touch-play {
+    min-height: 115px;
+  }
+  .touch-broadcast .stadium-toolbar label {
+    display: inline-flex;
+  }
+  .touch-playcaller {
+    max-width: 400px;
+  }
+  .touch-open-lineup {
+    width: auto;
+  }
+  .neg-workspace {
+    grid-template-columns: 36% 64%;
+  }
+  .neg-talk {
+    padding: 17px;
+  }
+  .neg-player-dossier {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .neg-player-dossier h2 {
+    font-size: 21px;
+  }
+  .touch-lineup-layout {
+    grid-template-columns: minmax(0, 1fr) 260px;
+  }
+  .touch-control-rail {
+    flex-wrap: wrap;
+  }
+  .touch-sim-menu {
+    margin-left: auto;
+  }
+  .touch-centre-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .touch-lineup-player {
+    width: 55px;
+  }
+  .touch-lineup-player .player-avatar {
+    width: 35px;
+    height: 35px;
+  }
+  .touch-lineup-player .player-avatar img,
+  .touch-lineup-player .player-avatar svg {
+    width: 33px;
+    height: 33px;
+  }
+  .touch-lineup-player > b {
+    font-size: 7px;
+  }
+  .touch-lineup-player > i {
+    right: 2px;
+  }
+  .touch-lineup-dialog .touch-lineup-player {
+    width: 65px;
+  }
+  .touch-lineup-dialog .touch-lineup-player .player-avatar {
+    width: 40px;
+    height: 40px;
+  }
+  .touch-lineup-dialog .touch-lineup-player .player-avatar img,
+  .touch-lineup-dialog .touch-lineup-player .player-avatar svg {
+    height: 38px;
+    width: 38px;
+  }
+  .touch-lineup-dialog .touch-lineup-player > b {
+    font-size: 8px;
+  }
+}
+@media (max-width: 740px) {
+  .neg-workspace {
+    grid-template-columns: 1fr;
+    height: auto;
+    max-height: calc(92vh - 48px);
+    overflow: auto;
+  }
+  .neg-cinema {
+    height: 260px;
+    border-right: 0;
+    border-bottom: 1px solid #3c5570;
+    flex: none;
+  }
+  .neg-talk {
+    overflow: visible;
+  }
+  .neg-player-dossier {
+    flex-direction: row;
+    align-items: center;
+    bottom: 34px;
+  }
+  .neg-player-dossier h2 {
+    font-size: 23px;
+  }
+  .neg-location {
+    font-size: 7px;
+    top: 13px;
+    left: 15px;
+  }
+  .neg-cinema-note {
+    bottom: 10px;
+    left: 15px;
+  }
+  .neg-workspace .neg-talk {
+    padding: 19px;
+  }
+  .neg-talk .neg-agent-line {
+    padding: 16px 0;
+  }
+  .neg-form-grid {
+    gap: 11px;
+  }
+  .neg-agent-line p {
+    font-size: 12px;
+  }
+  .negotiation-dialog {
+    width: 96vw;
+  }
+  .touch-prematch-top > span:last-child {
+    display: none;
+  }
+  .touch-prematch-teams {
+    grid-template-columns: 1fr 80px 1fr;
+    padding: 26px 0;
+  }
+  .touch-prematch-teams h2 {
+    font-size: 22px;
+  }
+  .touch-prematch-teams .team-logo {
+    height: 75px;
+    width: 75px;
+  }
+  .touch-entry-grid {
+    grid-template-columns: 1fr;
+  }
+  .touch-entry-card {
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    gap: 5px 14px;
+    padding: 18px;
+  }
+  .touch-entry-card > svg {
+    grid-row: 1/4;
+    margin: 3px 0;
+  }
+  .touch-entry-card h3 {
+    font-size: 20px;
+    margin: 2px 0 5px;
+  }
+  .touch-entry-card p {
+    min-height: 0;
+    max-width: none;
+    font-size: 10px;
+  }
+  .touch-entry-card > b {
+    grid-column: 2;
+    padding: 8px 0 0;
+    margin-top: 7px;
+  }
+  .touch-entry-card > span {
+    font-size: 7px;
+  }
+  .touch-preparation-row > div {
+    min-width: 100%;
+  }
+  .touch-preparation-row button {
+    flex: 1;
+    font-size: 10px;
+  }
+  .touch-match-readiness {
+    gap: 15px;
+    font-size: 8px;
+  }
+  .touch-match-readiness b {
+    font-size: 12px;
+    display: block;
+    text-align: center;
+    margin-bottom: 5px;
+  }
+  .touch-scoreboard {
+    grid-template-columns: 1fr 90px 1fr;
+    gap: 10px;
+    padding: 13px;
+  }
+  .touch-score-team {
+    gap: 9px;
+    flex-wrap: wrap;
+  }
+  .touch-score-team > .team-logo {
+    height: 35px;
+    width: 35px;
+  }
+  .touch-score-team b {
+    font-size: 13px;
+  }
+  .touch-score-team small {
+    font-size: 6px;
+    letter-spacing: 0.7px;
+  }
+  .touch-score-team > strong {
+    font-size: 32px;
+  }
+  .touch-score-clock b {
+    font-size: 24px;
+  }
+  .touch-score-clock > span,
+  .touch-score-clock small {
+    font-size: 7px;
+  }
+  .touch-score-team.possession > span::after {
+    font-size: 6px;
+    letter-spacing: 0.6px;
+  }
+  .touch-lineup-layout {
+    grid-template-columns: 1fr;
+  }
+  .touch-lineup-layout > section:first-child {
+    border-right: 0;
+    border-bottom: 1px solid #38506f;
+  }
+  .touch-bench {
+    padding: 16px;
+  }
+  .touch-reserve-list {
+    max-height: 260px;
+  }
+  .touch-lineup-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .touch-lineup-toolbar > span {
+    font-size: 8px;
+  }
+  .touch-lineup-toolbar > .icon-button {
+    margin-left: auto;
+  }
+  .touch-lineup-player {
+    width: 65px;
+  }
+  .touch-lineup-player .player-avatar {
+    width: 40px;
+    height: 40px;
+  }
+  .touch-lineup-player .player-avatar img,
+  .touch-lineup-player .player-avatar svg {
+    height: 38px;
+    width: 38px;
+  }
+  .touch-lineup-player > b {
+    font-size: 8px;
+  }
+  .touch-centre-grid {
+    grid-template-columns: 1fr;
+  }
+  .touch-situation {
+    font-size: 9px;
+    gap: 12px;
+    padding: 9px 12px;
+  }
+  .touch-situation > strong {
+    font-size: 13px;
+  }
+  .touch-unit-label {
+    font-size: 7px;
+  }
+  .touch-timeouts {
+    font-size: 7px;
+    gap: 7px;
+  }
+  .touch-timeouts b {
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+  .touch-view-tabs {
+    gap: 0;
+  }
+  .touch-view-tabs button {
+    font-size: 10px;
+    padding: 8px 10px;
+  }
+  .touch-view-tabs svg {
+    width: 12px;
+    height: 12px;
+  }
+  .touch-sim-menu {
+    margin: 0;
+  }
+  .touch-sim-menu select {
+    width: 150px;
+  }
+  .touch-control-rail {
+    gap: 12px;
+  }
+  .touch-break-banner {
+    flex-wrap: wrap;
+  }
+  .touch-break-banner span {
+    font-size: 9px;
+  }
+  .touch-break-banner button {
+    font-size: 10px;
+  }
+  .touch-broadcast .stadium-host {
+    height: 340px;
+  }
+  .touch-play-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .touch-play b {
+    font-size: 10px;
+  }
+  .touch-play small {
+    font-size: 8px;
+  }
+  .network-post .hub-social-author {
+    flex-wrap: wrap;
+  }
+  .network-post .network-topic {
+    margin-left: 45px;
+  }
+  .network-poll {
+    padding: 12px;
+  }
+  .network-poll > b {
+    font-size: 10px;
+  }
+  .network-reach {
+    font-size: 8px;
+  }
+  .touch-sim-notice {
+    font-size: 9px;
+  }
+  .touch-sim-notice > span {
+    font-size: 9px;
+  }
+}
+@media (max-width: 470px) {
+  .touch-score-team b {
+    font-size: 11px;
+  }
+  .touch-score-team > .team-logo {
+    height: 29px;
+    width: 29px;
+  }
+  .touch-score-team {
+    gap: 6px;
+  }
+  .touch-scoreboard {
+    grid-template-columns: 1fr 76px 1fr;
+    padding: 11px 10px;
+    gap: 8px;
+  }
+  .touch-score-team > strong {
+    font-size: 30px;
+    width: 100%;
+    line-height: 1.15;
+    padding-left: 5px;
+  }
+  .touch-score-team.away > strong {
+    order: 4;
+    padding-right: 5px;
+  }
+  .touch-score-clock b {
+    font-size: 21px;
+  }
+  .touch-score-team.possession > span::after {
+    font-size: 5px;
+  }
+  .touch-score-team small {
+    font-size: 5px;
+  }
+  .touch-timeouts {
+    flex-basis: 100%;
+    justify-content: flex-end;
+    margin-top: 2px;
+  }
+  .touch-situation {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .touch-unit-label {
+    font-size: 6px;
+  }
+  .touch-situation > strong {
+    font-size: 12px;
+  }
+  .touch-tactics-field {
+    height: 470px;
+  }
+  .touch-lineup-player {
+    width: 54px;
+  }
+  .touch-lineup-player .player-avatar {
+    width: 34px;
+    height: 34px;
+  }
+  .touch-lineup-player .player-avatar img,
+  .touch-lineup-player .player-avatar svg {
+    width: 32px;
+    height: 32px;
+  }
+  .touch-lineup-player > b {
+    font-size: 7px;
+    max-width: 70px;
+  }
+  .touch-lineup-player > i {
+    font-size: 6px;
+    right: 1px;
+  }
+  .touch-lineup-dialog .touch-lineup-player {
+    width: 54px;
+  }
+  .touch-lineup-dialog .touch-lineup-player .player-avatar {
+    width: 34px;
+    height: 34px;
+  }
+  .touch-lineup-dialog .touch-lineup-player .player-avatar img,
+  .touch-lineup-dialog .touch-lineup-player .player-avatar svg {
+    height: 32px;
+    width: 32px;
+  }
+  .touch-lineup-dialog .touch-lineup-player > b {
+    font-size: 7px;
+  }
+  .touch-match-actions button {
+    font-size: 9px;
+    padding: 9px;
+  }
+  .touch-match-actions .touch-snap {
+    min-width: 125px;
+  }
+  .touch-broadcast .stadium-caption {
+    font-size: 9px;
+    bottom: 65px;
+  }
+  .touch-broadcast .play-transport {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .touch-broadcast .stadium-host {
+    height: 310px;
+  }
+  .touch-play-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .touch-prematch-teams .team-logo {
+    height: 66px;
+    width: 66px;
+  }
+  .touch-prematch-teams h2 {
+    font-size: 19px;
+  }
+  .touch-prematch-teams > div > span {
+    font-size: 6px;
+  }
+  .touch-prematch-hero {
+    padding: 17px 17px 0;
+  }
+  .touch-match-readiness {
+    margin: 0 -17px;
+  }
+  .touch-prematch-top {
+    font-size: 7px;
+  }
+  .touch-vs {
+    font-size: 25px;
+  }
+  .touch-vs > small {
+    font-size: 5px;
+    letter-spacing: 1px;
+  }
+  .touch-booth b {
+    font-size: 7px;
+  }
+  .touch-booth button {
+    font-size: 7px;
+  }
+  .touch-preparation-row {
+    padding: 17px;
+  }
+  .touch-preparation-row button {
+    font-size: 9px;
+    padding: 10px 8px;
+  }
+  .neg-topbar > span {
+    font-size: 7px;
+    letter-spacing: 0.8px;
+  }
+  .neg-cap-strip b {
+    font-size: 17px;
+  }
+  .neg-summary-grid b {
+    font-size: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .touch-entry-card {
+    transition: none;
+  }
+  .touch-entry-card:hover {
+    transform: none;
+  }
+}
+.touch-sim-menu .touch-sim-caller select {
+  width: 115px;
+}
+@media (max-width: 580px) {
+  .touch-sim-menu {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .touch-sim-menu label {
+    font-size: 8px;
+    gap: 6px;
+  }
+  .touch-sim-menu .touch-sim-caller select {
+    width: 108px;
+  }
+}

@@ -1,0 +1,8 @@
+import assert from 'node:assert/strict';
+import {planFootball,footballFrame,legPose,sampleRoute} from './dist/football-motion.mjs';
+const before={a:0,b:16,pos:0,poss:0,spot:45,plays:0},after={...before,spot:60};
+const start=[{x:-10,z:0},{x:-12,z:6},{x:-6,z:-20},...Array.from({length:19},(_,i)=>({x:-5+(i>7?5:0),z:(i-9)*2}))];
+for(const type of ['throw','run','juke','dive','tackle','flag']){let last={spot:60,passing:type==='throw',call:type==='throw'?'Deep pass':type==='juke'?'Outside run':'Inside run',animation:type,text:type==='tackle'?'quarterback sacked':''};if(type==='flag')last.penalty=true;let plan=planFootball(before,after,last,start);for(let t=0;t<=1;t+=.002){let frame=footballFrame(plan,t,8.5);assert.equal(frame.length,22);for(const p of frame){assert.ok(Object.values(p).every(Number.isFinite));assert.ok(Math.abs(p.x)<60&&Math.abs(p.z)<=25);assert.ok(p.speed<35,'bounded speed');}for(const side of [0,1]){let leg=legPose(t*12,3,side);assert.ok(Number.isFinite(leg.hip+leg.knee+leg.ankle));assert.ok(leg.footHeight>=0&&leg.footHeight<.34);if(leg.plant)assert.equal(leg.footHeight,0)}}
+let first=footballFrame(plan,0,8.5),end=footballFrame(plan,1,8.5);assert.ok(first.every(p=>p.speed<.2),'standing before snap');assert.ok(end.every(p=>p.speed<.3),'decelerates at play end');if(type==='flag')assert.deepEqual(end.map(p=>[p.x,p.z]),start.map(p=>[p.x,p.z]));}
+let keys=[{t:0,x:0,z:0},{t:.4,x:4,z:0},{t:.5,x:4,z:0},{t:1,x:8,z:3}];assert.equal(sampleRoute(keys,.45).x,4,'planted cut holds the contact point');
+console.log('PASS: throw/run/juke/dive/sack/flag choreography; finite bounded routes; start/stop acceleration; planted feet and cuts');

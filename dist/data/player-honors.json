@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "scope": "Selected NFL Honors, 2023\u20132025; not a complete career honors database",
+  "awards": [
+    {
+      "name": "Lamar Jackson",
+      "pos": "QB",
+      "year": 2023,
+      "award": "NFL MVP",
+      "source": "https://www.nfl.com/news/list-of-nfl-honors-award-winners-from-2023-nfl-season"
+    },
+    {
+      "name": "Christian McCaffrey",
+      "pos": "RB",
+      "year": 2023,
+      "award": "Offensive Player of the Year",
+      "source": "https://www.nfl.com/news/list-of-nfl-honors-award-winners-from-2023-nfl-season"
+    },
+    {
+      "name": "Myles Garrett",
+      "pos": "DL",
+      "year": 2023,
+      "award": "Defensive Player of the Year",
+      "source": "https://www.nfl.com/news/list-of-nfl-honors-award-winners-from-2023-nfl-season"
+    },
+    {
+      "name": "Josh Allen",
+      "pos": "QB",
+      "year": 2024,
+      "award": "NFL MVP",
+      "source": "https://www.nfl.com/news/list-of-nfl-honors-award-winners-from-2024-nfl-season"
+    },
+    {
+      "name": "Saquon Barkley",
+      "pos": "RB",
+      "year": 2024,
+      "award": "Offensive Player of the Year",
+      "source": "https://www.nfl.com/news/list-of-nfl-honors-award-winners-from-2024-nfl-season"
+    },
+    {
+      "name": "Pat Surtain II",
+      "pos": "CB",
+      "year": 2024,
+      "award": "Defensive Player of the Year",
+      "source": "https://www.nfl.com/news/list-of-nfl-honors-award-winners-from-2024-nfl-season"
+    },
+    {
+      "name": "Matthew Stafford",
+      "pos": "QB",
+      "year": 2025,
+      "award": "NFL MVP",
+      "source": "https://amp.nfl.com/news/list-of-nfl-honors-award-winners-from-2025-nfl-season"
+    },
+    {
+      "name": "Christian McCaffrey",
+      "pos": "RB",
+      "year": 2025,
+      "award": "Comeback Player of the Year",
+      "source": "https://amp.nfl.com/news/list-of-nfl-honors-award-winners-from-2025-nfl-season"
+    },
+    {
+      "name": "Jaxon Smith-Njigba",
+      "pos": "WR",
+      "year": 2025,
+      "award": "Offensive Player of the Year",
+      "source": "https://amp.nfl.com/news/list-of-nfl-honors-award-winners-from-2025-nfl-season"
+    },
+    {
+      "name": "Myles Garrett",
+      "pos": "DL",
+      "year": 2025,
+      "award": "Defensive Player of the Year",
+      "source": "https://amp.nfl.com/news/list-of-nfl-honors-award-winners-from-2025-nfl-season"
+    },
+    {
+      "name": "Tetairoa McMillan",
+      "pos": "WR",
+      "year": 2025,
+      "award": "Offensive Rookie of the Year",
+      "source": "https://amp.nfl.com/news/list-of-nfl-honors-award-winners-from-2025-nfl-season"
+    },
+    {
+      "name": "Carson Schwesinger",
+      "pos": "LB",
+      "year": 2025,
+      "award": "Defensive Rookie of the Year",
+      "source": "https://amp.nfl.com/news/list-of-nfl-honors-award-winners-from-2025-nfl-season"
+    },
+    {
+      "name": "Bobby Wagner",
+      "pos": "LB",
+      "year": 2025,
+      "award": "Walter Payton Man of the Year",
+      "source": "https://amp.nfl.com/news/list-of-nfl-honors-award-winners-from-2025-nfl-season"
+    },
+    {
+      "name": "Joe Thuney",
+      "pos": "OL",
+      "year": 2025,
+      "award": "Protector of the Year",
+      "source": "https://amp.nfl.com/news/list-of-nfl-honors-award-winners-from-2025-nfl-season"
+    }
+  ]
+}
