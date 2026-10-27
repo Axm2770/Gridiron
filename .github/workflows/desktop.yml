@@ -2,12 +2,28 @@ name: macOS desktop builds
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     tags: ['v*']
+    paths:
+      - 'desktop/**'
+      - 'scripts/package-desktop.mjs'
+      - 'scripts/check-mac-launch.mjs'
+      - 'package*.json'
+      - '.github/workflows/desktop.yml'
 permissions:
   contents: read
 jobs:
   macOS:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,15 +32,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - run: npm run package:mac:arm64
-      - run: npm run package:mac:x64
-      - run: npm run dist:mac
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Package, sign and launch native app
+        run: npm run package:mac:${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
-          name: Gridiron-Director-macOS
-          path: |
-            release/*.zip
-            release/*.dmg
+          name: Gridiron-Director-macOS-${{ matrix.arch }}
+          path: release/*.zip
+          if-no-files-found: error
           retention-days: 30

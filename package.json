@@ -1,7 +1,7 @@
 {
   "name": "gridiron-director",
   "productName": "Gridiron Director",
-  "version": "0.18.0",
+  "version": "0.18.1",
   "private": true,
   "description": "A football management and coaching game with independent careers and a 3D match engine.",
   "main": "desktop/main.cjs",
@@ -16,7 +16,8 @@
     "package:linux": "node scripts/package-desktop.mjs linux x64",
     "package:windows": "node scripts/package-desktop.mjs win32 x64",
     "dist:mac": "electron-builder --mac dmg zip --publish never",
-    "source:archive": "node scripts/source-archive.mjs"
+    "source:archive": "node scripts/source-archive.mjs",
+    "check:mac": "node scripts/check-mac-launch.mjs"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",
@@ -39,7 +40,7 @@
     "mac": {
       "category": "public.app-category.sports-games",
       "icon": "desktop/icon.icns",
-      "identity": null,
+      "identity": "-",
       "target": [
         {
           "target": "dmg",
@@ -55,7 +56,10 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "hardenedRuntime": true,
+      "entitlements": "desktop/entitlements.mac.plist",
+      "entitlementsInherit": "desktop/entitlements.mac.plist"
     },
     "win": {
       "target": "portable"

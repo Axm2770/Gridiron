@@ -1,0 +1,13 @@
+import {spawn,execFileSync} from 'node:child_process';
+import path from 'node:path';
+import fs from 'node:fs';
+if(process.platform!=='darwin')throw Error('Mac launch validation must run on macOS.');
+const appPath=path.resolve(process.argv[2]||'');
+if(!appPath.endsWith('.app')||!fs.existsSync(appPath))throw Error('Provide the packaged .app path.');
+execFileSync('codesign',['--verify','--deep','--strict','--verbose=2',appPath],{stdio:'inherit'});
+const env={...process.env};delete env.ELECTRON_RUN_AS_NODE;
+const child=spawn(path.join(appPath,'Contents/MacOS/Gridiron Director'),['--gridiron-smoke-test'],{env,stdio:['ignore','pipe','pipe']});
+let output='';for(const stream of [child.stdout,child.stderr])stream.on('data',chunk=>{output+=chunk;process.stdout.write(chunk);});
+const timer=setTimeout(()=>{child.kill('SIGKILL');},110000);
+child.on('error',error=>{clearTimeout(timer);console.error(error);process.exitCode=1;});
+child.on('close',(code,signal)=>{clearTimeout(timer);if(code!==0||!output.includes('GRIDIRON_SMOKE_OK')){console.error('Native launch validation failed:',{code,signal});process.exitCode=1;}else console.log('PASS: signed packaged app launches and loads the career UI, assets, IndexedDB and simulation worker.');});
