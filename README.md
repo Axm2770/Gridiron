@@ -251,6 +251,11 @@ npm test
 npm start
 ```
 
-The browser preview runs at http://localhost:4173. `npm start` launches Electron on a graphical desktop. Build Mac ZIPs using `npm run package:mac:arm64` or `npm run package:mac:x64`; on macOS `npm run dist:mac` builds DMG installers too. Outputs are in `release/`. The included GitHub Actions workflow builds both architectures on macOS. Current downloadable ZIPs are unsigned and unnotarized; native launch requires Mac verification. Browser and desktop careers transfer through full career export/import.
+The browser preview runs at http://localhost:4173. `npm start` launches Electron on a graphical desktop. Build Mac ZIPs using `npm run package:mac:arm64` or `npm run package:mac:x64`; on macOS `npm run dist:mac` builds DMG installers too. Outputs are in `release/`. The included GitHub Actions workflow builds both architectures on macOS. Version 0.18.1 ZIPs are built and ad-hoc signed on native Mac runners, then launch-tested before and after extraction on Apple Silicon and Intel. They remain unnotarized and require macOS 13 or newer. Browser and desktop careers transfer through full career export/import.
 
 For other coding models, begin with [AGENTS.md](AGENTS.md) and [developer handoff](docs/handoff.md). `npm run source:archive` creates a complete portable source ZIP without dependencies or compiled binaries. All 23 regression suites pass for this release.
+
+
+## macOS launch repair — 0.18.1
+
+Replace the previous 0.18.0 app with a 0.18.1 ZIP from the macOS desktop builds workflow. Releases are now built on matching macOS runners, ad-hoc signed with Electron entitlements, checked by codesign, and launched before and after archive extraction. Native tests load the career workspace, modules, roster database, IndexedDB and a one-play simulation worker. Both architectures passed in [the verified build](https://github.com/Axm2770/Gridiron/actions/runs/40604561247), alongside all 23 regression suites. Normal saves retain the same Application Support directory. Launch errors now create a visible diagnostic and a log under `~/Library/Logs/Gridiron Director/`. macOS 13 or newer is required; Apple Developer ID notarization is still pending.

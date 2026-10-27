@@ -6,9 +6,9 @@ Read `README.md`, `docs/handoff.md` and the module nearest your change before ed
 
 - Node 24 LTS: `npm ci`.
 - Web preview: `npm run serve` (http://localhost:4173).
-- Regression checks: `npm test` (23 suites at version 0.18.0).
+- Regression checks: `npm test` (23 suites at version 0.18.1).
 - Desktop development: `npm start` on a desktop host.
-- Mac archives: `npm run package:mac:arm64` and `npm run package:mac:x64`.
+- Mac archives (requires a Mac; signs and launch-tests the app and extracted ZIP): `npm run package:mac:arm64` and `npm run package:mac:x64`.
 - macOS installer builds: `npm run dist:mac` on a Mac.
 - Full source export: `npm run source:archive`.
 

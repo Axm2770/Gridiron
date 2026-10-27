@@ -1,4 +1,4 @@
-# Developer handoff — 0.18.0
+# Developer handoff — 0.18.1
 
 The current game includes the earlier franchise expansion, news/inbox/social views, player development, scouting, staff compliance, board decisions, records, ranked awards and the procedural 3D touchline presentation. This update adds a date-driven calendar, staff delegation and an Electron desktop shell. It does not replace the match engine with a commercial animation engine.
 
@@ -33,6 +33,6 @@ Calendar advancement increments the reputation/cooldown action clock once per el
 
 ## Remaining release work
 
-The Apple Silicon and Intel ZIPs are cross-packaged Electron apps, unsigned and unnotarized. Binary architecture and bundled files were inspected; native launch and signing still require a Mac. `.github/workflows/desktop.yml` builds ZIP/DMG artifacts on macOS when run manually or on a version tag. There is no automatic updater.
+The 0.18.1 Apple Silicon and Intel ZIPs replace the old cross-packaged 0.18.0 downloads. Native matching macOS runners apply ad-hoc signatures, verify codesign, and launch the app before and after ditto ZIP extraction. The launch test exercises the actual career workspace, module imports, database fetch, IndexedDB and a real one-play simulation worker. Both architectures passed in GitHub Actions run 40604561247. Desktop packaging now rejects non-Mac hosts. Startup errors are visible and logged. macOS 13 or newer is required. Developer ID signing/notarization and an automatic updater remain outstanding.
 
 The public source repository is https://github.com/Axm2770/Gridiron. Coding models can clone it or read the files directly; begin with AGENTS.md. The source archive is also complete and can be imported with file access. Public visibility allows unauthenticated reading; writes still require the owner’s authorization. Repository visibility does not grant rights to third-party NFL branding or likenesses. GitHub Actions runs all regression suites on main-branch pushes and pull requests. The separate macOS desktop workflow is available from the Actions tab or a v* tag.
