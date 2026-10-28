@@ -108,6 +108,19 @@ Component contract: each `ui/kit.mjs` function returns HTML and escapes its text
 
 Persisted: `franchise.pipeline = {version, entries{prospectId: {id, stage, added, round?}}, board[ranked ids], lost[≤40], seen[]}`. The Hub remembers the selected position filter for the current session only.
 
+## Presentation layer (in-game 3D, cutscenes, broadcast UI)
+
+The shipped game renders with Three.js r160 inside Electron. The Unreal bridge below remains an optional companion renderer. `dist/presentation/` upgrades what every player sees, without touching results:
+
+| Module | What it adds |
+| --- | --- |
+| `stadium-pro.mjs` | Wraps the `Stadium` class through the `window.GridironStadium` hook in `stadium.js`. Adds ACES tone mapping, a shader sky baked into a PMREM environment, and a day → dusk → night progression by quarter. The bowl gains an upper deck, end-zone stands, a roof canopy, jumbotrons and an LED ribbon. A single GPU-animated crowd (about 5,500 instances) uses team colours. Confetti and flashbulbs react to big plays. The **Director** camera (now the default) picks broadcast shots from the play phase (establishing, sideline, SkyCam, ground track, end-zone hero, reverse replay angles). The software renderer path is left untouched. |
+| `broadcast-hud.mjs` | TV scorebug (score, possession, period, clock, down & distance, field position), network bug with LIVE/REPLAY, big-play banners driven by the rules engine's result text, replay wipe, and Theater and Fullscreen modes. During a play the bug shows the pre-snap state, and banners wait for the animation to finish, so nothing spoils the result. |
+| `cinematics.mjs` | Full-screen cinematics on narrative events: title celebration, draft night, press podium, playoff exit, walk-off win and locker-room confrontation. They are built from `character-stage.createCharacter` with letterbox, title card, skip (Esc/Space/Enter) and an All / Big moments / Off preference. They queue until no play or modal is active. Reduced-motion users get a posed still frame. |
+| `theme-motion.mjs` | Adds `body.gd-themed` and a club-derived accent (lightness clamped to 62–72 % so navy clubs stay legible). View-enter transitions and count-up numbers run on view changes. |
+| `ui/presentation.css` | Restyles every screen at the shared structural level (sidebar, header, panels, tables, inputs, tabs, dialogs, toasts) by remapping the legacy tokens. Also covers the HUD, cinematics, theater mode and the cinematic title/loading screen. |
+
+`test-presentation.mjs` covers time-of-day selection, Director shot choice and possession mirroring, banner classification, scorebug text, accent contrast and the wiring of the hook, stylesheet and title screen.
 ## 4. Unreal Engine 5 bridge
 
 ### Transport
