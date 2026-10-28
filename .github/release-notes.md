@@ -1,3 +1,4 @@
+<!-- The release job fills the version marker in file names with the tag's version number. -->
 ## Download
 
 | Your computer | File |
