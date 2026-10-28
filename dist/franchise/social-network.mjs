@@ -1,5 +1,6 @@
 import { expandedSocialPosts } from "./world-events.mjs";
 import { reputationView, reputationLeaders } from "./reputation.mjs";
+import { socialEnginePosts } from "./social-engine.mjs";
 const hash = (s) => {
   let h = 2166136261;
   for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
@@ -140,10 +141,13 @@ function comparison(s, mine, other, pos) {
   };
 }
 export function buildSocialFeed(s, teams, stories, prefs) {
-  const posts = [...expandedSocialPosts(s)],
+  // Dynamic engine posts replace the legacy fan/player templates once a round has produced them.
+  const engine = socialEnginePosts(s),
+    legacy = !engine.length;
+  const posts = [...expandedSocialPosts(s), ...engine],
     all = reputationLeaders(s),
     own = all.filter((x) => x.team === s.team);
-  for (const a of stories.slice(0, 30)) {
+  for (const a of legacy ? stories.slice(0, 30) : []) {
     const h = hash(a.id),
       [name, handle] = fans[h % fans.length],
       medical = a.category === "Medical",
@@ -215,10 +219,9 @@ export function buildSocialFeed(s, teams, stories, prefs) {
     });
   }
   // Players post in their simulated career voice; never present these as real-world quotes.
-  const authors = [
-    ...own.slice(0, 3),
-    ...all.filter((x) => x.team !== s.team).slice(0, 3),
-  ];
+  const authors = legacy
+    ? [...own.slice(0, 3), ...all.filter((x) => x.team !== s.team).slice(0, 3)]
+    : [];
   for (const x of authors) {
     const p = x.p,
       v = reputationView(s, p),

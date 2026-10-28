@@ -1466,6 +1466,15 @@ import("./presentation.mjs")
     installExpansionUI({ views, isBusy: () => busy, heritage });
     installCalendarUI({views,initialize,isBusy:()=>busy,setBusy:value=>busy=value,settleRound});
     await installCareerManager({ views, isBusy: () => busy, initialize });
+    // Hub dashboard and Unreal bridge load last; a failure leaves the classic workspace intact.
+    try {
+      const [{ installDashboard }, { installUnrealBridge }] = await Promise.all([import("./dashboard-ui.mjs"), import("../bridge/ue-hooks.mjs")]);
+      installDashboard({ views, isBusy: () => busy });
+      installUnrealBridge();
+      render();
+    } catch (error) {
+      console.error("Hub dashboard:", error);
+    }
     document.getElementById("startup-status")?.remove();
   })
   .catch((error) => {

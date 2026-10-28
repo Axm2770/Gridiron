@@ -15,6 +15,10 @@ import {
 import { runStaffCarousel } from "./staff.mjs";
 import { assertCanAdvance } from "./compliance.mjs";
 import { processNewsRound } from "./newsroom.mjs";
+import { deriveRoundEvents } from "./event-bus.mjs";
+import { processSocialRound } from "./social-engine.mjs";
+import { processDepthRound } from "./depth-systems.mjs";
+import { processPipelineRound } from "./recruiting-pipeline.mjs";
 import { processDevelopment, offseasonDevelopment } from "./development.mjs";
 import { reviewPromises } from "./conversations.mjs";
 import { retirementAge, retireRecord } from "./newgens.mjs";
@@ -215,6 +219,8 @@ export function finishRound(s, results) {
   }
   reviewPromises(s);
   processNewsRound(s, results, newsRoundKey);
+  processSocialRound(s, [...deriveRoundEvents(s, results, newsRoundKey, roundInfo), ...processPipelineRound(s)]);
+  processDepthRound(s, newsRoundKey);
   ensureCareerRatings(s);
   f.career.xp += 25;
   processRumors(s, newsRoundKey);

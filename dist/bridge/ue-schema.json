@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "gridiron.ue/1",
+  "title": "Gridiron Director ↔ Unreal Engine bridge message",
+  "type": "object",
+  "required": ["protocol", "type", "seq", "sentAt", "payload"],
+  "properties": {
+    "protocol": { "const": "gridiron.ue/1" },
+    "type": {
+      "enum": ["session.start", "play.execution", "cutscene.trigger", "stadium.state", "ue.ready", "ue.cutscene.finished", "ue.error"]
+    },
+    "seq": { "type": "integer", "minimum": 1 },
+    "sentAt": { "type": "integer", "description": "Unix epoch milliseconds" },
+    "payload": { "type": "object" }
+  },
+  "allOf": [
+    { "if": { "properties": { "type": { "const": "play.execution" } } }, "then": { "properties": { "payload": { "$ref": "#/$defs/playExecution" } } } },
+    { "if": { "properties": { "type": { "const": "cutscene.trigger" } } }, "then": { "properties": { "payload": { "$ref": "#/$defs/cutsceneTrigger" } } } },
+    { "if": { "properties": { "type": { "const": "stadium.state" } } }, "then": { "properties": { "payload": { "$ref": "#/$defs/stadiumState" } } } },
+    { "if": { "properties": { "type": { "const": "session.start" } } }, "then": { "properties": { "payload": { "$ref": "#/$defs/sessionStart" } } } },
+    { "if": { "properties": { "type": { "const": "ue.cutscene.finished" } } }, "then": { "properties": { "payload": { "required": ["eventId"], "properties": { "eventId": { "type": "string" }, "skipped": { "type": "boolean" } } } } } }
+  ],
+  "$defs": {
+    "vec": {
+      "type": "object",
+      "description": "Unreal centimetres from midfield. +X toward the home end zone, +Y home sideline, +Z up.",
+      "required": ["X", "Y", "Z"],
+      "properties": { "X": { "type": "integer" }, "Y": { "type": "integer" }, "Z": { "type": "integer" } }
+    },
+    "sessionStart": {
+      "type": "object",
+      "required": ["careerId", "team", "colors"],
+      "properties": {
+        "careerId": { "type": ["string", "null"] },
+        "team": { "type": "integer", "minimum": 0, "maximum": 31 },
+        "teamName": { "type": "string" },
+        "colors": { "type": "array", "items": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }, "minItems": 32, "maxItems": 32 },
+        "coach": { "type": ["object", "null"] }
+      }
+    },
+    "playExecution": {
+      "type": "object",
+      "required": ["playId", "seed", "duration", "direction", "actors", "frameStride", "frames", "triggers", "camera", "result"],
+      "properties": {
+        "playId": { "type": "string" },
+        "seed": { "type": "integer" },
+        "tickRate": { "type": "integer" },
+        "sampleHz": { "type": "integer" },
+        "duration": { "type": "number" },
+        "call": { "type": "string" },
+        "offenseTeam": { "type": ["integer", "null"] },
+        "defenseTeam": { "type": ["integer", "null"] },
+        "direction": { "enum": [1, -1] },
+        "situation": {
+          "type": ["object", "null"],
+          "properties": {
+            "down": { "type": "integer" },
+            "toGo": { "type": "number" },
+            "spot": { "type": "number" },
+            "quarter": { "type": "integer" },
+            "clock": { "type": "integer" },
+            "score": { "type": "array", "items": { "type": "integer" } }
+          }
+        },
+        "actors": {
+          "type": "array",
+          "maxItems": 22,
+          "items": {
+            "type": "object",
+            "required": ["index", "id", "role", "side"],
+            "properties": {
+              "index": { "type": "integer" },
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "role": { "type": "string" },
+              "jersey": { "type": ["integer", "string", "null"] },
+              "side": { "enum": ["offense", "defense"] }
+            }
+          }
+        },
+        "frameStride": { "const": 4, "description": "Values per actor in frames[].actors: X cm, Y cm, yaw degrees, speed cm/s" },
+        "frames": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["t", "actors", "ball"],
+            "properties": {
+              "t": { "type": "number" },
+              "actors": { "type": "array", "items": { "type": "integer" } },
+              "ball": { "$ref": "#/$defs/vec" }
+            }
+          }
+        },
+        "triggers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["t", "event", "montage"],
+            "properties": {
+              "t": { "type": "number" },
+              "event": { "type": "string" },
+              "montage": { "type": "string" },
+              "actor": { "type": ["integer", "null"] },
+              "partner": { "type": ["integer", "null"] },
+              "lookAt": { "type": ["integer", "null"] }
+            }
+          }
+        },
+        "camera": {
+          "type": "object",
+          "required": ["shots", "replayWorthy"],
+          "properties": {
+            "replayWorthy": { "type": "boolean" },
+            "shots": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["at", "rig"],
+                "properties": {
+                  "at": { "type": "number" },
+                  "rig": { "type": "string" },
+                  "blend": { "type": "number" },
+                  "follow": { "enum": ["ball", "carrier"] },
+                  "slowMo": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "required": ["kind", "yards", "spot"],
+          "properties": {
+            "kind": { "enum": ["tackle", "incomplete", "touchdown", "sack", "interception", "outOfBounds", "punt", "fieldGoal", "missedFieldGoal"] },
+            "yards": { "type": "number" },
+            "spot": { "type": "number" },
+            "carrier": { "type": "integer" },
+            "passing": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "cutsceneTrigger": {
+      "type": "object",
+      "required": ["eventId", "kind", "sequence", "priority", "skippable", "cast", "params"],
+      "properties": {
+        "eventId": { "type": "string" },
+        "kind": { "type": "string" },
+        "sequence": { "type": "string", "pattern": "^LS_" },
+        "priority": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "skippable": { "type": "boolean" },
+        "team": { "type": "integer" },
+        "opponent": { "type": ["integer", "null"] },
+        "colors": { "type": "object", "properties": { "home": { "type": "string" }, "away": { "type": "string" } } },
+        "cast": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["slot"],
+            "properties": {
+              "slot": { "type": "string" },
+              "playerId": { "type": ["string", "null"] },
+              "name": { "type": "string" },
+              "pos": { "type": "string" },
+              "jersey": { "type": ["integer", "string", "null"] }
+            }
+          }
+        },
+        "params": { "type": "object" }
+      }
+    },
+    "stadiumState": {
+      "type": "object",
+      "required": ["homeTeam", "weather", "crowd"],
+      "properties": {
+        "homeTeam": { "type": "integer" },
+        "awayTeam": { "type": ["integer", "null"] },
+        "colors": { "type": "object" },
+        "weather": { "enum": ["Clear", "Rain", "Wind", "Snow"] },
+        "crowd": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "hostile": { "type": "boolean" },
+        "quarter": { "type": ["integer", "null"] },
+        "clock": { "type": ["integer", "null"] },
+        "score": { "type": ["array", "null"] },
+        "timeOfDay": { "enum": ["Afternoon", "Dusk", "Night"] }
+      }
+    }
+  }
+}
