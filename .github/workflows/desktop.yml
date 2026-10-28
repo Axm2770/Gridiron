@@ -83,7 +83,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          version="${GITHUB_REF_NAME#v}"
+          sed "s/<version>/${version}/g" .github/release-notes.md > "${RUNNER_TEMP}/release-notes.md"
           gh release create "${GITHUB_REF_NAME}" downloads/*.zip \
-            --title "Gridiron Director ${GITHUB_REF_NAME#v}" \
-            --notes-file .github/release-notes.md \
+            --title "Gridiron Director ${version}" \
+            --notes-file "${RUNNER_TEMP}/release-notes.md" \
             --verify-tag
