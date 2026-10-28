@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
+import { fileURLToPath } from "node:url";
 const root = new URL(".", import.meta.url).pathname;
+// fs needs a native path; the URL pathname (/D:/...) breaks on Windows.
+const dir = fileURLToPath(new URL(".", import.meta.url));
 const S = await import(root + "/dist/franchise/state.mjs");
 const { applyRealRosters } = await import(
   root + "/dist/franchise/real-rosters.mjs"
@@ -36,16 +39,16 @@ const c = {
 c.window = c;
 c.addEventListener = () => {};
 vm.createContext(c);
-vm.runInContext(fs.readFileSync(root + "/dist/game.js", "utf8"), c);
+vm.runInContext(fs.readFileSync(dir + "/dist/game.js", "utf8"), c);
 const s = JSON.parse(vm.runInContext("JSON.stringify(fresh())", c));
 S.migrate(s);
 applyRealRosters(
   s,
-  JSON.parse(fs.readFileSync(root + "/dist/data/nfl-rosters.json")),
+  JSON.parse(fs.readFileSync(dir + "/dist/data/nfl-rosters.json")),
 );
 configureRatings(
-  JSON.parse(fs.readFileSync(root + "/dist/data/madden-ratings.json")),
-  JSON.parse(fs.readFileSync(root + "/dist/data/player-production.json")),
+  JSON.parse(fs.readFileSync(dir + "/dist/data/madden-ratings.json")),
+  JSON.parse(fs.readFileSync(dir + "/dist/data/player-production.json")),
 );
 ensureCareerRatings(s);
 let rows = [];

@@ -10,6 +10,8 @@ Read `README.md`, `docs/handoff.md` and the module nearest your change before ed
 - Desktop development: `npm start` on a desktop host.
 - Mac archives (requires a Mac; signs and launch-tests the app and extracted ZIP): `npm run package:mac:arm64` and `npm run package:mac:x64`.
 - macOS installer builds: `npm run dist:mac` on a Mac.
+- Windows archive (requires Windows; launch-tests the app and extracted ZIP): `npm run package:windows`.
+- Public downloads: push a `v*` tag matching `package.json`; `.github/workflows/desktop.yml` publishes the launch-tested Mac and Windows ZIPs as a GitHub Release.
 - Full source export: `npm run source:archive`.
 
 ## Ownership and invariants

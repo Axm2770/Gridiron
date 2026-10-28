@@ -2,7 +2,21 @@
 
 **Project repository:** https://github.com/Axm2770/Gridiron
 
-Start with [AGENTS.md](AGENTS.md) and [the developer handoff](docs/handoff.md) when continuing development with another coding model. Source, tests, assets and macOS packaging are included. GitHub Actions runs the regression suite on pushes and pull requests; the separate macOS workflow produces desktop builds on manual dispatch or version tags.
+## Download
+
+**[⬇ Download the latest release](https://github.com/Axm2770/Gridiron/releases/latest)**
+
+| Your computer | File |
+| --- | --- |
+| Mac with Apple Silicon (M1 or newer) | `…-macOS-arm64.zip` |
+| Mac with Intel processor | `…-macOS-x64.zip` |
+| Windows 10/11 (64-bit) | `…-Windows-x64.zip` |
+
+The Mac app is ad-hoc signed and the Windows app is unsigned. The first launch asks for confirmation: on macOS, right-click the app and choose **Open**; on Windows, click **More info → Run anyway**. Full install steps are on each release page.
+
+**Publishing a release:** bump `version` in `package.json`, merge to `main`, then push a matching tag (`git tag v0.19.0 && git push origin v0.19.0`). The *Desktop builds and releases* workflow builds both Mac architectures and Windows, runs the regression suite, launch-tests each app before and after zipping, and publishes the ZIPs to a GitHub Release using `.github/release-notes.md`.
+
+Start with [AGENTS.md](AGENTS.md) and [the developer handoff](docs/handoff.md) when continuing development with another coding model. Source, tests, assets and desktop packaging are included. GitHub Actions runs the regression suite on pushes and pull requests; the desktop workflow builds launch-tested Mac and Windows apps on manual dispatch, pull requests that touch packaging, and version tags.
 
 A buildless NFL-inspired management game with a 3D tactical match presentation and a playable, browser-local franchise loop. Serve `dist/` as static assets. No API key or backend account is required.
 
