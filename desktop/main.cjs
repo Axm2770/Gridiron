@@ -1,8 +1,9 @@
-const {app,BrowserWindow,Menu,protocol,session,shell,dialog}=require('electron');
+const {app,BrowserWindow,Menu,protocol,session,shell,dialog,ipcMain}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs');
 const os=require('node:os');
 const {appResponse}=require('./protocol.cjs');
+const {createBridge}=require('./ue-bridge.cjs');
 const smoke=process.argv.includes('--gridiron-smoke-test');
 app.setName('Gridiron Director');
 app.setPath('userData',smoke?fs.mkdtempSync(path.join(os.tmpdir(),'gridiron-launch-')):path.join(app.getPath('appData'),'Gridiron Director'));
@@ -14,9 +15,14 @@ process.on('uncaughtException',startupFailure);
 process.on('unhandledRejection',startupFailure);
 protocol.registerSchemesAsPrivileged([{scheme:'gridiron',privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true}}]);
 const origin='gridiron://game';let mainWindow;
+// Unreal bridge: loopback-only relay, off unless enabled from the Game menu or GRIDIRON_UE=1.
+let ueBridge=null;
+async function setUnrealBridge(enabled){try{if(enabled&&!ueBridge){ueBridge=createBridge({port:Number(process.env.GRIDIRON_UE_PORT)||47800,log,onUnrealMessage:msg=>mainWindow?.webContents.send('ue:message',msg)});await ueBridge.start();}else if(!enabled&&ueBridge){await ueBridge.stop();ueBridge=null;}}catch(error){log('Unreal bridge: '+error.message);ueBridge=null;}}
+ipcMain.on('ue:send',(event,msg)=>{if(event.sender===mainWindow?.webContents)ueBridge?.broadcast(msg);});
+ipcMain.on('ue:status',event=>{event.returnValue=ueBridge?ueBridge.status():{listening:false,clients:0,connected:false};});
 function safeExternal(url){try{const parsed=new URL(url);if(parsed.protocol==='https:')shell.openExternal(parsed.href);}catch{}}
 function createWindow(){
- mainWindow=new BrowserWindow({width:1440,height:960,minWidth:900,minHeight:650,title:'Gridiron Director',backgroundColor:'#101723',show:!smoke,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,allowRunningInsecureContent:false}});
+ mainWindow=new BrowserWindow({width:1440,height:960,minWidth:900,minHeight:650,title:'Gridiron Director',backgroundColor:'#101723',show:!smoke,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,allowRunningInsecureContent:false,preload:path.join(__dirname,'preload.cjs')}});
  mainWindow.webContents.setWindowOpenHandler(({url})=>{safeExternal(url);return{action:'deny'};});
  mainWindow.webContents.on('will-navigate',(event,url)=>{if(!url.startsWith(origin+'/')){event.preventDefault();safeExternal(url);}});
  mainWindow.webContents.on('did-fail-load',(_event,code,description,url,isMainFrame)=>{log('Load failed: '+code+' '+description+' '+url);if(isMainFrame)startupFailure(Error(description));});
@@ -30,8 +36,8 @@ if(!app.requestSingleInstanceLock())app.quit();else{
  app.whenReady().then(()=>{
   protocol.handle('gridiron',request=>appResponse(request,path.join(__dirname,'..','dist')));
   session.defaultSession.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));
-  const menu=[...(process.platform==='darwin'?[{label:app.name,submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]}]:[]),{label:'Game',submenu:[{label:'Open save data folder',click:()=>shell.openPath(app.getPath('userData'))},{label:'Open launch log',click:()=>shell.openPath(logFile)},{label:'Move a browser career into the app',click:()=>dialog.showMessageBox(mainWindow,{type:'info',title:'Import your career',message:'Export your career from Careers & saves in the browser, then choose Import a career in this app. Each app and browser keeps independent local saves.'})},{type:'separator'},...(process.platform==='darwin'?[{role:'close'}]:[{role:'quit'}])]},{role:'editMenu'},{label:'View',submenu:[{role:'reload'},{role:'togglefullscreen'},{type:'separator'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'}]},{role:'windowMenu'}];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(menu));createWindow();app.on('activate',()=>{if(!BrowserWindow.getAllWindows().length)createWindow();});
+  const menu=[...(process.platform==='darwin'?[{label:app.name,submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]}]:[]),{label:'Game',submenu:[{label:'Open save data folder',click:()=>shell.openPath(app.getPath('userData'))},{label:'Open launch log',click:()=>shell.openPath(logFile)},{label:'Move a browser career into the app',click:()=>dialog.showMessageBox(mainWindow,{type:'info',title:'Import your career',message:'Export your career from Careers & saves in the browser, then choose Import a career in this app. Each app and browser keeps independent local saves.'})},{type:'separator'},{label:'Unreal Engine bridge (ws://127.0.0.1)',type:'checkbox',checked:process.env.GRIDIRON_UE==='1',click:item=>setUnrealBridge(item.checked)},{type:'separator'},...(process.platform==='darwin'?[{role:'close'}]:[{role:'quit'}])]},{role:'editMenu'},{label:'View',submenu:[{role:'reload'},{role:'togglefullscreen'},{type:'separator'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'}]},{role:'windowMenu'}];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(menu));if(process.env.GRIDIRON_UE==='1'&&!smoke)setUnrealBridge(true);createWindow();app.on('activate',()=>{if(!BrowserWindow.getAllWindows().length)createWindow();});
  }).catch(startupFailure);
  app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 }
