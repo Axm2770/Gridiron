@@ -347,6 +347,7 @@ export function installDashboard({ views, isBusy }) {
   window.Hub2 = {
     tab(id) {
       tab = TABS.some(([t]) => t === id) ? id : "hub";
+      window.__gdHubTab = tab;
       remember("gridiron-hub-tab", tab);
       render();
     },
