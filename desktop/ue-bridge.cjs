@@ -5,8 +5,8 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 
 const PROTOCOL = 'gridiron.ue/1';
-const TYPES = new Set(['session.start', 'play.execution', 'cutscene.trigger', 'stadium.state', 'ue.ready', 'ue.cutscene.finished', 'ue.error']);
-const FROM_UE = new Set(['ue.ready', 'ue.cutscene.finished', 'ue.error']);
+const TYPES = new Set(['session.start', 'play.execution', 'cutscene.trigger', 'stadium.state', 'play.call', 'player.frames', 'physics.collision', 'cinematic.trigger', 'match.state', 'ue.ready', 'ue.cutscene.finished', 'ue.flow.state', 'ue.error']);
+const FROM_UE = new Set(['ue.ready', 'ue.cutscene.finished', 'ue.flow.state', 'ue.error']);
 const MAX_BYTES = 4 * 1024 * 1024;
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 

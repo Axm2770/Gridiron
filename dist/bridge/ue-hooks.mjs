@@ -1,6 +1,8 @@
 // Renderer side of the Unreal bridge. Observes executions and the narrative event log and
 // forwards render instructions. Never mutates game state; a missing transport is a no-op.
-import { envelope, playExecutionMessage, cutsceneMessage, stadiumMessage, TEAM_COLORS, validateMessage } from "./ue-protocol.mjs";
+import { envelope, stadiumMessage, TEAM_COLORS, validateMessage } from "./ue-protocol.mjs";
+import { playCallMessage, playerFrameMessages, collisionEvents, cinematicTriggerMessage, matchStateMessage } from "./ue-telemetry.mjs";
+import { timeOfDay } from "../presentation/stadium-pro.mjs";
 import { eventsSince } from "../franchise/event-bus.mjs";
 import { environment } from "../franchise/depth-systems.mjs";
 
@@ -50,7 +52,8 @@ export function installUnrealBridge() {
     }
   };
   let cursor = Number(state.franchise?.eventLog?.serial ?? 0),
-    lastStadium = "";
+    lastStadium = "",
+    lastFlow = "";
   send(
     envelope("session.start", {
       careerId: window.__gridironCareerId ?? null,
@@ -64,14 +67,12 @@ export function installUnrealBridge() {
   window.franchiseRecordExecution = (execution, team) => {
     record?.(execution, team);
     try {
-      const d = execution.context?.decision;
-      send(
-        playExecutionMessage(execution, {
-          direction: d && team === d.b ? -1 : 1,
-          offenseTeam: team,
-          defenseTeam: d ? (team === d.a ? d.b : d.a) : null,
-        }),
-      );
+      // One snap = PlayCallData, then PlayerCoordinateFrame chunks, then timed collision events.
+      const d = execution.context?.decision,
+        ctx = { direction: d && team === d.b ? -1 : 1, offenseTeam: team, defenseTeam: d ? (team === d.a ? d.b : d.a) : -1, match: state.live || {} };
+      send(playCallMessage(execution, ctx));
+      for (const msg of playerFrameMessages(execution, ctx)) send(msg);
+      for (const msg of collisionEvents(execution, ctx)) send(msg);
     } catch (e) {
       window.UnrealBridge.lastError = e.message;
     }
@@ -79,16 +80,24 @@ export function installUnrealBridge() {
   link.onMessage?.((msg) => {
     if (msg.type === "ue.error") window.UnrealBridge.lastError = msg.payload?.message ?? "Unreal reported an error.";
     if (msg.type === "ue.cutscene.finished") document.dispatchEvent(new CustomEvent("gridiron:cutscene-finished", { detail: msg.payload }));
+    if (msg.type === "ue.flow.state") window.UnrealBridge.flowState = msg.payload?.state ?? null;
   });
   const previous = render;
   render = function () {
     previous();
     if (!state.franchise) return;
     for (const e of eventsSince(state, cursor)) {
-      const msg = cutsceneMessage(e, state);
+      const msg = cinematicTriggerMessage(e, state, { environment: { timeOfDay: timeOfDay(state.live), weather: state.live?.weather } });
       if (msg) send(msg);
     }
     cursor = Number(state.franchise.eventLog?.serial ?? cursor);
+    // Flow transitions (Hub → PreGame → Live → Halftime → PostGame) let Unreal stream assets ahead.
+    const flow = matchStateMessage(state),
+      flowKey = JSON.stringify([flow.payload.state, flow.payload.matchId]);
+    if (flowKey !== lastFlow) {
+      lastFlow = flowKey;
+      send(flow);
+    }
     if (state.live) {
       const msg = stadiumMessage(state, state.live, environment(state, state.live)),
         key = JSON.stringify([msg.payload.quarter, msg.payload.score, msg.payload.weather, msg.payload.crowd]);
