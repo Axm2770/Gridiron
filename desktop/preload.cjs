@@ -7,6 +7,23 @@ contextBridge.exposeInMainWorld('gridironUE', {
     if (typeof callback !== 'function') return;
     ipcRenderer.on('ue:message', (_event, message) => callback(message));
   },
+  // Embedded match view (Pixel Streaming): the page is the WebRTC player; signalling goes via IPC.
+  stream: {
+    available: () => ipcRenderer.sendSync('stream:available'),
+    start: () => ipcRenderer.invoke('stream:start'),
+    open: () => ipcRenderer.send('stream:open'),
+    send: (message) => ipcRenderer.send('stream:send', message),
+    close: () => ipcRenderer.send('stream:close'),
+    stop: () => ipcRenderer.send('stream:stop'),
+    onMessage: (callback) => {
+      if (typeof callback !== 'function') return;
+      ipcRenderer.on('stream:message', (_event, message) => callback(message));
+    },
+    onStatus: (callback) => {
+      if (typeof callback !== 'function') return;
+      ipcRenderer.on('stream:status', (_event, status) => callback(status));
+    },
+  },
 });
 contextBridge.exposeInMainWorld('gridironUpdates', {
   status: () => ipcRenderer.sendSync('updates:status'),

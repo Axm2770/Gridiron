@@ -57,6 +57,8 @@ To drive it from the real game instead, launch the desktop app with the bridge o
 npm run ue:package -- -Install
 ```
 
+**Embedded in the game (Windows desktop):** once the renderer is installed, the Matchday 3D panel shows Unreal's broadcast instead of the Three.js stadium. The desktop app starts the renderer off-screen and streams it into the panel with Pixel Streaming 2 (WebRTC over loopback). `desktop/pixel-stream.cjs` handles signalling, mirroring Epic's native signalling server, and the page connects through the sandboxed preload. The panel's **Classic 3D** button switches back to Three.js and the choice is remembered. Mac, the browser version, and PCs without the renderer keep the Three.js view. Check the whole path with `npm run ue:check-stream`: it starts the replay, relay and renderer, waits for decoded frames, and saves a capture.
+
 This builds a standalone `GridironDemo.exe` (Development; add `-Shipping` for a release build without console or logs) into `unreal/Build/Windows`. With `-Install` it also copies it to `%APPDATA%\Gridiron Director\renderer`. In the desktop app, **Game → Open 3D match view (Unreal)** then turns on the bridge and launches it beside the game. Set `GRIDIRON_UE_EXE` to use a build somewhere else.
 
 Packaging stages a copy of the project in `%LOCALAPPDATA%\GridironUE`, because the build's intermediate paths can exceed Windows' 260-character limit when the repository is cloned deep in a folder tree. GitHub's CI cannot build it (no Unreal on its runners), so the renderer ships separately from the desktop ZIPs.

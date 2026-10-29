@@ -166,6 +166,17 @@ stateDiagram-v2
 
 Director rules: wide before the snap → offense focus for 0.6 s → cable cam while the ball is in the air → sideline tight on the ball carrier → impact punch-in on big hits → wide when the play ends. Every shot holds at least 1 s, impact punch-ins included. A punch-in that has to wait still shows the player on the ground, and the edit never cuts twice inside a second. Modes can be locked from the console: `Gridiron.Camera Director|All22|OffenseFocus|DefenseFocus|Sideline|CableCam`. Cuts log at Verbose (`-LogCmds="LogGridiron Verbose"`). Incoming rigs are placed on their mark *before* the cut. Depth of field is procedural: manual focus distance equals the camera-to-subject distance each frame, with smoothing.
 
+### Embedded match view (Pixel Streaming)
+
+The desktop app embeds Unreal in the Matchday panel instead of opening a separate window:
+
+- `startEmbedded()` in `desktop/main.cjs` turns on the telemetry bridge, starts `desktop/pixel-stream.cjs` (signalling on 127.0.0.1:47801), and launches the renderer's inner binary with `-RenderOffScreen -PixelStreamingConnectionURL=ws://127.0.0.1:47801`.
+- The relay follows `PixelStreaming2Servers/SignallingServer.cpp`: `config` + `identify` to the streamer; `playerConnected {sendOffer: true}` on subscribe; offer, answer and ICE relayed with `playerId` added or stripped; ping answered with pong. A subscribe that arrives before the streamer's `endpointId` waits, because Unreal ignores earlier ones.
+- The page is the only player. It reaches the relay through the preload (`gridironUE.stream`) over IPC, so no port is exposed to page content.
+- `dist/bridge/ue-view.mjs` answers Unreal's offer and shows the video in a fixed overlay that tracks `#stadium-host`. The app's re-renders never detach it.
+- When the view is live, the HTML cutscene overlay stands down and Unreal plays the moment. `ue-hooks` re-sends `session.start`, flow and stadium on every `ue.ready`, so a renderer started mid-session gets the palette and venue.
+- Fallback: anywhere the renderer is missing, or if the stream fails, the Three.js view stays.
+
 ### Venue
 
 `AGridironVenue` (placed in the greybox) listens for `stadium.state` and:

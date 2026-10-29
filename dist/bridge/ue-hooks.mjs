@@ -54,15 +54,22 @@ export function installUnrealBridge() {
   let cursor = Number(state.franchise?.eventLog?.serial ?? 0),
     lastStadium = "",
     lastFlow = "";
-  send(
-    envelope("session.start", {
-      careerId: window.__gridironCareerId ?? null,
-      team: state.team,
-      teamName: clubs[state.team]?.[2],
-      colors: TEAM_COLORS,
-      coach: state.coach ? { name: state.coach.name, style: state.coach.style ?? null } : null,
-    }),
-  );
+  // Sent at install and again whenever an Unreal client reports ready, so a renderer started
+  // mid-session (the embedded match view) still gets the palette, flow state and stadium.
+  const introduce = () => {
+    send(
+      envelope("session.start", {
+        careerId: window.__gridironCareerId ?? null,
+        team: state.team,
+        teamName: clubs[state.team]?.[2],
+        colors: TEAM_COLORS,
+        coach: state.coach ? { name: state.coach.name, style: state.coach.style ?? null } : null,
+      }),
+    );
+    lastFlow = "";
+    lastStadium = "";
+  };
+  introduce();
   const record = window.franchiseRecordExecution;
   window.franchiseRecordExecution = (execution, team) => {
     record?.(execution, team);
@@ -78,6 +85,10 @@ export function installUnrealBridge() {
     }
   };
   link.onMessage?.((msg) => {
+    if (msg.type === "ue.ready") {
+      introduce();
+      render();
+    }
     if (msg.type === "ue.error") window.UnrealBridge.lastError = msg.payload?.message ?? "Unreal reported an error.";
     if (msg.type === "ue.cutscene.finished") document.dispatchEvent(new CustomEvent("gridiron:cutscene-finished", { detail: msg.payload }));
     if (msg.type === "ue.flow.state") window.UnrealBridge.flowState = msg.payload?.state ?? null;
