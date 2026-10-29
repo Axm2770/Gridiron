@@ -45,29 +45,30 @@ function playMessages() {
   return { execution, messages: [playCallMessage(execution, ctx), ...playerFrameMessages(execution, ctx), ...collisionEvents(execution, ctx)] };
 }
 
-if (once) {
-  console.log(JSON.stringify(playMessages().messages, null, 2));
-  process.exit(0);
+// --once prints and lets the process end naturally: process.exit would truncate a piped stdout on macOS.
+if (once) process.stdout.write(JSON.stringify(playMessages().messages, null, 2) + "\n");
+else await streamPlays();
+
+async function streamPlays() {
+  const bridge = createBridge({ port, log: (m) => console.log(`[relay] ${m}`), onUnrealMessage: (m) => console.log(`[unreal] ${m.type} ${JSON.stringify(m.payload)}`) });
+  await bridge.start();
+  console.log(`Gridiron replay: streaming a play every ${every / 1000}s on ws://127.0.0.1:${port}. Press Play in the GridironDemo editor. Ctrl+C to stop.`);
+
+  let introduced = false;
+  setInterval(() => {
+    if (!bridge.status().clients) return;
+    if (!introduced) {
+      introduced = true;
+      bridge.broadcast(envelope("session.start", { careerId: "replay", team: HOME, teamName: "Team 16", colors: TEAM_COLORS, coach: { name: "Demo Coach" } }));
+      bridge.broadcast(matchStateMessage(fakeState));
+    }
+    const { execution, messages } = playMessages();
+    for (const m of messages) bridge.broadcast(m);
+    console.log(`[play] ${execution.call} → ${execution.result.kind} ${execution.result.yards} yd · ${messages.length} messages`);
+    // Every sixth play, trigger a cinematic to exercise the sequence manager.
+    if (seed % 6 === 0) {
+      const cine = cinematicTriggerMessage({ id: `replay-cine-${seed}`, kind: "ClutchFinish", team: HOME, opponent: AWAY, score: [24, 21], year: 2026, week: 0 }, fakeState);
+      if (cine) bridge.broadcast(cine);
+    }
+  }, every);
 }
-
-const bridge = createBridge({ port, log: (m) => console.log(`[relay] ${m}`), onUnrealMessage: (m) => console.log(`[unreal] ${m.type} ${JSON.stringify(m.payload)}`) });
-await bridge.start();
-console.log(`Gridiron replay: streaming a play every ${every / 1000}s on ws://127.0.0.1:${port}. Press Play in the GridironDemo editor. Ctrl+C to stop.`);
-
-let introduced = false;
-setInterval(() => {
-  if (!bridge.status().clients) return;
-  if (!introduced) {
-    introduced = true;
-    bridge.broadcast(envelope("session.start", { careerId: "replay", team: HOME, teamName: "Team 16", colors: TEAM_COLORS, coach: { name: "Demo Coach" } }));
-    bridge.broadcast(matchStateMessage(fakeState));
-  }
-  const { execution, messages } = playMessages();
-  for (const m of messages) bridge.broadcast(m);
-  console.log(`[play] ${execution.call} → ${execution.result.kind} ${execution.result.yards} yd · ${messages.length} messages`);
-  // Every sixth play, trigger a cinematic to exercise the sequence manager.
-  if (seed % 6 === 0) {
-    const cine = cinematicTriggerMessage({ id: `replay-cine-${seed}`, kind: "ClutchFinish", team: HOME, opponent: AWAY, score: [24, 21], year: 2026, week: 0 }, fakeState);
-    if (cine) bridge.broadcast(cine);
-  }
-}, every);
