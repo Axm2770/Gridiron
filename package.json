@@ -17,7 +17,9 @@
     "package:windows": "node scripts/package-desktop.mjs win32 x64",
     "dist:mac": "electron-builder --mac dmg zip --publish never",
     "source:archive": "node scripts/source-archive.mjs",
-    "check:mac": "node scripts/check-mac-launch.mjs"
+    "check:mac": "node scripts/check-mac-launch.mjs",
+    "ue:replay": "node scripts/ue-replay.mjs",
+    "ue:setup": "powershell -ExecutionPolicy Bypass -File unreal/Tools/setup.ps1"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",

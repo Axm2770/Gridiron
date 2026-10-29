@@ -3,6 +3,10 @@
 #include "Animation/AnimMontage.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "PhysicsEngine/PhysicalAnimationComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "UObject/ConstructorHelpers.h"
 
 AGridironAthlete::AGridironAthlete()
 {
@@ -15,6 +19,27 @@ AGridironAthlete::AGridironAthlete()
 	// Telemetry is authoritative for where players are, so the mesh never pushes others around.
 	Mesh->SetGenerateOverlapEvents(false);
 	PhysicalAnimation = CreateDefaultSubobject<UPhysicalAnimationComponent>(TEXT("PhysicalAnimation"));
+
+	// Engine-content capsule so a greybox level shows players before any character art exists.
+	Proxy = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Proxy"));
+	Proxy->SetupAttachment(Root);
+	Proxy->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cylinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	if (Cylinder.Succeeded()) Proxy->SetStaticMesh(Cylinder.Object);
+	// Cylinder is 100 cm wide/tall: scale to a ~55 cm wide, 185 cm tall player, origin at the feet.
+	Proxy->SetRelativeScale3D(FVector(0.55f, 0.55f, 1.85f));
+	Proxy->SetRelativeLocation(FVector(0.f, 0.f, 92.5f));
+}
+
+void AGridironAthlete::ApplyLook_Implementation(const FGridironRosterEntry& Entry, FLinearColor TeamColor)
+{
+	const bool bHasArt = Mesh->GetSkeletalMeshAsset() != nullptr;
+	Proxy->SetVisibility(!bHasArt);
+	if (bHasArt) return;
+	Proxy->SetRelativeScale3D(FVector(Entry.MassKg / 180.f, Entry.MassKg / 180.f, Entry.HeightCm / 100.f));
+	Proxy->SetRelativeLocation(FVector(0.f, 0.f, Entry.HeightCm * 0.5f));
+	if (UMaterialInstanceDynamic* Mat = Proxy->CreateDynamicMaterialInstance(0))
+		Mat->SetVectorParameterValue(TEXT("Color"), Entry.Side == TEXT("offense") ? TeamColor : TeamColor * 0.55f);
 }
 
 void AGridironAthlete::Configure(const FGridironRosterEntry& Entry, FLinearColor TeamColor)

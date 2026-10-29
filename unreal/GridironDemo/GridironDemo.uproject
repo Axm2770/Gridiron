@@ -1,0 +1,11 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.4",
+  "Category": "Games",
+  "Description": "Greybox host for the GridironBridge plugin: receives Gridiron Director telemetry and renders it in UE5.",
+  "Plugins": [
+    { "Name": "GridironBridge", "Enabled": true },
+    { "Name": "PythonScriptPlugin", "Enabled": true },
+    { "Name": "EditorScriptingUtilities", "Enabled": true }
+  ]
+}

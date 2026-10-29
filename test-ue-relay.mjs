@@ -54,3 +54,12 @@ assert(main.includes("preload:path.join(__dirname,'preload.cjs')") && main.inclu
 assert(main.includes("event.sender===mainWindow?.webContents"), "only the game window may relay");
 assert(!/require\('node:/.test(preload), "preload exposes no Node APIs");
 console.log("PASS: Unreal loopback relay validation, RFC 6455 framing, end-to-end broadcast/report and sandboxed preload.");
+
+// The standalone replay tool emits a schema-valid play (call → frames → collisions) without the game.
+const { execFileSync } = await import("node:child_process");
+const replay = JSON.parse(execFileSync(process.execPath, ["scripts/ue-replay.mjs", "--once", "--seed", "7"], { encoding: "utf8" }));
+assert.equal(replay[0].type, "play.call");
+assert.equal(replay[0].payload.roster.length, 22);
+assert(replay.some((m) => m.type === "player.frames" && m.payload.final), "final frame chunk present");
+assert(replay.every((m) => validate(m, false)), "every replay message passes the relay's validation");
+console.log("PASS: ue:replay streams schema-valid telemetry without the game.");

@@ -8,3 +8,13 @@ release/
 __pycache__/
 *.pyc
 dist/downloads/
+# Unreal project outputs and the setup-created plugin junction
+unreal/GridironDemo/Plugins/
+unreal/GridironDemo/Binaries/
+unreal/GridironDemo/Intermediate/
+unreal/GridironDemo/Saved/
+unreal/GridironDemo/DerivedDataCache/
+unreal/GridironBridge/Binaries/
+unreal/GridironBridge/Intermediate/
+*.sln
+.vs/

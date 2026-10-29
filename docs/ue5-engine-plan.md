@@ -209,8 +209,8 @@ Effort assumes one developer part-time, with Claude writing code and editor scri
 
 | Phase | Deliverable | Acceptance check | Effort |
 | --- | --- | --- | --- |
-| 0. Toolchain | UE 5.4+, Visual Studio 2022 (C++ game workload), plugin compiles, game connects with `GRIDIRON_UE=1` | `ue.ready` received; `match.state` arrives on entering Matchday | 1–3 days |
-| 1. Greybox replay | Placeholder field, 22 mannequins, `AGridironMatchDirector` + buffer, Director camera | A full play replays in sync with the game's 3D view; no visible pops at chunk boundaries | 1–2 weeks |
+| 0. Toolchain | UE 5.4+, Visual Studio 2022 (C++ game workload); `npm run ue:setup` links, compiles and builds the greybox level (`unreal/README.md`) | `ue.ready` received; `match.state` arrives on entering Matchday | 1–3 days |
+| 1. Greybox replay | `GridironDemo` greybox level (field, lights, ball, directors, team-coloured capsule athletes); `npm run ue:replay` streams plays without the game | A full play replays in sync with the game's 3D view; no visible pops at chunk boundaries | 1–2 weeks |
 | 2. Locomotion | Football skeleton/mesh (Fab/MetaHuman body), shared AnimBP blend space, budget allocator | 60 fps at 1440p with 22 players; no foot sliding at walk/jog/sprint | 2–4 weeks |
 | 3. Contact | Physics Asset `HitReact` profile, ragdoll tuning, get-up montages | Light/solid hits stagger; big tackles ragdoll and recover within 2.5 s; nobody leaves the telemetry path | 2–4 weeks |
 | 4. Broadcast | Rig tuning, DOF, impact shake, All-22 and focus modes, replay angles | Shots never cut more than once per second; subject always in focus | 1–2 weeks |

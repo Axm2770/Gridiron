@@ -12,6 +12,7 @@
 class USkeletalMeshComponent;
 class UPhysicalAnimationComponent;
 class UAnimMontage;
+class UStaticMeshComponent;
 
 UENUM(BlueprintType)
 enum class EGridironBodyState : uint8
@@ -34,6 +35,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<USceneComponent> Root;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<USkeletalMeshComponent> Mesh;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UPhysicalAnimationComponent> PhysicalAnimation;
+	// Greybox stand-in shown until a skeletal mesh is assigned, tinted with the team colour.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UStaticMeshComponent> Proxy;
 
 	// --- AnimBP inputs (read with TryGetPawnOwner → Cast) ---
 	UPROPERTY(BlueprintReadOnly, Category = "Gridiron|Locomotion") float Speed = 0.f;       // cm/s
@@ -59,8 +62,9 @@ public:
 
 	// Called once per play when the roster arrives.
 	UFUNCTION(BlueprintCallable, Category = "Gridiron") void Configure(const FGridironRosterEntry& Entry, FLinearColor TeamColor);
-	// Jersey number, name plate, team materials, body scale from height/mass.
-	UFUNCTION(BlueprintImplementableEvent, Category = "Gridiron") void ApplyLook(const FGridironRosterEntry& Entry, FLinearColor TeamColor);
+	// Jersey number, name plate, team materials, body scale from height/mass. The default
+	// implementation tints and scales the greybox proxy; override in Blueprint for real art.
+	UFUNCTION(BlueprintNativeEvent, Category = "Gridiron") void ApplyLook(const FGridironRosterEntry& Entry, FLinearColor TeamColor);
 
 	// World-space sample from the match director (already transformed by the field origin).
 	void ApplySample(const FVector& WorldLocation, float WorldYaw, const FVector& WorldVelocity, bool bCarrier, float DeltaSeconds);
