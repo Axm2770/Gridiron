@@ -56,8 +56,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Gridiron") FTransform FieldOrigin;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gridiron") EGridironCameraMode Mode = EGridironCameraMode::Director;
 	UPROPERTY(EditAnywhere, Category = "Gridiron") TMap<EGridironShot, FGridironLens> Lenses;
+	// Optional camera shake asset; without one a short procedural shake is applied in code.
 	UPROPERTY(EditAnywhere, Category = "Gridiron") TSubclassOf<UCameraShakeBase> ImpactShake;
-	// Seconds a Director shot must hold before another cut (impact punch-ins are exempt).
+	UPROPERTY(EditAnywhere, Category = "Gridiron") float ImpactShakeCm = 14.f;
+	UPROPERTY(EditAnywhere, Category = "Gridiron") float ImpactShakeSeconds = 0.35f;
+	// How long the impact punch-in holds; at least MinShotSeconds so leaving it obeys the cut rate.
+	UPROPERTY(EditAnywhere, Category = "Gridiron") float ImpactHoldSeconds = 1.2f;
+	// Seconds every Director shot holds before the next cut (impact punch-ins included).
 	UPROPERTY(EditAnywhere, Category = "Gridiron") float MinShotSeconds = 1.0f;
 	UPROPERTY(EditAnywhere, Category = "Gridiron") float CutBlendSeconds = 0.25f;
 
@@ -82,6 +87,8 @@ private:
 	EGridironShot Shot = EGridironShot::SidelineWide;
 	float ShotAge = 0.f;
 	float ImpactUntil = -1.f;
+	float ShakeUntil = -1.f;
+	float ShakeAmplitude = 0.f;
 	float Clock = 0.f;
 
 	// Field-local play state (cm, +X toward the offense's goal when Direction = 1).

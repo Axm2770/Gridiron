@@ -5,6 +5,24 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
+#include "HAL/IConsoleManager.h"
+
+// Console: Gridiron.Camera <Director|All22|OffenseFocus|DefenseFocus|Sideline|CableCam>
+static FAutoConsoleCommandWithWorldAndArgs GGridironCameraCommand(
+	TEXT("Gridiron.Camera"),
+	TEXT("Switch the broadcast camera mode: Director, All22, OffenseFocus, DefenseFocus, Sideline or CableCam."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		const int64 Value = Args.Num() ? StaticEnum<EGridironCameraMode>()->GetValueByNameString(Args[0]) : INDEX_NONE;
+		if (!World || Value == INDEX_NONE)
+		{
+			UE_LOG(LogGridiron, Warning, TEXT("Usage: Gridiron.Camera Director|All22|OffenseFocus|DefenseFocus|Sideline|CableCam"));
+			return;
+		}
+		for (TActorIterator<AGridironBroadcastDirector> It(World); It; ++It) It->SetMode(static_cast<EGridironCameraMode>(Value));
+		UE_LOG(LogGridiron, Log, TEXT("Camera mode %s"), *Args[0]);
+	}));
 
 static FGridironLens MakeLens(float FocalLength, float Aperture, float MoveSpeed)
 {
@@ -80,7 +98,9 @@ void AGridironBroadcastDirector::UpdateFrame(float InPlayTime, const FVector& Ba
 void AGridironBroadcastDirector::NotifyCollision(const FGridironCollision& Collision, const FVector& WorldLocation)
 {
 	if (!Collision.IsBig()) return;
-	ImpactUntil = Clock + 0.8f;
+	ImpactUntil = Clock + FMath::Max(ImpactHoldSeconds, MinShotSeconds);
+	ShakeUntil = Clock + ImpactShakeSeconds;
+	ShakeAmplitude = ImpactShakeCm * FMath::Clamp(Collision.Impulse / 500.f, 0.6f, 1.5f);
 	if (ImpactShake)
 		if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
 			PC->PlayerCameraManager->StartCameraShake(ImpactShake, FMath::Clamp(Collision.Impulse / 800.f, 0.4f, 1.5f));
@@ -158,6 +178,7 @@ void AGridironBroadcastDirector::CutTo(EGridironShot NewShot, bool bHardCut)
 	Cam->SetActorLocationAndRotation(World(Loc), (World(Look) - World(Loc)).Rotation());
 	if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
 		PC->SetViewTargetWithBlend(Cam, bHardCut ? 0.f : CutBlendSeconds, VTBlend_EaseInOut, 2.f);
+	UE_LOG(LogGridiron, Verbose, TEXT("Camera cut to %s at %.2f s"), *StaticEnum<EGridironShot>()->GetNameStringByValue(static_cast<int64>(NewShot)), Clock);
 	Shot = NewShot;
 	ShotAge = 0.f;
 	OnShotChanged(NewShot);
@@ -170,7 +191,9 @@ void AGridironBroadcastDirector::Tick(float DeltaSeconds)
 	ShotAge += DeltaSeconds;
 
 	const EGridironShot Want = ChooseShot();
-	if (Want != Shot && (Want == EGridironShot::Impact || Shot == EGridironShot::Impact || ShotAge >= MinShotSeconds || Mode != EGridironCameraMode::Director))
+	// Every Director cut obeys the minimum hold, impacts included: a late punch-in still shows the
+	// player on the ground, and the rule keeps the edit from ever cutting twice inside a second.
+	if (Want != Shot && (ShotAge >= MinShotSeconds || Mode != EGridironCameraMode::Director))
 		CutTo(Want, Want == EGridironShot::Impact);
 
 	ACineCameraActor* Cam = Rigs.FindRef(Shot);
@@ -187,4 +210,7 @@ void AGridironBroadcastDirector::Tick(float DeltaSeconds)
 	C->FocusSettings.ManualFocusDistance = FVector::Dist(NewLoc, World(Look));
 	C->CurrentFocalLength = FMath::FInterpTo(C->CurrentFocalLength, Lens.FocalLength, DeltaSeconds, 5.f);
 	C->CurrentAperture = Lens.Aperture;
+	// Impact shake on the camera component, so it never feeds back into the rig's smoothing.
+	const float Shake = Clock < ShakeUntil ? ShakeAmplitude * (ShakeUntil - Clock) / ImpactShakeSeconds : 0.f;
+	C->SetRelativeLocation(Shake > 0.f ? FMath::VRand() * Shake : FVector::ZeroVector);
 }

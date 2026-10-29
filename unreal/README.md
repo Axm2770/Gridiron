@@ -37,14 +37,17 @@ npm run ue:replay
 
 This hosts the same loopback relay as the desktop app and streams a simulated play every 8 seconds (play call, player frames, collisions, plus a cinematic trigger every sixth play). Open `unreal/GridironDemo/GridironDemo.uproject` and press **Play**.
 
+Options: `--home 5 --away 0` (any matchup), `--time Afternoon|Dusk|Night`, `--weather Clear|Rain|Snow|Fog`, `--seed 46` (seeds 47, 48 and 59 contain big tackles), `--every 4` (seconds between plays).
+
 To drive it from the real game instead, launch the desktop app with the bridge on: set `GRIDIRON_UE=1` before `npm start`, or tick **Game → Unreal Engine bridge**. Then play a match.
 
-## 4. What you should see (Phases 1–3)
+## 4. What you should see (Phases 1–5)
 
 - 22 team-coloured mannequins line up and run each play in sync: idle at the snap, jogging and sprinting with real strides, and no pops between frame chunks. Without the mannequin content they fall back to coloured capsules.
 - The ball travels the right arc; the player carrying it is the one the play's result names.
 - Big tackles knock the ball carrier down (ragdoll). He gets back up on his spot within about 2.5 s. The log shows `Athlete N (role) goes down`.
-- Cameras cut: wide before the snap → behind the offense → cable cam on passes → tight on the runner → a punch-in on big hits.
+- Cameras cut: wide before the snap → behind the offense → cable cam on passes → tight on the runner → a punch-in on big hits. No two cuts come within a second of each other. Lock a camera from the console (`~`) with `Gridiron.Camera All22` (or `Director`, `OffenseFocus`, `DefenseFocus`, `Sideline`, `CableCam`).
+- The stadium dresses for the match: end zones and stand trim take the home and away colours, and dusk or night turns on the four tower lights. The log shows `Stadium: home N, away N, <time>, <weather>`.
 - The Output Log shows `LogGridiron` lines: `Gridiron bridge connected`, then `Play <id>: <call> vs <coverage>, 22 players` and `Play <id> finished` for each snap. The replay terminal prints `[unreal] ue.ready`.
 
 ## Troubleshooting
@@ -55,4 +58,4 @@ To drive it from the real game instead, launch the desktop app with the bridge o
 
 ## 5. Next phases
 
-Phases 2–3 run on the engine mannequin. For final art, swap in a football body (a Fab or MetaHuman mesh) by setting `BodyMesh`, or use a Blueprint subclass of `GridironAthlete` with its own Animation Blueprint and get-up montages. Then come the broadcast cameras, stadium, cinematics and packaging (Phases 4–7). The plan doc lists the pass criteria for each.
+Phases 2–3 run on the engine mannequin. For final art, swap in a football body (a Fab or MetaHuman mesh) by setting `BodyMesh`, or use a Blueprint subclass of `GridironAthlete` with its own Animation Blueprint and get-up montages. Phases 4–5 run on the greybox venue; real stadium art can replace the stands and towers as long as it reads `MPC_Gridiron` and keeps the `GridironStadiumLight` tags. Then come cinematics and packaging (Phases 6–7). The plan doc lists the pass criteria for each.

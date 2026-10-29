@@ -2,7 +2,7 @@
 
 How Gridiron Director drives an Unreal Engine 5 renderer for the 3D match, player models and cinematics, in the data-driven style of modern sports titles. The game stays the single source of truth: it simulates every snap deterministically, then *streams* the result. Unreal interpolates, animates, applies physics reactions, directs cameras and plays cinematics, but never decides an outcome.
 
-Status: Phases 0–3 are verified on UE 5.8 (Windows), using the engine mannequin for Phases 2–3. The plugin compiles without warnings, and `npm run ue:replay` streams plays into the greybox level: 22 team-coloured athletes move through each play, cameras cut, the flow state reaches Live, and cinematic triggers fall back cleanly when no sequence asset exists. No art content (skeletal meshes, AnimBPs, Level Sequences, stadium levels) is included yet. See [Execution plan](#execution-plan).
+Status: Phases 0–5 are verified on UE 5.8 (Windows): the engine mannequin for Phases 2–3 and a greybox venue for Phase 5. The plugin compiles without warnings, and `npm run ue:replay` streams plays into the greybox level: 22 team-coloured athletes move through each play, cameras cut, the flow state reaches Live, and cinematic triggers fall back cleanly when no sequence asset exists. No art content (skeletal meshes, AnimBPs, Level Sequences, stadium levels) is included yet. See [Execution plan](#execution-plan).
 
 ## 1. System architecture
 
@@ -162,9 +162,19 @@ stateDiagram-v2
 | Sideline wide | 50-yard press box (−43 m Y, 15 m high), tracking the subject | 35 mm, f/8 |
 | Sideline tight | −36 m Y, 7 m high, on the carrier | 85 mm, f/2.8 |
 | Cable cam | 13 m behind and 9.5 m above the ball, looking 0.35 s ahead | 30 mm, f/4 |
-| Impact | Sideline tight punch-in for 0.8 s on big hits, with shake | 135 mm, f/2 |
+| Impact | Sideline tight punch-in held 1.2 s on big hits, with a 0.35 s procedural shake (or an assigned shake asset) | 135 mm, f/2 |
 
-Director rules: wide before the snap → offense focus for 0.6 s → cable cam while the ball is in the air → sideline tight on the ball carrier → impact punch-in on big hits → wide when the play ends. Every shot holds at least 1 s (impacts exempt). Incoming rigs are placed on their mark *before* the cut. Depth of field is procedural: manual focus distance equals the camera-to-subject distance each frame, with smoothing.
+Director rules: wide before the snap → offense focus for 0.6 s → cable cam while the ball is in the air → sideline tight on the ball carrier → impact punch-in on big hits → wide when the play ends. Every shot holds at least 1 s, impact punch-ins included. A punch-in that has to wait still shows the player on the ground, and the edit never cuts twice inside a second. Modes can be locked from the console: `Gridiron.Camera Director|All22|OffenseFocus|DefenseFocus|Sideline|CableCam`. Cuts log at Verbose (`-LogCmds="LogGridiron Verbose"`). Incoming rigs are placed on their mark *before* the cut. Depth of field is procedural: manual focus distance equals the camera-to-subject distance each frame, with smoothing.
+
+### Venue
+
+`AGridironVenue` (placed in the greybox) listens for `stadium.state` and:
+
+- writes `HomePrimary`, `AwayPrimary` and `CrowdDensity` to `MPC_Gridiron`, which the team end zones and stand trim read;
+- applies a lighting preset for `timeOfDay`: Afternoon (sun high), Dusk (low orange sun) or Night (moonlight). Lights tagged `GridironStadiumLight` on the four towers switch on for dusk and night;
+- sets fog density from `weather` (Clear, Rain, Snow, Fog).
+
+The greybox builds stands (low on the camera side so the sideline rigs see over them) and the light towers from engine shapes. Real stadium art can replace them as long as it reads the same parameter collection and keeps the tower light tags.
 
 ### Dynamic cinematics
 
@@ -213,8 +223,8 @@ Effort assumes one developer part-time, with Claude writing code and editor scri
 | 1. Greybox replay | `GridironDemo` greybox level (field, lights, ball, directors, team-coloured capsule athletes); `npm run ue:replay` streams plays without the game | A full play replays in sync with the game's 3D view; no visible pops at chunk boundaries | 1–2 weeks |
 | 2. Locomotion | **Done with the engine mannequin**: blend space driven from telemetry, update-rate optimisation. Next: football mesh (Fab/MetaHuman body), budget allocator | 60 fps at 1440p with 22 players; no foot sliding at walk/jog/sprint | 2–4 weeks |
 | 3. Contact | **Done**: code-defined hit-react motors, ragdoll on big tackles, blend-out recovery. Next: get-up montages, ragdoll tuning | Light/solid hits stagger; big tackles ragdoll and recover within 2.5 s; nobody leaves the telemetry path | 2–4 weeks |
-| 4. Broadcast | Rig tuning, DOF, impact shake, All-22 and focus modes, replay angles | Shots never cut more than once per second; subject always in focus | 1–2 weeks |
-| 5. Stadium | Stadium level instance, team-colour material parameter collection, lighting presets, weather actors | Team colours and time of day correct for any matchup | 2–4 weeks |
+| 4. Broadcast | **Done**: 1 s minimum hold for every cut, procedural impact shake, `Gridiron.Camera` mode command, procedural DOF. Next: replay angles | Shots never cut more than once per second; subject always in focus | 1–2 weeks |
+| 5. Stadium | **Greybox done**: `MPC_Gridiron` team colours, venue lighting presets with tower lights, weather fog. Next: stadium art as a level instance, crowd, weather particle actors | Team colours and time of day correct for any matchup | 2–4 weeks |
 | 6. Cinematics | Six templates (walkout, title, draft, presser, playoff exit, walk-off) with tagged slots and MetaHuman performers | Any team and player renders correctly; skip works; queue and priority behave | 3–6 weeks |
 | 7. Flow and packaging | Flow subsystem wired to content, PSO cache, Windows packaging beside the Electron app | Hub → match → celebration → hub with no hitch over 33 ms in Unreal Insights | 1–2 weeks |
 
@@ -230,4 +240,9 @@ Effort assumes one developer part-time, with Claude writing code and editor scri
   - mid-play frames show running strides and a pass in flight;
   - big tackles log `Athlete N (role) goes down`;
   - frames 0.5 s and 1.0 s after the hit show the fall and the player on the turf, and by 2.4 s he is back on his feet.
-- Not verified: frame-rate budget at 1440p, Level Sequence cinematics (no templates yet, so triggers report `skipped`), stadium streaming and packaging. Expect small API adjustments on other engine versions.
+- Phases 4–5 verified on UE 5.8 with the greybox venue:
+  - over 70 s of replay, 46 cuts with a minimum gap of 1.0 s, and impact punch-ins on both big hits;
+  - `Gridiron.Camera All22` switched to the end-zone view;
+  - team 5 vs team 0 at dusk turned the stand trim orange and lit the towers;
+  - night with rain logged the venue state and showed four tower shadows per player.
+- Not verified: frame-rate budget at 1440p, replay angles, Level Sequence cinematics (no templates yet, so triggers report `skipped`), stadium art streaming, weather particles and packaging. Expect small API adjustments on other engine versions.
