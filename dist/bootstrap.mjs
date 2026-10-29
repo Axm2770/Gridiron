@@ -36,6 +36,11 @@ try {
   await script("match.js");
   await script("atmosphere.js");
   await import("./stadium.js");
+  // Desktop only: confirm this content version booted, then offer in-game updates.
+  if (window.gridironUpdates) {
+    window.gridironUpdates.ready();
+    import("./ui/update-banner.mjs").then((m) => m.installUpdateBanner(window.gridironUpdates)).catch((error) => console.error("Update banner:", error));
+  }
 } catch (error) {
   if (status) {
     status.innerHTML =
