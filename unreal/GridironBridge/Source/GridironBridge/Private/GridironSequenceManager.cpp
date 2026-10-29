@@ -14,10 +14,21 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "Kismet/KismetMaterialLibrary.h"
 #include "EngineUtils.h"
+#include "HAL/IConsoleManager.h"
+
+// Console: Gridiron.SkipCinematic: skips the playing cinematic if its trigger allows it.
+static FAutoConsoleCommandWithWorld GGridironSkipCommand(
+	TEXT("Gridiron.SkipCinematic"),
+	TEXT("Skip the playing cinematic (if skippable)."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World)
+	{
+		if (UGridironSequenceManager* Manager = World ? World->GetSubsystem<UGridironSequenceManager>() : nullptr) Manager->Skip();
+	}));
 
 void UGridironSequenceManager::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
+	if (!Library) Library = LoadObject<UGridironCinematicLibrary>(nullptr, DefaultLibraryPath, nullptr, LOAD_NoWarn);
 	if (UGameInstance* GI = InWorld.GetGameInstance())
 		if (UGridironBridgeSubsystem* Bridge = GI->GetSubsystem<UGridironBridgeSubsystem>())
 			Bridge->OnCinematic.AddDynamic(this, &UGridironSequenceManager::HandleTrigger);
@@ -51,6 +62,7 @@ void UGridironSequenceManager::Load()
 	if (!Template)
 	{
 		// Missing content must never stall the game's flow.
+		UE_LOG(LogGridiron, Log, TEXT("Cinematic %s: no template, skipped"), *Active.Template.ToString());
 		Finish(true);
 		return;
 	}
@@ -117,12 +129,19 @@ void UGridironSequenceManager::Stage()
 
 	// Spawn each performer, give it its identity, and bind it to the sequence track tagged with
 	// the slot name. Templates are authored once; every team and player reuses them.
-	for (const FGridironPerformer& Performer : Active.Cast)
+	// Cast members line up side by side on the stage mark, facing the template cameras.
+	const FRotator Facing(0.f, Library->StageYaw, 0.f);
+	const FVector Across = FRotator(0.f, Library->StageYaw, 0.f).RotateVector(FVector::ForwardVector);
+	for (int32 i = 0; i < Active.Cast.Num(); ++i)
 	{
+		const FGridironPerformer& Performer = Active.Cast[i];
 		const TSoftClassPtr<AActor>* Soft = Template->PerformerClasses.Find(Performer.Slot);
 		UClass* Class = Soft && Soft->Get() ? Soft->Get() : Template->DefaultPerformer.Get();
 		if (!Class) continue;
-		AActor* Actor = World->SpawnActor<AActor>(Class, FTransform::Identity);
+		const FVector Mark = Library->StageLocation + Across * Library->StageSpacing * (i - (Active.Cast.Num() - 1) * 0.5f);
+		FActorSpawnParameters Params;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AActor* Actor = World->SpawnActor<AActor>(Class, FTransform(Facing, Mark), Params);
 		if (!Actor) continue;
 		Spawned.Add(Actor);
 		const FGridironTeamLook& Team = Performer.Team == Active.Teams.Away.Id ? Active.Teams.Away : Active.Teams.Home;
@@ -131,6 +150,7 @@ void UGridironSequenceManager::Stage()
 		SequenceActor->SetBindingByTag(Performer.Slot, { Actor });
 	}
 
+	UE_LOG(LogGridiron, Log, TEXT("Cinematic %s started (%s, %d performers, %.1f s)"), *Active.Template.ToString(), *Active.Kind, Spawned.Num(), Player->GetDuration().AsSeconds());
 	Player->OnFinished.AddDynamic(this, &UGridironSequenceManager::HandleSequenceFinished);
 	OnCinematicStarted.Broadcast(Active);
 	Player->Play();
@@ -163,6 +183,7 @@ void UGridironSequenceManager::Finish(bool bSkipped, bool bPlayNext)
 
 	const FGridironCinematic Done = Active;
 	bActive = false;
+	UE_LOG(LogGridiron, Log, TEXT("Cinematic %s %s"), *Done.Template.ToString(), bSkipped ? TEXT("skipped") : TEXT("finished"));
 	if (UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
 	{
 		if (UGridironBridgeSubsystem* Bridge = GI->GetSubsystem<UGridironBridgeSubsystem>()) Bridge->ReportCutsceneFinished(Done.EventId, bSkipped);

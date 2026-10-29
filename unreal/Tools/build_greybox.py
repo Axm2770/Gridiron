@@ -174,6 +174,11 @@ director.set_editor_property("broadcast", broadcast)
 tagged(unreal.GridironVenue, "Venue", (0, 0, 0))
 
 levels.save_current_level()
+
+# Cinematic templates and the library the sequence manager loads (they read MPC_Gridiron).
+import os
+exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "build_cinematics.py"), encoding="utf-8").read())
+
 unreal.log("Gridiron greybox level built: " + MAP)
 
 # setup.ps1 passes -GridironQuit so a headless setup run closes the editor when done.

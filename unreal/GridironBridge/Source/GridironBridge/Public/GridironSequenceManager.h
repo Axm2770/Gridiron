@@ -65,6 +65,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TMap<FString, TSoftClassPtr<AActor>> Weather;
 	// Stadium dressing (banners, end zones, boards) reads HomePrimary/AwayPrimary etc. from this.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TSoftObjectPtr<UMaterialParameterCollection> TeamParameters;
+	// Where performers stand (world space) and which way they face; cast slots line up side by
+	// side. Template cameras are authored around this mark.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") FVector StageLocation = FVector(5000.f, 0.f, 0.f);
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") float StageYaw = 90.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") float StageSpacing = 130.f;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGridironCinematicStarted, const FGridironCinematic&, Cinematic);
@@ -77,6 +82,9 @@ class GRIDIRONBRIDGE_API UGridironSequenceManager : public UWorldSubsystem
 
 public:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+	// Used when nothing calls SetLibrary (the greybox builds this asset).
+	static constexpr const TCHAR* DefaultLibraryPath = TEXT("/Game/Gridiron/Cinematics/DA_GridironCinematics.DA_GridironCinematics");
 
 	UFUNCTION(BlueprintCallable, Category = "Gridiron") void SetLibrary(UGridironCinematicLibrary* InLibrary) { Library = InLibrary; }
 	UFUNCTION(BlueprintCallable, Category = "Gridiron") void Play(const FGridironCinematic& Cinematic);

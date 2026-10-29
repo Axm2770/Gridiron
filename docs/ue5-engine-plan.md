@@ -2,7 +2,7 @@
 
 How Gridiron Director drives an Unreal Engine 5 renderer for the 3D match, player models and cinematics, in the data-driven style of modern sports titles. The game stays the single source of truth: it simulates every snap deterministically, then *streams* the result. Unreal interpolates, animates, applies physics reactions, directs cameras and plays cinematics, but never decides an outcome.
 
-Status: Phases 0–5 are verified on UE 5.8 (Windows): the engine mannequin for Phases 2–3 and a greybox venue for Phase 5. The plugin compiles without warnings, and `npm run ue:replay` streams plays into the greybox level: 22 team-coloured athletes move through each play, cameras cut, the flow state reaches Live, and cinematic triggers fall back cleanly when no sequence asset exists. No art content (skeletal meshes, AnimBPs, Level Sequences, stadium levels) is included yet. See [Execution plan](#execution-plan).
+Status: Phases 0–7 are verified on UE 5.8 (Windows) with greybox content: the engine mannequin, a greybox venue, generated cinematic templates, and a packaged renderer the desktop app launches. The plugin compiles without warnings, and `npm run ue:replay` streams plays into the greybox level: 22 team-coloured athletes move through each play, cameras cut, the flow state reaches Live, and cinematic triggers fall back cleanly when no sequence asset exists. No art content (skeletal meshes, AnimBPs, Level Sequences, stadium levels) is included yet. See [Execution plan](#execution-plan).
 
 ## 1. System architecture
 
@@ -185,6 +185,12 @@ Author each template Level Sequence once, with possessable tracks tagged by cast
 3. Spawns a performer per slot, calls `ApplyPerformer(performer, teamLook)` (jersey colours, number and name decals, MetaHuman skin/hair/build, height scale), and calls `SetBindingByTag(slot, {actor})`.
 4. Plays, then cleans up, reports `ue.cutscene.finished`, notifies the flow subsystem and starts the next queued cinematic. A higher-priority trigger interrupts; missing templates finish immediately as skipped so the game never stalls.
 
+**Built-in templates (greybox).** `unreal/Tools/build_cinematics.py` generates all nine templates the protocol names (`LS_Championship_Celebration`, `LS_DraftNight_Stage`, `LS_Walkoff_Mob` and the rest). Each has a spawned cine camera with a camera-cut track and a per-template move (push-in, crane down, orbit, truck) framed on the stage mark behind the home end zone. It also builds `DA_GridironCinematics`, which the sequence manager loads when nothing calls `SetLibrary`.
+
+**Default performer.** `AGridironStageActor` is the engine mannequin in an idle loop. Player slots (Star, Prospect, Captain, Subject) wear the team's primary colour; staff slots (HeadCoach, Owner, Commissioner, Trainer, GeneralManager) wear grey. Height comes from the appearance data. Performers line up on the library's `StageLocation`, facing the cameras.
+
+For final art, re-author the sequences with MetaHuman performers in each slot and keep the template names. `Gridiron.SkipCinematic` skips from the console.
+
 ### Game flow state machine
 
 ```mermaid
@@ -209,7 +215,7 @@ Hitch-avoidance checklist:
 - Stadium as `ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr`; wait for `OnLevelShown`.
 - Uniform and performer sets via `RequestAsyncLoad`, keyed by the `match.state.preload` hints; handles held for the match and released on return.
 - Camera fade covers every content swap; athletes are pooled; no `LoadObject`/`SpawnActor` of new classes during live play.
-- Shader hitching: enable PSO precaching (`r.PSOPrecaching=1`) and ship a bundled PSO cache recorded from a playthrough.
+- Shader hitching: ship a bundled PSO cache recorded from a playthrough. Runtime PSO precaching (`r.PSOPrecaching=1`) is off, because it made D3D12 pipeline creation fail (E_OUTOFMEMORY) at startup in cooked builds on UE 5.8 with NVIDIA.
 - Garbage collection only in `Hub` (forced once after unload); never mid-match.
 - The intro and celebrations are blocking, so the match director holds telemetry while they play; non-blocking cinematics play over the live view.
 
@@ -225,8 +231,8 @@ Effort assumes one developer part-time, with Claude writing code and editor scri
 | 3. Contact | **Done**: code-defined hit-react motors, ragdoll on big tackles, blend-out recovery. Next: get-up montages, ragdoll tuning | Light/solid hits stagger; big tackles ragdoll and recover within 2.5 s; nobody leaves the telemetry path | 2–4 weeks |
 | 4. Broadcast | **Done**: 1 s minimum hold for every cut, procedural impact shake, `Gridiron.Camera` mode command, procedural DOF. Next: replay angles | Shots never cut more than once per second; subject always in focus | 1–2 weeks |
 | 5. Stadium | **Greybox done**: `MPC_Gridiron` team colours, venue lighting presets with tower lights, weather fog. Next: stadium art as a level instance, crowd, weather particle actors | Team colours and time of day correct for any matchup | 2–4 weeks |
-| 6. Cinematics | Six templates (walkout, title, draft, presser, playoff exit, walk-off) with tagged slots and MetaHuman performers | Any team and player renders correctly; skip works; queue and priority behave | 3–6 weeks |
-| 7. Flow and packaging | Flow subsystem wired to content, PSO cache, Windows packaging beside the Electron app | Hub → match → celebration → hub with no hitch over 33 ms in Unreal Insights | 1–2 weeks |
+| 6. Cinematics | **Greybox done**: all nine protocol templates generated, default library, mannequin performers dressed per slot. Next: MetaHuman performers, authored animation, tag-bound tracks | Any team and player renders correctly; skip works; queue and priority behave | 3–6 weeks |
+| 7. Flow and packaging | **Packaging done**: `npm run ue:package -- -Install` (staged short path, throttled cook, always-cooked mannequin and cinematics) and Game → Open 3D match view in the desktop app. Next: bundled PSO cache, hub ↔ match flow timing | Hub → match → celebration → hub with no hitch over 33 ms in Unreal Insights | 1–2 weeks |
 
 **Total:** about 3–6 months part-time. Content (animation quality in phases 2–3 and 6) dominates the schedule and any spend: marketplace football animation packs, or motion capture for realism.
 
@@ -245,4 +251,12 @@ Effort assumes one developer part-time, with Claude writing code and editor scri
   - `Gridiron.Camera All22` switched to the end-zone view;
   - team 5 vs team 0 at dusk turned the stand trim orange and lit the towers;
   - night with rain logged the venue state and showed four tower shadows per player.
-- Not verified: frame-rate budget at 1440p, replay angles, Level Sequence cinematics (no templates yet, so triggers report `skipped`), stadium art streaming, weather particles and packaging. Expect small API adjustments on other engine versions.
+- Phase 6 verified on UE 5.8:
+  - the replay's clutch-finish trigger played `LS_Walkoff_Mob` in full (log: `started (ClutchFinish, 2 performers, 5.0 s)`, then `finished`);
+  - the game side received `ue.cutscene.finished` with `skipped: false`;
+  - frames show the Star in team colour and the coach in grey on the stage, the camera push-in, and the hand-back to the broadcast.
+- Phase 7 verified on UE 5.8:
+  - `package.ps1 -Install` builds a Development `GridironDemo.exe` (about 905 MB with content) and installs it;
+  - the packaged build, without the editor, connects to `ue:replay`, dresses the stadium, plays every snap, ragdolls on big tackles, and plays `LS_Walkoff_Mob` with mannequin performers;
+  - fixes it needed: staging under a short path (repository paths over 260 characters), `r.PSOPrecaching=0` (D3D12 E_OUTOFMEMORY at startup), and always cooking `/Game/Characters/Mannequins` and `/Game/Gridiron/Cinematics`, which are loaded by path.
+- Not verified: frame-rate budget at 1440p, replay angles, skipping or interrupting a cinematic at runtime (the code paths exist but were not exercised), stadium art streaming and weather particles, the desktop menu launch (covered by a static test only), a Shipping build, a bundled PSO cache and the hub ↔ match ↔ celebration hitch budget in Unreal Insights. Expect small API adjustments on other engine versions.
