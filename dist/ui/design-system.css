@@ -227,3 +227,15 @@ dialog.gd-sheet .gd-sheet-body { padding: 16px 18px; max-height: 70vh; overflow:
 .gd-update-actions { display: flex; gap: 8px; }
 .gd-update-progress { flex: 1 1 100%; height: 4px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; }
 .gd-update-progress i { display: block; height: 100%; background: var(--gd-accent); transition: width .2s; }
+
+/* Embedded Unreal match view (bridge/ue-view.mjs): a fixed overlay that tracks #stadium-host */
+.ue-match-view { position: fixed; z-index: 20; overflow: hidden; border-radius: inherit; background: #0b1118; pointer-events: none; }
+.ue-match-view[hidden] { display: none; }
+.ue-match-view video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ue-match-view[data-state="connecting"] video, .ue-match-view[data-state="waiting"] video { opacity: 0; }
+.ue-match-status { position: absolute; inset: 0; display: grid; place-items: center; color: var(--gd-text-2, #b8c2cc); font-size: 13px; letter-spacing: .02em; }
+.ue-match-status:empty { display: none; }
+.ue-match-toggle { position: absolute; top: 10px; right: 10px; pointer-events: auto; opacity: .85; }
+.ue-match-toggle:hover { opacity: 1; }
+
+.ue-match-download { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--gd-text-2, #b8c2cc); }

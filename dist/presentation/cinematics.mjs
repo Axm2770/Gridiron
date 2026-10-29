@@ -542,6 +542,11 @@ export function installCinematics({ isBusy }) {
     const fresh = eventsSince(state, cursor);
     cursor = Number(state.franchise.eventLog?.serial ?? cursor);
     pending.push(...fresh.filter((e) => e.team === state.team));
+    // While the embedded Unreal view is live it plays these moments as its own cutscenes.
+    if (window.UnrealMatchView?.state() === "live") {
+      pending.length = 0;
+      return;
+    }
     // Wait until the match animation and any modal are done before rolling a cinematic.
     const busy = isBusy() || (typeof animating !== "undefined" && animating) || document.getElementById("modal")?.open;
     if (!pending.length || busy || active) return;
