@@ -12,7 +12,9 @@
 param(
   [Parameter(Mandatory = $true)][ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version,
   [switch]$NoUpload,
-  [string]$Repo = "Axm2770/Gridiron"
+  [string]$Repo = "Axm2770/Gridiron",
+  # Path to gh.exe when it is not on PATH (for example a portable copy).
+  [string]$Gh = ""
 )
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -37,8 +39,11 @@ $json = [ordered]@{ schema = 1; version = $Version; protocol = "gridiron.ue/1"; 
 Write-Host ("Renderer {0}: {1:N0} MB, sha256 {2}" -f $Version, ($size / 1MB), $sha.Substring(0, 12))
 
 if ($NoUpload) { Write-Host "Not uploaded (-NoUpload). Files: $out"; exit 0 }
-$gh = (Get-Command gh -ErrorAction SilentlyContinue).Source
+$gh = if ($Gh) { $Gh } else { (Get-Command gh -ErrorAction SilentlyContinue).Source }
 if (-not $gh) { Fail "GitHub CLI (gh) not found. Install it (winget install GitHub.cli), run 'gh auth login', or upload $zip and $manifest to the 'renderer' release by hand." }
+# gh reports "release not found" on stderr; under Stop, Windows PowerShell 5.1 would treat that
+# as fatal. Rely on exit codes for the gh calls instead.
+$ErrorActionPreference = "Continue"
 & $gh release view renderer --repo $Repo *> $null
 if ($LASTEXITCODE -ne 0) {
   & $gh release create renderer --repo $Repo --prerelease --latest=false --title "Unreal match view (renderer)" --notes "Optional 3D match view for Windows, downloaded from inside the game. Not a game release."
