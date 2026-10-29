@@ -108,7 +108,10 @@ if (-not $SkipGreybox) {
   if (Test-Path $map) { Remove-Item -Force $map }
   # Level-editing APIs need the full editor: launch it, run the script, and let the script quit.
   Start-Process $editor -ArgumentList "`"$project`"", "-ExecutePythonScript=`"$script`"", "-GridironQuit", "-nosplash" -Wait
-  if (-not (Test-Path $map)) { Fail "The greybox level was not saved; see unreal\GridironDemo\Saved\Logs\GridironDemo.log." }
+  # The script logs this line only after everything is built and saved.
+  $editorLog = Join-Path $root "unreal\GridironDemo\Saved\Logs\GridironDemo.log"
+  $built = (Test-Path $editorLog) -and (Select-String -Path $editorLog -SimpleMatch "Gridiron greybox level built" -Quiet)
+  if (-not (Test-Path $map) -or -not $built) { Fail "The greybox script did not finish; see the LogPython errors in $editorLog." }
   Write-Host "Greybox level saved to /Game/Gridiron/Maps/Greybox." -ForegroundColor Green
 }
 

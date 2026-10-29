@@ -5,9 +5,11 @@
 //   npm run ue:replay                 # one play every 8 s on ws://127.0.0.1:47800
 //   npm run ue:replay -- --once       # print one play's messages as JSON and exit
 //   npm run ue:replay -- --every 5 --port 47800 --seed 42
+//   npm run ue:replay -- --time Night --weather Rain   # venue: Afternoon, Dusk or Night; Clear, Rain, Snow or Fog
+//   npm run ue:replay -- --home 5 --away 0             # any matchup (team indexes 0-31)
 import { createRequire } from "node:module";
 import { simulateExecution } from "../dist/engine/execution.mjs";
-import { envelope, TEAM_COLORS } from "../dist/bridge/ue-protocol.mjs";
+import { envelope, stadiumMessage, TEAM_COLORS } from "../dist/bridge/ue-protocol.mjs";
 import { playCallMessage, playerFrameMessages, collisionEvents, matchStateMessage, cinematicTriggerMessage } from "../dist/bridge/ue-telemetry.mjs";
 
 const require = createRequire(import.meta.url),
@@ -18,12 +20,14 @@ const require = createRequire(import.meta.url),
   },
   port = Number(arg("port", 47800)),
   every = Number(arg("every", 8)) * 1000,
+  timeOfDay = arg("time", "Afternoon"),
+  weather = arg("weather", "Clear"),
   once = process.argv.includes("--once");
 let seed = Number(arg("seed", 1));
 
 globalThis.clubs ??= Array.from({ length: 32 }, (_, i) => [`T${i}`, `City ${i}`, `Team ${i}`, `Division ${Math.floor(i / 4)}`]);
-const HOME = 16,
-  AWAY = 13,
+const HOME = Number(arg("home", 16)),
+  AWAY = Number(arg("away", 13)),
   CALLS = ["Inside run", "Outside run", "Short pass", "Deep pass", "Play action", "Screen"],
   COVERAGES = ["Cover 2", "Cover 3", "Quarters", "Man coverage"];
 const squad = (pos, n, ovr) => Array.from({ length: n }, (_, i) => ({ id: `${pos}${i}`, name: `${pos} ${i + 1}`, pos, ovr, jersey: 10 + i * 7 }));
@@ -59,8 +63,11 @@ async function streamPlays() {
     if (!bridge.status().clients) return;
     if (!introduced) {
       introduced = true;
-      bridge.broadcast(envelope("session.start", { careerId: "replay", team: HOME, teamName: "Team 16", colors: TEAM_COLORS, coach: { name: "Demo Coach" } }));
+      bridge.broadcast(envelope("session.start", { careerId: "replay", team: HOME, teamName: `Team ${HOME}`, colors: TEAM_COLORS, coach: { name: "Demo Coach" } }));
       bridge.broadcast(matchStateMessage(fakeState));
+      const venue = stadiumMessage(fakeState, live, { weather, crowd: 85 });
+      venue.payload.timeOfDay = timeOfDay;
+      bridge.broadcast(venue);
     }
     const { execution, messages } = playMessages();
     for (const m of messages) bridge.broadcast(m);

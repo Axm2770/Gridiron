@@ -123,9 +123,18 @@ struct FGridironCutscene
 };
 
 USTRUCT(BlueprintType)
+struct FGridironStadiumColors
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadOnly, Category = "Gridiron") FString Home; // "#rrggbb"
+	UPROPERTY(BlueprintReadOnly, Category = "Gridiron") FString Away;
+};
+
+USTRUCT(BlueprintType)
 struct FGridironStadium
 {
 	GENERATED_BODY()
+	UPROPERTY(BlueprintReadOnly, Category = "Gridiron") FGridironStadiumColors Colors;
 	UPROPERTY(BlueprintReadOnly, Category = "Gridiron") int32 HomeTeam = 0;
 	UPROPERTY(BlueprintReadOnly, Category = "Gridiron") int32 AwayTeam = INDEX_NONE;
 	UPROPERTY(BlueprintReadOnly, Category = "Gridiron") FString Weather;
