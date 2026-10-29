@@ -44,6 +44,11 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<UPhysicalAnimationComponent> PhysicalAnimation;
 	// Greybox stand-in shown until a skeletal mesh is assigned, tinted with the team colour.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<UStaticMeshComponent> Proxy;
+	// Football gear from engine shapes, attached to the default mannequin (team-coloured helmet with a
+	// grey facemask, shoulder pads). Hidden when a Blueprint supplies its own character art.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<UStaticMeshComponent> Helmet;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<UStaticMeshComponent> Facemask;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<UStaticMeshComponent> Pads;
 
 	// --- AnimBP inputs (read with TryGetPawnOwner → Cast) ---
 	UPROPERTY(BlueprintReadOnly, Category = "Gridiron|Locomotion") float Speed = 0.f;       // cm/s
@@ -99,6 +104,8 @@ private:
 	void EndRagdoll();
 	void StopPhysics();
 	void LoadDefaultArt();
+	void AttachGear();
+	bool bGear = false;
 	void UpdateLocomotion();
 
 	// Top of the locomotion blend space's speed axis; faster players play it faster.

@@ -184,7 +184,8 @@ The desktop app embeds Unreal in the Matchday panel instead of opening a separat
 
 - writes `HomePrimary`, `AwayPrimary` and `CrowdDensity` to `MPC_Gridiron`, which the team end zones and stand trim read;
 - applies a lighting preset for `timeOfDay`: Afternoon (sun high), Dusk (low orange sun) or Night (moonlight). Lights tagged `GridironStadiumLight` on the four towers switch on for dusk and night;
-- sets fog density from `weather` (Clear, Rain, Snow, Fog).
+- sets fog density from `weather` (Clear, Rain, Snow, Fog) and switches `AGridironWeather`: instanced rain streaks or snow flakes in a box kept ahead of the camera, moved entirely by `M_Weather` (World Position Offset from per-instance custom data, wrapped in world space so drops stay put while the box follows the view, faded near the lens);
+- `AGridironCrowd` lays instanced spectators over the stand sections; `M_Crowd` picks home or away colour from per-instance custom data, hides seats above `CrowdDensity` and adds a small bob, all on the GPU.
 
 The greybox builds stands (low on the camera side so the sideline rigs see over them) and the light towers from engine shapes. Real stadium art can replace them as long as it reads the same parameter collection and keeps the tower light tags.
 
@@ -242,7 +243,7 @@ Effort assumes one developer part-time, with Claude writing code and editor scri
 | 2. Locomotion | **Done with the engine mannequin**: blend space driven from telemetry, update-rate optimisation. Next: football mesh (Fab/MetaHuman body), budget allocator | 60 fps at 1440p with 22 players; no foot sliding at walk/jog/sprint | 2–4 weeks |
 | 3. Contact | **Done**: code-defined hit-react motors, ragdoll on big tackles, blend-out recovery. Next: get-up montages, ragdoll tuning | Light/solid hits stagger; big tackles ragdoll and recover within 2.5 s; nobody leaves the telemetry path | 2–4 weeks |
 | 4. Broadcast | **Done**: 1 s minimum hold for every cut, procedural impact shake, `Gridiron.Camera` mode command, procedural DOF. Next: replay angles | Shots never cut more than once per second; subject always in focus | 1–2 weeks |
-| 5. Stadium | **Greybox done**: `MPC_Gridiron` team colours, venue lighting presets with tower lights, weather fog. Next: stadium art as a level instance, crowd, weather particle actors | Team colours and time of day correct for any matchup | 2–4 weeks |
+| 5. Stadium | **Greybox done**: `MPC_Gridiron` team colours, venue lighting presets with tower lights, weather fog, a closed bowl with an instanced crowd, rain and snow, helmets and shoulder pads from engine shapes. Next: stadium art as a level instance, spectator meshes, MetaHuman players | Team colours and time of day correct for any matchup | 2–4 weeks |
 | 6. Cinematics | **Greybox done**: all nine protocol templates generated, default library, mannequin performers dressed per slot. Next: MetaHuman performers, authored animation, tag-bound tracks | Any team and player renders correctly; skip works; queue and priority behave | 3–6 weeks |
 | 7. Flow and packaging | **Packaging done**: `npm run ue:package -- -Install` (staged short path, throttled cook, always-cooked mannequin and cinematics) and Game → Open 3D match view in the desktop app. Next: bundled PSO cache, hub ↔ match flow timing | Hub → match → celebration → hub with no hitch over 33 ms in Unreal Insights | 1–2 weeks |
 
@@ -271,4 +272,4 @@ Effort assumes one developer part-time, with Claude writing code and editor scri
   - `package.ps1 -Install` builds a Development `GridironDemo.exe` (about 905 MB with content) and installs it;
   - the packaged build, without the editor, connects to `ue:replay`, dresses the stadium, plays every snap, ragdolls on big tackles, and plays `LS_Walkoff_Mob` with mannequin performers;
   - fixes it needed: staging under a short path (repository paths over 260 characters), `r.PSOPrecaching=0` (D3D12 E_OUTOFMEMORY at startup), and always cooking `/Game/Characters/Mannequins` and `/Game/Gridiron/Cinematics`, which are loaded by path.
-- Not verified: frame-rate budget at 1440p, replay angles, skipping or interrupting a cinematic at runtime (the code paths exist but were not exercised), stadium art streaming and weather particles, the desktop menu launch (covered by a static test only), a Shipping build, a bundled PSO cache and the hub ↔ match ↔ celebration hitch budget in Unreal Insights. Expect small API adjustments on other engine versions.
+- Not verified: frame-rate budget at 1440p, replay angles, skipping or interrupting a cinematic at runtime (the code paths exist but were not exercised), stadium art streaming, the crowd and weather cost in a packaged build, the desktop menu launch (covered by a static test only), a Shipping build, a bundled PSO cache and the hub ↔ match ↔ celebration hitch budget in Unreal Insights. Expect small API adjustments on other engine versions.
