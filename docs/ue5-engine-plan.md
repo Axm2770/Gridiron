@@ -2,7 +2,7 @@
 
 How Gridiron Director drives an Unreal Engine 5 renderer for the 3D match, player models and cinematics, in the data-driven style of modern sports titles. The game stays the single source of truth: it simulates every snap deterministically, then *streams* the result. Unreal interpolates, animates, applies physics reactions, directs cameras and plays cinematics, but never decides an outcome.
 
-Status: the bridge, schemas, renderer hooks and the UE5 C++ plugin source described here are in the repository. The plugin **has not been compiled** (Unreal isn't installed on the machine it was written on), and no art content (skeletal meshes, AnimBPs, Level Sequences, stadium levels) is included. See [Execution plan](#execution-plan).
+Status: Phases 0 and 1 are verified on UE 5.8 (Windows). The plugin compiles without warnings, and `npm run ue:replay` streams plays into the greybox level: 22 team-coloured athletes move through each play, cameras cut, the flow state reaches Live, and cinematic triggers fall back cleanly when no sequence asset exists. No art content (skeletal meshes, AnimBPs, Level Sequences, stadium levels) is included yet. See [Execution plan](#execution-plan).
 
 ## 1. System architecture
 
@@ -225,4 +225,5 @@ Effort assumes one developer part-time, with Claude writing code and editor scri
 ## Verification
 
 - `test-ue-telemetry.mjs` builds every payload from real `simulateExecution` output and checks schema-required fields, chunk coverage, velocity consistency, coordinate mirroring, collision physics and flow-state derivation. The relay allow-list test covers the new types.
-- Not verified: compiling or running the UE5 plugin, the Physics Asset tuning and any art content. Expect small API adjustments per engine version.
+- Verified on UE 5.8 (Windows, 2026-10-29): the plugin builds with RunUAT BuildPlugin with no warnings. `npm run ue:replay` drives the greybox level in `-game` mode. The log shows connection, `ue.ready`, LoadingMatch → PreGame → Live, 22-player play calls and `Play … finished` for each snap. Captured frames show team-coloured athletes moving and camera cuts.
+- Not verified: hit reacts and ragdolls (they need a skeletal mesh and Physics Asset), Level Sequence cinematics (no templates yet, so triggers report `skipped`), stadium streaming and packaging. Expect small API adjustments on other engine versions.

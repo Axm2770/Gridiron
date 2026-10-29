@@ -6,6 +6,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 
 AGridironAthlete::AGridironAthlete()
@@ -26,6 +27,9 @@ AGridironAthlete::AGridironAthlete()
 	Proxy->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cylinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	if (Cylinder.Succeeded()) Proxy->SetStaticMesh(Cylinder.Object);
+	// The engine cylinder's own material has no colour parameter; BasicShapeMaterial exposes "Color" for team tints.
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> BasicShape(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	if (BasicShape.Succeeded()) Proxy->SetMaterial(0, BasicShape.Object);
 	// Cylinder is 100 cm wide/tall: scale to a ~55 cm wide, 185 cm tall player, origin at the feet.
 	Proxy->SetRelativeScale3D(FVector(0.55f, 0.55f, 1.85f));
 	Proxy->SetRelativeLocation(FVector(0.f, 0.f, 92.5f));
@@ -36,10 +40,12 @@ void AGridironAthlete::ApplyLook_Implementation(const FGridironRosterEntry& Entr
 	const bool bHasArt = Mesh->GetSkeletalMeshAsset() != nullptr;
 	Proxy->SetVisibility(!bHasArt);
 	if (bHasArt) return;
-	Proxy->SetRelativeScale3D(FVector(Entry.MassKg / 180.f, Entry.MassKg / 180.f, Entry.HeightCm / 100.f));
+	// Shoulder width grows with mass (receivers ~45 cm, linemen ~62 cm); bodies are shallower than wide.
+	const float Width = FMath::GetMappedRangeValueClamped(FVector2f(80.f, 160.f), FVector2f(0.45f, 0.62f), Entry.MassKg);
+	Proxy->SetRelativeScale3D(FVector(Width * 0.6f, Width, Entry.HeightCm / 100.f));
 	Proxy->SetRelativeLocation(FVector(0.f, 0.f, Entry.HeightCm * 0.5f));
-	if (UMaterialInstanceDynamic* Mat = Proxy->CreateDynamicMaterialInstance(0))
-		Mat->SetVectorParameterValue(TEXT("Color"), Entry.Side == TEXT("offense") ? TeamColor : TeamColor * 0.55f);
+	UMaterialInstanceDynamic* Mat = Proxy->CreateDynamicMaterialInstance(0);
+	if (Mat) Mat->SetVectorParameterValue(TEXT("Color"), Entry.Side == TEXT("offense") ? TeamColor : TeamColor * 0.55f);
 }
 
 void AGridironAthlete::Configure(const FGridironRosterEntry& Entry, FLinearColor TeamColor)

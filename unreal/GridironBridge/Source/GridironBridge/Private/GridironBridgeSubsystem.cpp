@@ -15,11 +15,12 @@ static const TCHAR* GProtocol = TEXT("gridiron.ue/1");
 static void StripNulls(const TSharedPtr<FJsonObject>& Object)
 {
 	if (!Object.IsValid()) return;
-	TArray<FString> Remove;
-	for (auto& Pair : Object->Values)
+	// Iterator removal works whatever key type FJsonObject uses (FString before 5.6, UTF-8 after).
+	for (auto It = Object->Values.CreateIterator(); It; ++It)
 	{
+		auto& Pair = *It;
 		const TSharedPtr<FJsonValue>& Value = Pair.Value;
-		if (!Value.IsValid() || Value->IsNull()) { Remove.Add(Pair.Key); continue; }
+		if (!Value.IsValid() || Value->IsNull()) { It.RemoveCurrent(); continue; }
 		if (Value->Type == EJson::Object) StripNulls(Value->AsObject());
 		else if (Value->Type == EJson::Array)
 		{
@@ -33,7 +34,6 @@ static void StripNulls(const TSharedPtr<FJsonObject>& Object)
 			Pair.Value = MakeShared<FJsonValueArray>(Kept);
 		}
 	}
-	for (const FString& Key : Remove) Object->RemoveField(Key);
 }
 
 template <typename T>
@@ -68,6 +68,8 @@ void UGridironBridgeSubsystem::Connect()
 	Socket->OnConnected().AddLambda([Weak]()
 	{
 		if (!Weak.IsValid()) return;
+		UE_LOG(LogGridiron, Log, TEXT("Gridiron bridge connected to %s"), *Weak->Url);
+		Weak->bLoggedConnectionError = false;
 		Weak->OnConnectionChanged.Broadcast(true);
 		Weak->Send(TEXT("ue.ready"), MakeShared<FJsonObject>());
 	});
@@ -78,12 +80,16 @@ void UGridironBridgeSubsystem::Connect()
 	Socket->OnConnectionError().AddLambda([Weak](const FString& Error)
 	{
 		if (!Weak.IsValid()) return;
-		UE_LOG(LogTemp, Verbose, TEXT("Gridiron bridge connection error: %s"), *Error);
+		// Retries every few seconds while the game isn't running: log the first failure only.
+		if (!Weak->bLoggedConnectionError)
+			UE_LOG(LogGridiron, Log, TEXT("Gridiron bridge waiting for the game at %s (%s); retrying"), *Weak->Url, *Error);
+		Weak->bLoggedConnectionError = true;
 		Weak->ScheduleReconnect();
 	});
 	Socket->OnClosed().AddLambda([Weak](int32, const FString&, bool)
 	{
 		if (!Weak.IsValid()) return;
+		UE_LOG(LogGridiron, Log, TEXT("Gridiron bridge disconnected"));
 		Weak->OnConnectionChanged.Broadcast(false);
 		Weak->ScheduleReconnect();
 	});

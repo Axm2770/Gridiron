@@ -17,7 +17,7 @@ class GRIDIRONBRIDGE_API UGridironAnimSet : public UDataAsset
 	GENERATED_BODY()
 public:
 	// Keys match ANIMATION_TRIGGERS montage names in dist/bridge/ue-protocol.mjs (AM_Throw, AM_Tackle, ...).
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) TMap<FName, TObjectPtr<UAnimMontage>> Montages;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TMap<FName, TObjectPtr<UAnimMontage>> Montages;
 };
 
 UCLASS(Blueprintable)
@@ -26,7 +26,7 @@ class GRIDIRONBRIDGE_API AGridironPlayerPawn : public AActor
 	GENERATED_BODY()
 public:
 	AGridironPlayerPawn();
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<USkeletalMeshComponent> Mesh;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<USkeletalMeshComponent> Mesh;
 	// Read by the AnimBlueprint locomotion blend space (cm/s).
 	UPROPERTY(BlueprintReadOnly, Category = "Gridiron") float Speed = 0.f;
 	UPROPERTY(BlueprintReadOnly, Category = "Gridiron") FGridironActor Identity;

@@ -20,7 +20,7 @@ USTRUCT(BlueprintType)
 struct FGridironPreloadSet
 {
 	GENERATED_BODY()
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) TArray<TSoftObjectPtr<UObject>> Assets;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TArray<TSoftObjectPtr<UObject>> Assets;
 };
 
 UCLASS(BlueprintType)
@@ -29,12 +29,12 @@ class GRIDIRONBRIDGE_API UGridironFlowConfig : public UPrimaryDataAsset
 	GENERATED_BODY()
 public:
 	// Keyed by the protocol's preload hint, e.g. "Stadium_DAL".
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) TMap<FString, TSoftObjectPtr<UWorld>> Stadiums;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) TSoftObjectPtr<UWorld> DefaultStadium;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TMap<FString, TSoftObjectPtr<UWorld>> Stadiums;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TSoftObjectPtr<UWorld> DefaultStadium;
 	// Keyed by preload hint, e.g. "Uniform_DAL" → jersey materials, helmet meshes, logos.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) TMap<FString, FGridironPreloadSet> PreloadSets;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FName IntroTemplate = TEXT("LS_Pregame_Walkout");
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) float FadeSeconds = 0.6f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TMap<FString, FGridironPreloadSet> PreloadSets;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") FName IntroTemplate = TEXT("LS_Pregame_Walkout");
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") float FadeSeconds = 0.6f;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGridironFlowChanged, EGridironFlowState, From, EGridironFlowState, To);

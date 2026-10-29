@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Engine/TimerHandle.h"
 #include "GridironTypes.h"
 #include "GridironBridgeSubsystem.generated.h"
 
@@ -66,4 +67,5 @@ private:
 	FTimerHandle ReconnectHandle;
 	int32 Seq = 0;
 	bool bWantConnection = false;
+	bool bLoggedConnectionError = false;
 };

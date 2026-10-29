@@ -47,6 +47,16 @@ if (-not $EngineDir) { Fail "No Unreal Engine 5.3+ found. Install UE 5.4 from th
 $uat = Join-Path $EngineDir "Engine\Build\BatchFiles\RunUAT.bat"
 $editor = Join-Path $EngineDir "Engine\Binaries\Win64\UnrealEditor.exe"
 Write-Host "Engine: $EngineDir"
+# Point the demo project at the installed engine version so the editor doesn't offer a conversion.
+$build = Get-Content (Join-Path $EngineDir "Engine\Build\Build.version") -Raw | ConvertFrom-Json
+$association = "$($build.MajorVersion).$($build.MinorVersion)"
+$text = [IO.File]::ReadAllText($project)
+$updated = $text -replace '"EngineAssociation":\s*"[^"]*"', "`"EngineAssociation`": `"$association`""
+if ($updated -ne $text) {
+  # Plain text edit keeps the file's formatting and writes it without a byte-order mark.
+  [IO.File]::WriteAllText($project, $updated, (New-Object Text.UTF8Encoding $false))
+  Write-Host "GridironDemo.uproject now targets UE $association"
+}
 
 Step "Checking Visual Studio 2022 (Desktop development with C++)"
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -69,15 +79,22 @@ if (-not $SkipBuild) {
   $out = Join-Path $env:TEMP "GridironBridge-build"
   & $uat BuildPlugin "-Plugin=$plugin\GridironBridge.uplugin" "-Package=$out" -TargetPlatforms=Win64 -Rocket
   if ($LASTEXITCODE -ne 0) { Fail "The plugin did not compile. The errors above name the file and line; paste them back to Claude to fix." }
-  Write-Host "Plugin compiled." -ForegroundColor Green
+  # The demo project has no C++ module of its own, so the editor can't rebuild the plugin itself:
+  # copy the compiled editor binaries next to the plugin source (gitignored).
+  $binaries = Join-Path $plugin "Binaries"
+  if (Test-Path $binaries) { Remove-Item -Recurse -Force $binaries }
+  Copy-Item -Recurse (Join-Path $out "Binaries") $binaries
+  Write-Host "Plugin compiled; binaries in $binaries" -ForegroundColor Green
 }
 
 if (-not $SkipGreybox) {
   Step "Building the greybox level with the editor's Python"
   $script = Join-Path $PSScriptRoot "build_greybox.py"
+  $map = Join-Path $root "unreal\GridironDemo\Content\Gridiron\Maps\Greybox.umap"
+  # Remove the previous level so a script error can't pass for success.
+  if (Test-Path $map) { Remove-Item -Force $map }
   # Level-editing APIs need the full editor: launch it, run the script, and let the script quit.
   Start-Process $editor -ArgumentList "`"$project`"", "-ExecutePythonScript=`"$script`"", "-GridironQuit", "-nosplash" -Wait
-  $map = Join-Path $root "unreal\GridironDemo\Content\Gridiron\Maps\Greybox.umap"
   if (-not (Test-Path $map)) { Fail "The greybox level was not saved; see unreal\GridironDemo\Saved\Logs\GridironDemo.log." }
   Write-Host "Greybox level saved to /Game/Gridiron/Maps/Greybox." -ForegroundColor Green
 }

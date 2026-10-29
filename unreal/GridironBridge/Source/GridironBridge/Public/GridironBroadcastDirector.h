@@ -38,9 +38,9 @@ USTRUCT(BlueprintType)
 struct FGridironLens
 {
 	GENERATED_BODY()
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FocalLength = 35.f; // mm
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float Aperture = 8.f;     // f-stop; lower = shallower DOF
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MoveSpeed = 4.f;    // interp speed for position
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gridiron") float FocalLength = 35.f; // mm
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gridiron") float Aperture = 8.f;     // f-stop; lower = shallower DOF
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gridiron") float MoveSpeed = 4.f;    // interp speed for position
 };
 
 UCLASS(Blueprintable)

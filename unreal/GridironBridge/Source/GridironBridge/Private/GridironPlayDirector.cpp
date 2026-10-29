@@ -1,5 +1,6 @@
 #include "GridironPlayDirector.h"
 #include "GridironBridgeSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Components/SkeletalMeshComponent.h"

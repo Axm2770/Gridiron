@@ -32,11 +32,11 @@ public:
 	AGridironAthlete();
 	virtual void Tick(float DeltaSeconds) override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<USceneComponent> Root;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<USkeletalMeshComponent> Mesh;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UPhysicalAnimationComponent> PhysicalAnimation;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<USceneComponent> Root;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<USkeletalMeshComponent> Mesh;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<UPhysicalAnimationComponent> PhysicalAnimation;
 	// Greybox stand-in shown until a skeletal mesh is assigned, tinted with the team colour.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UStaticMeshComponent> Proxy;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<UStaticMeshComponent> Proxy;
 
 	// --- AnimBP inputs (read with TryGetPawnOwner → Cast) ---
 	UPROPERTY(BlueprintReadOnly, Category = "Gridiron|Locomotion") float Speed = 0.f;       // cm/s

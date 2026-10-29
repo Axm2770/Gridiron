@@ -61,6 +61,7 @@ void AGridironMatchDirector::HandlePlayCall(const FGridironPlayCall& Call)
 		Athlete->Configure(Entry, Color);
 		Athlete->SetActorHiddenInGame(false);
 	}
+	UE_LOG(LogGridiron, Log, TEXT("Play %s: %s vs %s, %d players, %.1fs"), *Call.PlayId, *Call.Offense.Call, *Call.Defense.Coverage, Call.Roster.Num(), Call.Duration);
 	if (Broadcast) Broadcast->NotifySnap(Call);
 	OnSnap(Call);
 }
@@ -127,6 +128,7 @@ void AGridironMatchDirector::Tick(float DeltaSeconds)
 	{
 		bFinishedNotified = true;
 		bPlaying = false;
+		UE_LOG(LogGridiron, Log, TEXT("Play %s finished at %.1fs"), *PlayCall.PlayId, Buffer.NewestTime());
 		if (Broadcast) Broadcast->NotifyPlayEnded();
 		OnPlayFinished(PlayCall);
 	}

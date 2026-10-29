@@ -45,7 +45,9 @@ def box(label, loc, size, mat):
 
 
 def tagged(cls, label, loc, rot=(0, 0, 0), tag=None):
-    a = actors.spawn_actor_from_class(cls, unreal.Vector(*loc), unreal.Rotator(*rot))
+    """rot is (pitch, yaw, roll). unreal.Rotator's positional order is roll, pitch, yaw, so pass keywords."""
+    rotator = unreal.Rotator(pitch=rot[0], yaw=rot[1], roll=rot[2])
+    a = actors.spawn_actor_from_class(cls, unreal.Vector(*loc), rotator)
     a.set_actor_label(label)
     if tag:
         a.tags = [tag]
@@ -72,8 +74,12 @@ for side in (-1, 1):  # sidelines
     box(f"Sideline_{side}", (0, side * FIELD_WID / 2, 1), (FIELD_LEN, 12, 1), paint)
 
 # Lighting tagged for UGridironSequenceManager::ApplyEnvironment.
-tagged(unreal.DirectionalLight, "Sun", (0, 0, 5000), (-45, 30, 0), "GridironSun")
-tagged(unreal.SkyLight, "Sky", (0, 0, 600), tag="GridironSky")
+# Movable lights: no lighting build needed, and the sequence manager changes time of day at runtime.
+sun = tagged(unreal.DirectionalLight, "Sun", (0, 0, 5000), (-45, 30, 0), "GridironSun")
+sun.root_component.set_mobility(unreal.ComponentMobility.MOVABLE)
+sky = tagged(unreal.SkyLight, "Sky", (0, 0, 600), tag="GridironSky")
+sky.root_component.set_mobility(unreal.ComponentMobility.MOVABLE)
+sky.light_component.set_editor_property("real_time_capture", True)
 tagged(unreal.SkyAtmosphere, "Atmosphere", (0, 0, 0))
 tagged(unreal.ExponentialHeightFog, "Fog", (0, 0, 0))
 tagged(unreal.PlayerStart, "PlayerStart", (0, -4300, 1500), (-15, 90, 0))
