@@ -237,3 +237,5 @@ dialog.gd-sheet .gd-sheet-body { padding: 16px 18px; max-height: 70vh; overflow:
 .ue-match-status:empty { display: none; }
 .ue-match-toggle { position: absolute; top: 10px; right: 10px; pointer-events: auto; opacity: .85; }
 .ue-match-toggle:hover { opacity: 1; }
+
+.ue-match-download { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--gd-text-2, #b8c2cc); }

@@ -176,6 +176,7 @@ The desktop app embeds Unreal in the Matchday panel instead of opening a separat
 - `dist/bridge/ue-view.mjs` answers Unreal's offer and shows the video in a fixed overlay that tracks `#stadium-host`. The app's re-renders never detach it.
 - When the view is live, the HTML cutscene overlay stands down and Unreal plays the moment. `ue-hooks` re-sends `session.start`, flow and stadium on every `ue.ready`, so a renderer started mid-session gets the palette and venue.
 - Fallback: anywhere the renderer is missing, or if the stream fails, the Three.js view stays.
+- Distribution: `unreal/Tools/publish-renderer.ps1` uploads `GridironRenderer-<version>-Win64.zip` and `renderer-manifest.json` (schema, version, protocol `gridiron.ue/1`, zip name, size, sha256) to the pre-release tagged `renderer`. `desktop/renderer-installer.cjs` downloads from GitHub hosts only, streams and hashes the zip, rejects size or hash mismatches and other protocols, extracts with `tar.exe` into a staging folder, and swaps it in while keeping the old copy until the swap succeeds. A running renderer is stopped first.
 
 ### Venue
 

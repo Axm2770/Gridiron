@@ -7,6 +7,16 @@ contextBridge.exposeInMainWorld('gridironUE', {
     if (typeof callback !== 'function') return;
     ipcRenderer.on('ue:message', (_event, message) => callback(message));
   },
+  // Optional download of the Unreal renderer (Windows); null elsewhere.
+  renderer: {
+    status: () => ipcRenderer.sendSync('renderer:get'),
+    check: () => ipcRenderer.invoke('renderer:check'),
+    install: () => ipcRenderer.invoke('renderer:install'),
+    onStatus: (callback) => {
+      if (typeof callback !== 'function') return;
+      ipcRenderer.on('renderer:status', (_event, status) => callback(status));
+    },
+  },
   // Embedded match view (Pixel Streaming): the page is the WebRTC player; signalling goes via IPC.
   stream: {
     available: () => ipcRenderer.sendSync('stream:available'),

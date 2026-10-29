@@ -73,7 +73,50 @@ export function createStreamPlayer(api, video, { onState = () => {} } = {}) {
 
 export function installUnrealMatchView() {
   const api = window.gridironUE?.stream;
-  if (!api || !api.available()) return;
+  if (!api) return;
+  if (api.available()) setupStream(api);
+  else offerDownload(window.gridironUE.renderer, () => api.available() && setupStream(api));
+}
+
+const escapeText = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+// Windows without the renderer: offer the optional download above the match panel, then switch the
+// embedded view on in place once it is installed (no reload, so a live match is not interrupted).
+function offerDownload(renderer, onInstalled) {
+  if (!renderer || !renderer.status()) return;
+  let status = null,
+    checked = false,
+    done = false;
+  renderer.onStatus((s) => {
+    status = s;
+    if (!done && s.phase === "installed" && s.installed) {
+      done = true;
+      onInstalled();
+    }
+    render();
+  });
+  window.installUnrealRenderer = () => renderer.install();
+  const previous = render;
+  render = function () {
+    previous();
+    const host = document.getElementById("stadium-host");
+    if (done || !host || !state.live) return;
+    if (!checked) {
+      checked = true;
+      renderer.check().then((s) => {
+        status = s;
+        render();
+      });
+    }
+    if (!status || !["available", "downloading", "installing", "error"].includes(status.phase)) return;
+    const size = status.bytes ? ` (${Math.round(status.bytes / 1048576)} MB)` : "";
+    const text = status.phase === "downloading" ? `Downloading the Unreal match view… ${status.progress}%` : status.phase === "installing" ? "Installing the Unreal match view…" : status.phase === "error" ? status.message : `Unreal match view available${size}`;
+    const button = status.phase === "available" ? `<button class="small" onclick="installUnrealRenderer()">Download</button>` : "";
+    host.insertAdjacentHTML("beforebegin", `<div class="stadium-toolbar ue-match-download"><span>${escapeText(text)}</span>${button}</div>`);
+  };
+}
+
+function setupStream(api) {
   const overlay = document.createElement("div");
   overlay.className = "ue-match-view";
   overlay.hidden = true;

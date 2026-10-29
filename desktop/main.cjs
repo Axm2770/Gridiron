@@ -6,6 +6,7 @@ const {spawn}=require('node:child_process');
 const {appResponse}=require('./protocol.cjs');
 const {createBridge}=require('./ue-bridge.cjs');
 const {createSignalling}=require('./pixel-stream.cjs');
+const {createRendererInstaller}=require('./renderer-installer.cjs');
 const {createUpdater}=require('./updater.cjs');
 const smoke=process.argv.includes('--gridiron-smoke-test');
 app.setName('Gridiron Director');
@@ -40,6 +41,13 @@ ipcMain.on('stream:send',(event,msg)=>{if(fromGame(event))signalling?.playerMess
 ipcMain.on('stream:close',event=>{if(fromGame(event))signalling?.closePlayer();});
 ipcMain.on('stream:stop',event=>{if(fromGame(event))stopEmbedded();});
 app.on('will-quit',()=>stopEmbedded());
+// Optional in-game download of the renderer from the GitHub release tagged "renderer" (Windows).
+// Extraction uses the tar.exe that ships with Windows 10/11 (it reads zip archives).
+const rendererInstaller=createRendererInstaller({userData:app.getPath('userData'),fetch:(url,options)=>net.fetch(url,options),log,extract:(zip,dir)=>new Promise((resolve,reject)=>{const tar=spawn(path.join(process.env.SystemRoot||'C:\\Windows','System32','tar.exe'),['-xf',zip,'-C',dir],{stdio:'ignore',shell:false,windowsHide:true});tar.on('error',reject);tar.on('exit',code=>code===0?resolve():reject(Error('tar exited with '+code)));})});
+rendererInstaller.onChange(status=>mainWindow?.webContents.send('renderer:status',status));
+ipcMain.on('renderer:get',event=>{event.returnValue=process.platform==='win32'?rendererInstaller.status():null;});
+ipcMain.handle('renderer:check',event=>fromGame(event)&&process.platform==='win32'?rendererInstaller.check():null);
+ipcMain.handle('renderer:install',event=>{if(!fromGame(event)||process.platform!=='win32')return null;stopEmbedded();return rendererInstaller.install();});
 ipcMain.on('ue:send',(event,msg)=>{if(event.sender===mainWindow?.webContents)ueBridge?.broadcast(msg);});
 ipcMain.on('ue:status',event=>{event.returnValue=ueBridge?ueBridge.status():{listening:false,clients:0,connected:false};});
 // In-game updates: content downloads from GitHub Releases into userData; see updater.cjs.
