@@ -19,4 +19,5 @@ unreal/GridironBridge/Intermediate/
 *.sln
 .vs/
 unreal/GridironDemo/Content/
+unreal/Build/
 unreal/GridironDemo/Config/DefaultInput.ini

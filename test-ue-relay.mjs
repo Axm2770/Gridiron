@@ -63,3 +63,10 @@ assert.equal(replay[0].payload.roster.length, 22);
 assert(replay.some((m) => m.type === "player.frames" && m.payload.final), "final frame chunk present");
 assert(replay.every((m) => validate(m, false)), "every replay message passes the relay's validation");
 console.log("PASS: ue:replay streams schema-valid telemetry without the game.");
+
+// The desktop app launches the packaged renderer directly: fixed arguments, no shell, only from
+// the install folder or an explicit GRIDIRON_UE_EXE.
+const mainSource = fs.readFileSync("desktop/main.cjs", "utf8");
+assert.match(mainSource, /spawn\(exe,\['-windowed','-ResX=1600','-ResY=900'\],\{detached:true,stdio:'ignore',shell:false\}\)/);
+assert.match(mainSource, /path\.join\(app\.getPath\('userData'\),'renderer','GridironDemo\.exe'\)/);
+console.log("PASS: 3D match view launch is shell-free with fixed arguments.");

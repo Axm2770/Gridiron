@@ -41,21 +41,37 @@ Options: `--home 5 --away 0` (any matchup), `--time Afternoon|Dusk|Night`, `--we
 
 To drive it from the real game instead, launch the desktop app with the bridge on: set `GRIDIRON_UE=1` before `npm start`, or tick **Game → Unreal Engine bridge**. Then play a match.
 
-## 4. What you should see (Phases 1–5)
+## 4. What you should see (Phases 1–6)
 
 - 22 team-coloured mannequins line up and run each play in sync: idle at the snap, jogging and sprinting with real strides, and no pops between frame chunks. Without the mannequin content they fall back to coloured capsules.
 - The ball travels the right arc; the player carrying it is the one the play's result names.
 - Big tackles knock the ball carrier down (ragdoll). He gets back up on his spot within about 2.5 s. The log shows `Athlete N (role) goes down`.
 - Cameras cut: wide before the snap → behind the offense → cable cam on passes → tight on the runner → a punch-in on big hits. No two cuts come within a second of each other. Lock a camera from the console (`~`) with `Gridiron.Camera All22` (or `Director`, `OffenseFocus`, `DefenseFocus`, `Sideline`, `CableCam`).
 - The stadium dresses for the match: end zones and stand trim take the home and away colours, and dusk or night turns on the four tower lights. The log shows `Stadium: home N, away N, <time>, <weather>`.
+- Big moments play a cutscene. Every sixth replay play triggers a clutch finish: the broadcast cuts to a camera move on the Star (team colour) and the head coach (grey) behind the home end zone, then hands back to the game. The log shows `Cinematic LS_Walkoff_Mob started … finished`. Skip one from the console with `Gridiron.SkipCinematic`.
 - The Output Log shows `LogGridiron` lines: `Gridiron bridge connected`, then `Play <id>: <call> vs <coverage>, 22 players` and `Play <id> finished` for each snap. The replay terminal prints `[unreal] ue.ready`.
+
+## 5. Package the 3D match view (Windows)
+
+```bash
+npm run ue:package -- -Install
+```
+
+This builds a standalone `GridironDemo.exe` (Development; add `-Shipping` for a release build without console or logs) into `unreal/Build/Windows`. With `-Install` it also copies it to `%APPDATA%\Gridiron Director\renderer`. In the desktop app, **Game → Open 3D match view (Unreal)** then turns on the bridge and launches it beside the game. Set `GRIDIRON_UE_EXE` to use a build somewhere else.
+
+Packaging stages a copy of the project in `%LOCALAPPDATA%\GridironUE`, because the build's intermediate paths can exceed Windows' 260-character limit when the repository is cloned deep in a folder tree. GitHub's CI cannot build it (no Unreal on its runners), so the renderer ships separately from the desktop ZIPs.
+
+Cooking compiles thousands of shaders. By default `package.ps1` caps that at a quarter of the CPU threads at below-normal priority (`-ShaderThreads 16` for a faster, heavier cook), because a full-speed cook hard-froze a test machine. The first cook takes the longest; later ones reuse the shader cache.
 
 ## Troubleshooting
 
 - **"Visual C++ redistributable version … is outdated" dialog:** run `Engine\Extras\Redist\en-us\vc_redist.x64.exe` from your UE install (5.8 needs 14.50 or newer).
 - **Bridge log says `Bad protocol ''`:** the URL in `Config/DefaultGame.ini` must stay quoted. Unreal's config parser treats `//` as a comment, so an unquoted `ws://…` is cut to `ws:`.
 - **Black view:** rerun `npm run ue:setup -- -SkipBuild` to rebuild the greybox lights.
+- **Packaged renderer crashes at startup with `Failed to create pipeline … 8007000e`:** keep `r.PSOPrecaching=0` in `Config/DefaultEngine.ini`. Precaching made D3D12 pipeline creation run out of memory in cooked builds on UE 5.8 with NVIDIA.
+- **Packaged build shows capsules or skips every cutscene (`no template, skipped`):** assets loaded by path aren't referenced by the map, so they must be in `+DirectoriesToAlwaysCook` in `Config/DefaultGame.ini`. `/Game/Characters/Mannequins` and `/Game/Gridiron/Cinematics` are listed there; add any new runtime-loaded folder too.
+- **PC freezes while packaging:** lower `-ShaderThreads` (default: a quarter of the threads). On 13th/14th-gen Intel Core i9 CPUs, also make sure the motherboard BIOS has Intel's stability microcode update.
 
-## 5. Next phases
+## 6. Next phases
 
-Phases 2–3 run on the engine mannequin. For final art, swap in a football body (a Fab or MetaHuman mesh) by setting `BodyMesh`, or use a Blueprint subclass of `GridironAthlete` with its own Animation Blueprint and get-up montages. Phases 4–5 run on the greybox venue; real stadium art can replace the stands and towers as long as it reads `MPC_Gridiron` and keeps the `GridironStadiumLight` tags. Then come cinematics and packaging (Phases 6–7). The plan doc lists the pass criteria for each.
+Phases 2–3 run on the engine mannequin. For final art, swap in a football body (a Fab or MetaHuman mesh) by setting `BodyMesh`, or use a Blueprint subclass of `GridironAthlete` with its own Animation Blueprint and get-up montages. Phases 4–5 run on the greybox venue; real stadium art can replace the stands and towers as long as it reads `MPC_Gridiron` and keeps the `GridironStadiumLight` tags. Phase 6 has generated camera-move templates for every cinematic the game triggers; MetaHuman performers and authored animation replace them later under the same template names. Phase 7 packages the renderer and launches it from the desktop app. The plan doc lists the pass criteria for each.
