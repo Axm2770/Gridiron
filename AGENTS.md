@@ -6,7 +6,7 @@ Read `README.md`, `docs/handoff.md` and the module nearest your change before ed
 
 - Node 24 LTS: `npm ci`.
 - Web preview: `npm run serve` (http://localhost:4173).
-- Regression checks: `npm test` (29 suites; the overhaul added social-engine, depth-systems, recruiting-pipeline, presentation, ue-bridge and ue-relay).
+- Regression checks: `npm test` (30 suites; the overhaul added social-engine, depth-systems, recruiting-pipeline, presentation, ue-bridge, ue-telemetry and ue-relay).
 - Desktop development: `npm start` on a desktop host.
 - Mac archives (requires a Mac; signs and launch-tests the app and extracted ZIP): `npm run package:mac:arm64` and `npm run package:mac:x64`.
 - macOS installer builds: `npm run dist:mac` on a Mac.

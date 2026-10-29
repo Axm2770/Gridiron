@@ -4,7 +4,9 @@
 
 export const PROTOCOL = "gridiron.ue/1";
 export const YARD_CM = 91.44;
-export const MESSAGE_TYPES = ["session.start", "play.execution", "cutscene.trigger", "stadium.state", "ue.ready", "ue.cutscene.finished", "ue.error"];
+// v1 batch types (play.execution, cutscene.trigger) remain for older Unreal builds; the telemetry
+// stream (play.call, player.frames, physics.collision, cinematic.trigger, match.state) supersedes them.
+export const MESSAGE_TYPES = ["session.start", "play.execution", "cutscene.trigger", "stadium.state", "play.call", "player.frames", "physics.collision", "cinematic.trigger", "match.state", "ue.ready", "ue.cutscene.finished", "ue.flow.state", "ue.error"];
 export const MAX_MESSAGE_BYTES = 4 * 1024 * 1024;
 
 // Team palette mirrors stadium.js so 3D uniforms match the 2D/Three.js presentation.
