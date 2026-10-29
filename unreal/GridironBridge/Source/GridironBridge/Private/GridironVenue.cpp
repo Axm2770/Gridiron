@@ -1,5 +1,6 @@
 #include "GridironVenue.h"
 #include "GridironBridgeSubsystem.h"
+#include "GridironWeather.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/LightComponent.h"
 #include "Components/SkyLightComponent.h"
@@ -97,9 +98,10 @@ void AGridironVenue::ApplyStadium(const FGridironStadium& Stadium)
 		++Towers;
 	}
 
-	// Weather: fog density only; precipitation effects belong to the weather actors in Phase 6.
+	// Weather: fog density, plus rain or snow from the precipitation actor.
 	if (const float* Density = FogDensity.Find(Stadium.Weather))
 		for (TActorIterator<AExponentialHeightFog> It(World); It; ++It) It->GetComponent()->SetFogDensity(*Density);
+	for (TActorIterator<AGridironWeather> It(World); It; ++It) It->SetWeather(Stadium.Weather);
 
 	UE_LOG(LogGridiron, Log, TEXT("Stadium: home %d, away %d, %s, %s, crowd %d%%, %d tower lights %s"),
 		Stadium.HomeTeam, Stadium.AwayTeam, *Time, *Stadium.Weather, Stadium.Crowd, Towers, bTowers ? TEXT("on") : TEXT("off"));

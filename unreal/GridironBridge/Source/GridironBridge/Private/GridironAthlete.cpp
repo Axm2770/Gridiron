@@ -36,6 +36,43 @@ AGridironAthlete::AGridironAthlete()
 	// Cylinder is 100 cm wide/tall: scale to a ~55 cm wide, 185 cm tall player, origin at the feet.
 	Proxy->SetRelativeScale3D(FVector(0.55f, 0.55f, 1.85f));
 	Proxy->SetRelativeLocation(FVector(0.f, 0.f, 92.5f));
+
+	// Gear: engine shapes, positioned on the mannequin's bones in AttachGear().
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Sphere(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	auto MakeGear = [&](const TCHAR* Name, UStaticMesh* Shape)
+	{
+		UStaticMeshComponent* Part = CreateDefaultSubobject<UStaticMeshComponent>(Name);
+		Part->SetupAttachment(Mesh);
+		Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Part->SetVisibility(false);
+		if (Shape) Part->SetStaticMesh(Shape);
+		if (BasicShape.Succeeded()) Part->SetMaterial(0, BasicShape.Object);
+		return Part;
+	};
+	Helmet = MakeGear(TEXT("Helmet"), Sphere.Succeeded() ? Sphere.Object : nullptr);
+	Facemask = MakeGear(TEXT("Facemask"), Cube.Succeeded() ? Cube.Object : nullptr);
+	Pads = MakeGear(TEXT("Pads"), Cube.Succeeded() ? Cube.Object : nullptr);
+}
+
+void AGridironAthlete::AttachGear()
+{
+	// Place each piece in world space against the reference pose (actor upright, facing +X), then
+	// attach keeping that transform so it follows the bone through animation and ragdoll.
+	const FVector Forward = GetActorForwardVector(), Up = GetActorUpVector();
+	const FRotator Facing = GetActorRotation();
+	auto Place = [&](UStaticMeshComponent* Part, FName Bone, const FVector& Offset, const FVector& Size)
+	{
+		if (Mesh->GetBoneIndex(Bone) == INDEX_NONE) return false;
+		Part->SetWorldLocationAndRotation(Mesh->GetSocketLocation(Bone) + Offset, Facing);
+		Part->SetWorldScale3D(Size / 100.f); // engine shapes are 100 cm
+		Part->AttachToComponent(Mesh, FAttachmentTransformRules::KeepWorldTransform, Bone);
+		Part->SetVisibility(true);
+		return true;
+	};
+	bGear = Place(Helmet, TEXT("head"), Up * 9.f + Forward * 2.f, FVector(27.f, 25.f, 28.f));
+	if (bGear) Place(Facemask, TEXT("head"), Up * 3.f + Forward * 14.f, FVector(3.f, 18.f, 12.f));
+	Place(Pads, TEXT("spine_05"), Up * -2.f, FVector(32.f, 54.f, 12.f));
 }
 
 void AGridironAthlete::BeginPlay()
@@ -54,6 +91,8 @@ void AGridironAthlete::LoadDefaultArt()
 			Mesh->SetSkeletalMesh(Body);
 			// The mannequin faces +Y; actors face +X.
 			Mesh->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
+			// Gear fits the default mannequin only; Blueprint art brings its own.
+			AttachGear();
 		}
 	}
 	if (!Mesh->GetSkeletalMeshAsset()) return;
@@ -102,6 +141,16 @@ void AGridironAthlete::ApplyLook_Implementation(const FGridironRosterEntry& Entr
 		Mesh->SetRelativeScale3D(FVector(Breadth, Breadth, Height));
 		for (int32 Slot = 0; Slot < Mesh->GetNumMaterials(); ++Slot)
 			if (UMaterialInstanceDynamic* Mat = Mesh->CreateDynamicMaterialInstance(Slot)) Mat->SetVectorParameterValue(TintParameter, Tint);
+		if (bGear)
+		{
+			auto Paint = [](UStaticMeshComponent* Part, const FLinearColor& Color)
+			{
+				if (UMaterialInstanceDynamic* Mat = Part->CreateDynamicMaterialInstance(0)) Mat->SetVectorParameterValue(TEXT("Color"), Color);
+			};
+			Paint(Helmet, TeamColor);
+			Paint(Facemask, FLinearColor(0.35f, 0.35f, 0.37f));
+			Paint(Pads, Tint * 0.7f);
+		}
 		return;
 	}
 	// Shoulder width grows with mass (receivers ~45 cm, linemen ~62 cm); bodies are shallower than wide.
