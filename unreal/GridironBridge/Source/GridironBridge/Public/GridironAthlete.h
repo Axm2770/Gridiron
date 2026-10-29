@@ -1,7 +1,11 @@
-// One on-field player. Telemetry drives the root (position/facing) and AnimBP locomotion
-// variables; collisions blend the skeleton from animation into physics:
+// One on-field player. Telemetry drives the root (position/facing) and locomotion; collisions
+// blend the skeleton from animation into physics:
 //   light/solid → partial physical-animation hit react below the spine or pelvis, blended back out
-//   big (on the hit player) → full ragdoll, pose snapshot, then a get-up montage
+//   big (on the hit player) → full ragdoll, then a get-up montage if one is assigned, otherwise
+//   the physics blend weight eases back to the animated pose on the telemetry path.
+// With no art assigned it loads the engine mannequin and drives its idle/walk/run blend space
+// straight from telemetry speed (no Animation Blueprint needed); without that content it shows
+// a team-coloured capsule.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -12,6 +16,8 @@
 class USkeletalMeshComponent;
 class UPhysicalAnimationComponent;
 class UAnimMontage;
+class UBlendSpace;
+class USkeletalMesh;
 class UStaticMeshComponent;
 
 UENUM(BlueprintType)
@@ -30,6 +36,7 @@ class GRIDIRONBRIDGE_API AGridironAthlete : public APawn
 
 public:
 	AGridironAthlete();
+	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<USceneComponent> Root;
@@ -46,16 +53,29 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Gridiron") EGridironBodyState BodyState = EGridironBodyState::Animated;
 	UPROPERTY(BlueprintReadOnly, Category = "Gridiron") FGridironRosterEntry Identity;
 
+	// --- Default art: the engine mannequin (copied into /Game/Characters by setup.ps1) ---
+	// Used when no skeletal mesh is set on the Mesh component. Clear BodyMesh to keep capsules.
+	UPROPERTY(EditAnywhere, Category = "Gridiron|Art") TSoftObjectPtr<USkeletalMesh> BodyMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple")));
+	UPROPERTY(EditAnywhere, Category = "Gridiron|Art") TSoftObjectPtr<UBlendSpace> Locomotion = TSoftObjectPtr<UBlendSpace>(FSoftObjectPath(TEXT("/Game/Characters/Mannequins/Anims/Unarmed/BS_Idle_Walk_Run.BS_Idle_Walk_Run")));
+	// Vector parameter on the body materials that takes the team colour.
+	UPROPERTY(EditAnywhere, Category = "Gridiron|Art") FName TintParameter = TEXT("Paint Tint");
+	// Height of the default mesh (cm); players are scaled from it.
+	UPROPERTY(EditAnywhere, Category = "Gridiron|Art") float BodyMeshHeight = 180.f;
+
 	// --- Tuning ---
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") FName PelvisBone = TEXT("pelvis");
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") FName SpineBone = TEXT("spine_01");
-	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") FName HitReactProfile = TEXT("HitReact");
+	// Physical-animation motors for hit reacts: how hard simulated bones chase the animated pose.
+	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") float MotorStrength = 1500.f;
+	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") float MotorDamping = 150.f;
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") float HitReactSeconds = 0.55f;
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") float SolidBlendWeight = 0.75f;
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") float LightBlendWeight = 0.4f;
 	// Converts protocol impulse (N·s) to Unreal impulse units (kg·cm/s) with a gameplay scale.
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") float ImpulseScale = 60.f;
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") float RagdollSeconds = 1.2f;
+	// Without a get-up montage the ragdoll eases back into the animated pose over this time.
+	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") float RecoverSeconds = 0.8f;
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") FName PoseSnapshotName = TEXT("GetUpPose");
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") TObjectPtr<UAnimMontage> GetUpFaceUp;
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") TObjectPtr<UAnimMontage> GetUpFaceDown;
@@ -78,7 +98,13 @@ private:
 	void BeginRagdoll(const FVector& Impulse, const FVector& At);
 	void EndRagdoll();
 	void StopPhysics();
+	void LoadDefaultArt();
+	void UpdateLocomotion();
 
+	// Top of the locomotion blend space's speed axis; faster players play it faster.
+	float LocomotionMaxSpeed = 0.f;
+	int32 SpeedAxis = 0;
+	float RecoverElapsed = 0.f;
 	FName ReactRoot;
 	float ReactWeight = 0.f;
 	float ReactElapsed = 0.f;

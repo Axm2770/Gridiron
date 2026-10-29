@@ -1,6 +1,9 @@
 #include "GridironAthlete.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
+#include "Animation/AnimSingleNodeInstance.h"
+#include "Animation/BlendSpace.h"
+#include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "PhysicsEngine/PhysicalAnimationComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -35,17 +38,77 @@ AGridironAthlete::AGridironAthlete()
 	Proxy->SetRelativeLocation(FVector(0.f, 0.f, 92.5f));
 }
 
+void AGridironAthlete::BeginPlay()
+{
+	Super::BeginPlay();
+	LoadDefaultArt();
+}
+
+void AGridironAthlete::LoadDefaultArt()
+{
+	// Art assigned in a Blueprint subclass wins; otherwise use the engine mannequin if installed.
+	if (!Mesh->GetSkeletalMeshAsset() && !BodyMesh.IsNull())
+	{
+		if (USkeletalMesh* Body = BodyMesh.LoadSynchronous())
+		{
+			Mesh->SetSkeletalMesh(Body);
+			// The mannequin faces +Y; actors face +X.
+			Mesh->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
+		}
+	}
+	if (!Mesh->GetSkeletalMeshAsset()) return;
+	Mesh->bEnableUpdateRateOptimizations = true;
+	MeshRelativeLocation = Mesh->GetRelativeLocation();
+	MeshRelativeRotation = Mesh->GetRelativeRotation();
+	PhysicalAnimation->SetSkeletalMeshComponent(Mesh);
+
+	// No AnimBP set: drive the locomotion blend space directly from telemetry speed.
+	if (!Mesh->GetAnimInstance() || Mesh->GetAnimationMode() == EAnimationMode::AnimationSingleNode)
+	{
+		if (UBlendSpace* Blend = Locomotion.LoadSynchronous())
+		{
+			Mesh->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+			Mesh->SetAnimation(Blend);
+			Mesh->Play(true);
+			// Find the speed axis by name: the mannequin's blend space is (Direction, Speed).
+			SpeedAxis = Blend->GetBlendParameter(1).DisplayName.Contains(TEXT("Speed")) ? 1 : 0;
+			LocomotionMaxSpeed = Blend->GetBlendParameter(SpeedAxis).Max;
+		}
+	}
+}
+
+void AGridironAthlete::UpdateLocomotion()
+{
+	UAnimSingleNodeInstance* Single = LocomotionMaxSpeed > 0.f ? Mesh->GetSingleNodeInstance() : nullptr;
+	if (!Single) return;
+	// Within the blend space's range the samples match speed; beyond it (sprinting), play the top
+	// sample faster so feet keep up with the ground instead of sliding.
+	FVector Position(Direction, Direction, 0.f);
+	Position[SpeedAxis] = FMath::Min(Speed, LocomotionMaxSpeed);
+	Single->SetBlendSpacePosition(Position);
+	Single->SetPlayRate(Speed > LocomotionMaxSpeed ? Speed / LocomotionMaxSpeed : 1.f);
+}
+
 void AGridironAthlete::ApplyLook_Implementation(const FGridironRosterEntry& Entry, FLinearColor TeamColor)
 {
 	const bool bHasArt = Mesh->GetSkeletalMeshAsset() != nullptr;
 	Proxy->SetVisibility(!bHasArt);
-	if (bHasArt) return;
+	const FLinearColor Tint = Entry.Side == TEXT("offense") ? TeamColor : TeamColor * 0.55f;
+	if (bHasArt)
+	{
+		// Height from the roster; heavier players are a little broader.
+		const float Height = Entry.HeightCm > 0.f ? Entry.HeightCm / BodyMeshHeight : 1.f;
+		const float Breadth = FMath::GetMappedRangeValueClamped(FVector2f(80.f, 160.f), FVector2f(0.95f, 1.25f), Entry.MassKg);
+		Mesh->SetRelativeScale3D(FVector(Breadth, Breadth, Height));
+		for (int32 Slot = 0; Slot < Mesh->GetNumMaterials(); ++Slot)
+			if (UMaterialInstanceDynamic* Mat = Mesh->CreateDynamicMaterialInstance(Slot)) Mat->SetVectorParameterValue(TintParameter, Tint);
+		return;
+	}
 	// Shoulder width grows with mass (receivers ~45 cm, linemen ~62 cm); bodies are shallower than wide.
 	const float Width = FMath::GetMappedRangeValueClamped(FVector2f(80.f, 160.f), FVector2f(0.45f, 0.62f), Entry.MassKg);
 	Proxy->SetRelativeScale3D(FVector(Width * 0.6f, Width, Entry.HeightCm / 100.f));
 	Proxy->SetRelativeLocation(FVector(0.f, 0.f, Entry.HeightCm * 0.5f));
-	UMaterialInstanceDynamic* Mat = Proxy->CreateDynamicMaterialInstance(0);
-	if (Mat) Mat->SetVectorParameterValue(TEXT("Color"), Entry.Side == TEXT("offense") ? TeamColor : TeamColor * 0.55f);
+	if (UMaterialInstanceDynamic* Mat = Proxy->CreateDynamicMaterialInstance(0)) Mat->SetVectorParameterValue(TEXT("Color"), Tint);
 }
 
 void AGridironAthlete::Configure(const FGridironRosterEntry& Entry, FLinearColor TeamColor)
@@ -77,6 +140,7 @@ void AGridironAthlete::ApplySample(const FVector& WorldLocation, float WorldYaw,
 	const float YawRate = DeltaSeconds > 0.f ? FMath::FindDeltaAngleDegrees(LastYaw, WorldYaw) / DeltaSeconds : 0.f;
 	LeanAngle = FMath::FInterpTo(LeanAngle, FMath::Clamp(YawRate * Speed * 0.0004f, -18.f, 18.f), DeltaSeconds, 6.f);
 	LastYaw = WorldYaw;
+	UpdateLocomotion();
 }
 
 void AGridironAthlete::ReceiveCollision(const FGridironCollision& Collision, const FVector& WorldLocation, const FVector& WorldNormal, bool bIsTarget)
@@ -102,7 +166,13 @@ void AGridironAthlete::BeginHitReact(FName BodyRoot, float Weight, const FVector
 {
 	// Physical animation motors keep the simulated bones tracking the animated pose, so the hit
 	// reads as a stagger rather than a collapse.
-	PhysicalAnimation->ApplyPhysicalAnimationProfileBelow(BodyRoot, HitReactProfile, true);
+	FPhysicalAnimationData Motors;
+	Motors.bIsLocalSimulation = false;
+	Motors.OrientationStrength = MotorStrength;
+	Motors.PositionStrength = MotorStrength;
+	Motors.AngularVelocityStrength = MotorDamping;
+	Motors.VelocityStrength = MotorDamping;
+	PhysicalAnimation->ApplyPhysicalAnimationSettingsBelow(BodyRoot, Motors, true);
 	Mesh->SetAllBodiesBelowSimulatePhysics(BodyRoot, true, true);
 	Mesh->SetAllBodiesBelowPhysicsBlendWeight(BodyRoot, Weight, false, true);
 	Mesh->AddImpulseAtLocation(Impulse, At, BodyRoot);
@@ -120,24 +190,28 @@ void AGridironAthlete::BeginRagdoll(const FVector& Impulse, const FVector& At)
 	Mesh->AddImpulseAtLocation(Impulse, At, PelvisBone);
 	RagdollElapsed = 0.f;
 	BodyState = EGridironBodyState::Ragdoll;
+	UE_LOG(LogGridiron, Log, TEXT("Athlete %d (%s) goes down"), Identity.Index, *Identity.Role);
 }
 
 void AGridironAthlete::EndRagdoll()
 {
-	// Freeze the physics pose so the AnimBP can blend from it (Pose Snapshot node) into the get-up.
 	const FVector PelvisUp = Mesh->GetSocketRotation(PelvisBone).Quaternion().GetAxisZ();
-	if (UAnimInstance* Anim = Mesh->GetAnimInstance()) Anim->SavePoseSnapshot(PoseSnapshotName);
-	StopPhysics();
-	if (bHasPending) SetActorLocationAndRotation(PendingLocation, FRotator(0.f, PendingYaw, 0.f));
-	bHasPending = false;
 	UAnimMontage* GetUp = FVector::DotProduct(PelvisUp, FVector::UpVector) >= 0.f ? GetUpFaceUp : GetUpFaceDown;
 	UAnimInstance* Anim = Mesh->GetAnimInstance();
-	if (Anim && GetUp)
+	const bool bMontage = Anim && GetUp && Mesh->GetAnimationMode() == EAnimationMode::AnimationBlueprint;
+	if (bMontage)
 	{
-		Anim->Montage_Play(GetUp);
-		BodyState = EGridironBodyState::Recovering;
+		// Freeze the physics pose so the AnimBP can blend from it (Pose Snapshot node) into the get-up.
+		Anim->SavePoseSnapshot(PoseSnapshotName);
+		StopPhysics();
 	}
-	else BodyState = EGridironBodyState::Animated;
+	// Back on the telemetry path. Without a montage the bodies keep simulating while the physics
+	// weight eases to zero (Tick), which reads as the player picking himself up.
+	if (bHasPending) SetActorLocationAndRotation(PendingLocation, FRotator(0.f, PendingYaw, 0.f));
+	bHasPending = false;
+	if (bMontage) Anim->Montage_Play(GetUp);
+	RecoverElapsed = 0.f;
+	BodyState = EGridironBodyState::Recovering;
 }
 
 void AGridironAthlete::StopPhysics()
@@ -169,6 +243,14 @@ void AGridironAthlete::Tick(float DeltaSeconds)
 		break;
 	case EGridironBodyState::Recovering:
 	{
+		if (Mesh->IsSimulatingPhysics(PelvisBone))
+		{
+			RecoverElapsed += DeltaSeconds;
+			const float Alpha = 1.f - FMath::Clamp(RecoverElapsed / RecoverSeconds, 0.f, 1.f);
+			Mesh->SetAllBodiesPhysicsBlendWeight(Alpha * Alpha);
+			if (Alpha <= 0.f) StopPhysics();
+			break;
+		}
 		const UAnimInstance* Anim = Mesh->GetAnimInstance();
 		if (!Anim || !Anim->IsAnyMontagePlaying()) BodyState = EGridironBodyState::Animated;
 		break;

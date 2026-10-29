@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { simulateExecution } from "./dist/engine/execution.mjs";
 import { validateMessage, YARD_CM, MESSAGE_TYPES } from "./dist/bridge/ue-protocol.mjs";
-import { playCallMessage, coordinateFrames, playerFrameMessages, collisionEvents, cinematicTriggerMessage, matchStateMessage, matchFlowState, ROLE_MASS } from "./dist/bridge/ue-telemetry.mjs";
+import { playCallMessage, coordinateFrames, playerFrameMessages, collisionEvents, cinematicTriggerMessage, matchStateMessage, matchFlowState, ROLE_MASS, SEVERITY } from "./dist/bridge/ue-telemetry.mjs";
 
 globalThis.clubs ??= Array.from({ length: 32 }, (_, i) => [`T${i}`, `City ${i}`, `Club${i}`, `Division ${Math.floor(i / 4)}`]);
 
@@ -84,6 +84,14 @@ for (let seed = 1; seed < 40 && !(tackleSeen && blockSeen); seed++) {
 }
 assert(tackleSeen && blockSeen, "tackles and blocks are produced across plays");
 assert(ROLE_MASS.OL > ROLE_MASS.CB, "linemen carry more mass into contact");
+// Severity bands must be physically reachable: a full-speed LB-on-RB hit (reduced mass × 10 m/s)
+// is "big", and big tackles actually occur across simulated plays (they drive ragdolls in UE).
+const reduced = (ROLE_MASS.LB * ROLE_MASS.RB) / (ROLE_MASS.LB + ROLE_MASS.RB);
+assert(reduced * 10 >= SEVERITY.big && SEVERITY.big > SEVERITY.solid);
+let bigTackles = 0;
+for (let seed = 1; seed <= 80; seed++)
+  bigTackles += collisionEvents(play(seed, seed % 2 ? "Inside run" : "Outside run"), { direction: 1 }).filter((h) => h.payload.kind === "Tackle" && h.payload.severity === "big").length;
+assert(bigTackles > 0, "some tackles are big enough to ragdoll");
 
 // CinematicTrigger: template + personalisation block.
 const s = { coach: { name: "Coach", appearance: { skin: "#b77b51" } }, roster: [{ id: "w1", name: "Star WR", pos: "WR", ovr: 92, jersey: 88 }], franchise: { clubs: Array.from({ length: 32 }, (_, id) => ({ id, uniform: id === 16 ? { primary: "#29588a" } : undefined })) } };
