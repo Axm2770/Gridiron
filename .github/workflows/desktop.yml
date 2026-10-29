@@ -79,13 +79,19 @@ jobs:
         with:
           path: downloads
           merge-multiple: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      # Installed apps read this manifest to update in-game without a reinstall.
+      - name: Build in-game update manifest
+        run: node scripts/content-manifest.mjs downloads/content-manifest.json "${GITHUB_REF_NAME}"
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           sed "s/<version>/${version}/g" .github/release-notes.md > "${RUNNER_TEMP}/release-notes.md"
-          gh release create "${GITHUB_REF_NAME}" downloads/*.zip \
+          gh release create "${GITHUB_REF_NAME}" downloads/*.zip downloads/content-manifest.json \
             --title "Gridiron Director ${version}" \
             --notes-file "${RUNNER_TEMP}/release-notes.md" \
             --verify-tag

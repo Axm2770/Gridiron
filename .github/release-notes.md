@@ -24,3 +24,7 @@ Not sure which Mac you have? Apple menu → **About This Mac**: "Chip: Apple M�
 Careers are saved locally on your computer, and each install keeps its own saves. To move a browser career into the app, use **Careers & saves → Export** in the browser and **Import a career** in the app.
 
 Every file in this release was built by GitHub Actions from this tag, passed the full regression suite, and was launch-tested (the app opened, loaded the career workspace and ran a simulation) before and after zipping.
+
+## Updates
+
+From 0.21.0 onwards the desktop app updates itself in-game: it checks for new releases on launch, downloads only the changed game files, verifies them, and asks you to reload. You only need to download a ZIP again when a release changes the desktop app itself; the app tells you when that happens.
