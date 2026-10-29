@@ -10,6 +10,8 @@ const msg = (type, payload = {}) => ({ protocol: PROTOCOL, type, seq: 1, sentAt:
 assert(validate(msg("play.execution"), false));
 assert(!validate(msg("play.execution"), true), "renderer message types cannot arrive from Unreal");
 assert(validate(msg("ue.ready"), true));
+assert(validate(msg("ue.flow.state"), true), "Unreal reports its flow state");
+for (const t of ["play.call", "player.frames", "physics.collision", "cinematic.trigger", "match.state"]) assert(validate(msg(t), false) && !validate(msg(t), true), t);
 assert(!validate({ ...msg("ue.ready"), protocol: "x" }, true));
 assert.equal(encodeFrame("hi")[0], 0x81);
 const big = encodeFrame("x".repeat(70000));

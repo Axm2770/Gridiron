@@ -123,6 +123,8 @@ The shipped game renders with Three.js r160 inside Electron. The Unreal bridge b
 `test-presentation.mjs` covers time-of-day selection, Director shot choice and possession mirroring, banner classification, scorebug text, accent contrast and the wiring of the hook, stylesheet and title screen.
 ## 4. Unreal Engine 5 bridge
 
+The telemetry stream (PlayCallData, PlayerCoordinateFrame, PhysicsCollisionEvent, CinematicTrigger, MatchState), the match/athlete/camera/sequence/flow C++ classes and the phased execution plan are documented in [ue5-engine-plan.md](ue5-engine-plan.md). The v1 batch messages below remain supported.
+
 ### Transport
 
 ```
