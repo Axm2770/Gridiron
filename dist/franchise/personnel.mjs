@@ -1,3 +1,4 @@
+import { applyPickOwnership } from "./market.mjs";
 import { recordDraftDevelopment } from "./career-systems.mjs";
 import { assertCanAdvance } from "./compliance.mjs";
 import {
@@ -180,12 +181,14 @@ export function beginDraft(s) {
       ),
     );
   }
-  f.draft = { year: s.year, cursor: 0, picks, log: [] };
+  applyPickOwnership(s, picks, s.year + 1);
+  f.draft = { year: s.year, cursor: 0, picks, log: [], live: !!f.draftLivePreference, ticker: [] };
   advanceCpuDraft(s);
 }
 export function advanceCpuDraft(s) {
   let d = s.franchise.draft;
-  if (!d) return;
+  // A live draft (draft room) advances CPU picks one at a time instead of all at once.
+  if (!d || d.live) return;
   while (d.cursor < d.picks.length && d.picks[d.cursor].team !== s.team) {
     let pick = d.picks[d.cursor],
       available = s.prospects.slice().sort((a, b) => b.ovr - a.ovr);
@@ -236,7 +239,8 @@ export function ensureDraftRoom(s, team = s.team) {
   candidate.starter = false;
   s.agents.push(candidate);
 }
-function draftOne(s, pick, p) {
+// Exported for the live draft room, which makes CPU selections one at a time.
+export function draftOne(s, pick, p) {
   let team = pick.team;
   p.starter = false;
   p.status = "active";
