@@ -83,7 +83,9 @@ export function playerFrameMessages(execution, { direction = 1, chunk = 12 } = {
 
 /* -------------------------------------------------- PhysicsCollisionEvent */
 
-const severityOf = (impulse) => (impulse >= 780 ? "big" : impulse >= 420 ? "solid" : "light");
+// Impulse bands (N·s). A full-speed hit is ~50 kg reduced mass closing at ~10 m/s ≈ 500 N·s.
+export const SEVERITY = { solid: 300, big: 480 };
+const severityOf = (impulse) => (impulse >= SEVERITY.big ? "big" : impulse >= SEVERITY.solid ? "solid" : "light");
 
 function frameAt(execution, t) {
   const f = execution.frames;
@@ -120,7 +122,7 @@ function contact(execution, t, a, b, direction, kind) {
     normal: { x: Math.round((nx / len) * direction * 1000) / 1000, y: Math.round((nz / len) * direction * 1000) / 1000, z: 0 },
     closingSpeed: Math.round(rel),
     impulse,
-    severity: kind === "Block" ? (impulse >= 420 ? "solid" : "light") : severityOf(impulse),
+    severity: kind === "Block" ? (impulse >= SEVERITY.solid ? "solid" : "light") : severityOf(impulse),
     bodyRegion: kind === "Block" ? "upper" : kind === "Sack" ? "upper" : rel > 600 ? "upper" : "lower",
   };
 }

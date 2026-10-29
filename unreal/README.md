@@ -23,7 +23,7 @@ From the repository root:
 npm run ue:setup
 ```
 
-This finds UE 5.3+ and Visual Studio, points the demo project at the installed engine version, links `GridironBridge` into `GridironDemo/Plugins`, compiles the plugin with RunUAT (several minutes the first time), and builds the greybox level. If compilation fails, the error names the file and line; paste it back to Claude to fix.
+This finds UE 5.3+ and Visual Studio, points the demo project at the installed engine version, links `GridironBridge` into `GridironDemo/Plugins`, compiles the plugin with RunUAT (several minutes the first time), copies the engine's mannequin character into the project (it is not committed to git), and builds the greybox level. If compilation fails, the error names the file and line; paste it back to Claude to fix.
 
 Options: `-SkipBuild` (link and greybox only), `-EngineDir "D:\Epic\UE_5.4"` (custom install), `-Open` (open the editor afterwards).
 
@@ -39,10 +39,11 @@ This hosts the same loopback relay as the desktop app and streams a simulated pl
 
 To drive it from the real game instead, launch the desktop app with the bridge on: set `GRIDIRON_UE=1` before `npm start`, or tick **Game → Unreal Engine bridge**. Then play a match.
 
-## 4. What you should see (Phase 1 acceptance)
+## 4. What you should see (Phases 1–3)
 
-- 22 team-coloured capsules line up and move through each play in sync, with no pops between frame chunks.
-- The ball travels the right arc; the capsule carrying it is the one the play's result names.
+- 22 team-coloured mannequins line up and run each play in sync: idle at the snap, jogging and sprinting with real strides, and no pops between frame chunks. Without the mannequin content they fall back to coloured capsules.
+- The ball travels the right arc; the player carrying it is the one the play's result names.
+- Big tackles knock the ball carrier down (ragdoll). He gets back up on his spot within about 2.5 s. The log shows `Athlete N (role) goes down`.
 - Cameras cut: wide before the snap → behind the offense → cable cam on passes → tight on the runner → a punch-in on big hits.
 - The Output Log shows `LogGridiron` lines: `Gridiron bridge connected`, then `Play <id>: <call> vs <coverage>, 22 players` and `Play <id> finished` for each snap. The replay terminal prints `[unreal] ue.ready`.
 
@@ -54,4 +55,4 @@ To drive it from the real game instead, launch the desktop app with the bridge o
 
 ## 5. Next phases
 
-Swap the capsules for a skeletal mesh and AnimBP (Phase 2), author the `HitReact` physical-animation profile (Phase 3), then the stadium, cinematics and packaging (Phases 4–7). The plan doc lists the pass criteria for each.
+Phases 2–3 run on the engine mannequin. For final art, swap in a football body (a Fab or MetaHuman mesh) by setting `BodyMesh`, or use a Blueprint subclass of `GridironAthlete` with its own Animation Blueprint and get-up montages. Then come the broadcast cameras, stadium, cinematics and packaging (Phases 4–7). The plan doc lists the pass criteria for each.

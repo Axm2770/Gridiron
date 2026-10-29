@@ -2,7 +2,7 @@
 
 How Gridiron Director drives an Unreal Engine 5 renderer for the 3D match, player models and cinematics, in the data-driven style of modern sports titles. The game stays the single source of truth: it simulates every snap deterministically, then *streams* the result. Unreal interpolates, animates, applies physics reactions, directs cameras and plays cinematics, but never decides an outcome.
 
-Status: Phases 0 and 1 are verified on UE 5.8 (Windows). The plugin compiles without warnings, and `npm run ue:replay` streams plays into the greybox level: 22 team-coloured athletes move through each play, cameras cut, the flow state reaches Live, and cinematic triggers fall back cleanly when no sequence asset exists. No art content (skeletal meshes, AnimBPs, Level Sequences, stadium levels) is included yet. See [Execution plan](#execution-plan).
+Status: Phases 0–3 are verified on UE 5.8 (Windows), using the engine mannequin for Phases 2–3. The plugin compiles without warnings, and `npm run ue:replay` streams plays into the greybox level: 22 team-coloured athletes move through each play, cameras cut, the flow state reaches Live, and cinematic triggers fall back cleanly when no sequence asset exists. No art content (skeletal meshes, AnimBPs, Level Sequences, stadium levels) is included yet. See [Execution plan](#execution-plan).
 
 ## 1. System architecture
 
@@ -97,7 +97,7 @@ Example **PhysicsCollisionEvent**:
   "closingSpeed": 1180, "impulse": 541, "severity": "solid", "bodyRegion": "upper" }
 ```
 
-`impulse` (N·s) = reduced mass of the two players (role masses in `ROLE_MASS`) × closing speed. Severity bands: `light` < 420 ≤ `solid` < 780 ≤ `big`. Blocks are detected as the first time each offensive lineman closes within 1.1 yd of a defensive lineman in the first 2.5 s.
+`impulse` (N·s) = reduced mass of the two players (role masses in `ROLE_MASS`) × closing speed. Severity bands: `light` < 300 ≤ `solid` < 480 ≤ `big` (blocks top out at `solid`). A full-speed hit is about 50 kg reduced mass × 10 m/s ≈ 500 N·s, so about one tackle in six is `big` and ragdolls the ball carrier. Blocks are detected as the first time each offensive lineman closes within 1.1 yd of a defensive lineman in the first 2.5 s.
 
 Example **CinematicTrigger** (cast trimmed):
 
@@ -143,14 +143,14 @@ stateDiagram-v2
   Animated --> HitReact: light/solid hit, or delivering any hit
   HitReact --> Animated: blend weight² decays to 0 over 0.55 s
   Animated --> Ragdoll: big Tackle/Sack on the hit player
-  Ragdoll --> Recovering: after 1.2 s → SavePoseSnapshot, stop physics, snap root to telemetry
-  Recovering --> Animated: get-up montage (face-up / face-down by pelvis orientation) ends
+  Ragdoll --> Recovering: after 1.2 s, snap root to telemetry
+  Recovering --> Animated: get-up montage ends, or (no montage) physics weight² eases to 0 over 0.8 s
 ```
 
-- **HitReact:** `ApplyPhysicalAnimationProfileBelow(spine_01 | pelvis, "HitReact")` → `SetAllBodiesBelowSimulatePhysics` → blend weight 0.4 (light / instigator) or 0.75 (solid) → `AddImpulseAtLocation` along the collision normal. Physical-animation motors keep simulated bones chasing the animated pose, so it reads as a stagger, not a collapse.
+- **HitReact:** `ApplyPhysicalAnimationSettingsBelow(spine_01 | pelvis, motors)`, with motor strength 1500 and damping 150 set in code so no Physics Asset profile is needed, → `SetAllBodiesBelowSimulatePhysics` → blend weight 0.4 (light / instigator) or 0.75 (solid) → `AddImpulseAtLocation` along the collision normal. Physical-animation motors keep simulated bones chasing the animated pose, so it reads as a stagger, not a collapse.
 - **Ragdoll:** full simulation and impulse at the pelvis. Telemetry keeps updating a *pending* root transform without moving the actor (moving it would drag simulated bones); the root snaps there when the get-up starts.
-- **Get-up:** the AnimBP's Pose Snapshot node blends from the frozen physics pose into the montage.
-- Author a `HitReact` profile in the Physics Asset (strong orientation, moderate position strength).
+- **Get-up:** with an Animation Blueprint and get-up montages assigned, the Pose Snapshot node blends from the frozen physics pose into the montage. The engine mannequin has no get-up animations, so by default the bodies keep simulating while the physics blend weight eases to zero. The player rises into the animated pose on the telemetry path.
+- **Default art:** with no mesh assigned, each athlete loads the engine mannequin (`SKM_Manny_Simple`, `PA_Mannequin`), which setup copies from the engine install. It drives `BS_Idle_Walk_Run` in single-node mode from telemetry speed and direction, with no Animation Blueprint. Above the blend space's top speed (600 cm/s) the play rate scales up so feet keep up with sprints. Team colour goes into the materials' `Paint Tint`.
 
 ### Broadcast camera system
 
@@ -211,8 +211,8 @@ Effort assumes one developer part-time, with Claude writing code and editor scri
 | --- | --- | --- | --- |
 | 0. Toolchain | UE 5.4+, Visual Studio 2022 (C++ game workload); `npm run ue:setup` links, compiles and builds the greybox level (`unreal/README.md`) | `ue.ready` received; `match.state` arrives on entering Matchday | 1–3 days |
 | 1. Greybox replay | `GridironDemo` greybox level (field, lights, ball, directors, team-coloured capsule athletes); `npm run ue:replay` streams plays without the game | A full play replays in sync with the game's 3D view; no visible pops at chunk boundaries | 1–2 weeks |
-| 2. Locomotion | Football skeleton/mesh (Fab/MetaHuman body), shared AnimBP blend space, budget allocator | 60 fps at 1440p with 22 players; no foot sliding at walk/jog/sprint | 2–4 weeks |
-| 3. Contact | Physics Asset `HitReact` profile, ragdoll tuning, get-up montages | Light/solid hits stagger; big tackles ragdoll and recover within 2.5 s; nobody leaves the telemetry path | 2–4 weeks |
+| 2. Locomotion | **Done with the engine mannequin**: blend space driven from telemetry, update-rate optimisation. Next: football mesh (Fab/MetaHuman body), budget allocator | 60 fps at 1440p with 22 players; no foot sliding at walk/jog/sprint | 2–4 weeks |
+| 3. Contact | **Done**: code-defined hit-react motors, ragdoll on big tackles, blend-out recovery. Next: get-up montages, ragdoll tuning | Light/solid hits stagger; big tackles ragdoll and recover within 2.5 s; nobody leaves the telemetry path | 2–4 weeks |
 | 4. Broadcast | Rig tuning, DOF, impact shake, All-22 and focus modes, replay angles | Shots never cut more than once per second; subject always in focus | 1–2 weeks |
 | 5. Stadium | Stadium level instance, team-colour material parameter collection, lighting presets, weather actors | Team colours and time of day correct for any matchup | 2–4 weeks |
 | 6. Cinematics | Six templates (walkout, title, draft, presser, playoff exit, walk-off) with tagged slots and MetaHuman performers | Any team and player renders correctly; skip works; queue and priority behave | 3–6 weeks |
@@ -226,4 +226,8 @@ Effort assumes one developer part-time, with Claude writing code and editor scri
 
 - `test-ue-telemetry.mjs` builds every payload from real `simulateExecution` output and checks schema-required fields, chunk coverage, velocity consistency, coordinate mirroring, collision physics and flow-state derivation. The relay allow-list test covers the new types.
 - Verified on UE 5.8 (Windows, 2026-10-29): the plugin builds with RunUAT BuildPlugin with no warnings. `npm run ue:replay` drives the greybox level in `-game` mode. The log shows connection, `ue.ready`, LoadingMatch → PreGame → Live, 22-player play calls and `Play … finished` for each snap. Captured frames show team-coloured athletes moving and camera cuts.
-- Not verified: hit reacts and ragdolls (they need a skeletal mesh and Physics Asset), Level Sequence cinematics (no templates yet, so triggers report `skipped`), stadium streaming and packaging. Expect small API adjustments on other engine versions.
+- Phases 2–3 verified on UE 5.8 with the engine mannequin:
+  - mid-play frames show running strides and a pass in flight;
+  - big tackles log `Athlete N (role) goes down`;
+  - frames 0.5 s and 1.0 s after the hit show the fall and the player on the turf, and by 2.4 s he is back on his feet.
+- Not verified: frame-rate budget at 1440p, Level Sequence cinematics (no templates yet, so triggers report `skipped`), stadium streaming and packaging. Expect small API adjustments on other engine versions.

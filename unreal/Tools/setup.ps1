@@ -87,6 +87,19 @@ if (-not $SkipBuild) {
   Write-Host "Plugin compiled; binaries in $binaries" -ForegroundColor Green
 }
 
+Step "Copying the engine's mannequin character into the demo project"
+# Epic's Third Person template content (Manny/Quinn mesh, physics asset, locomotion and hit-react
+# animations) ships with every engine install; it lands at /Game/Characters (gitignored).
+$mannequin = Join-Path $EngineDir "Templates\TemplateResources\High\Characters\Content"
+$characters = Join-Path $root "unreal\GridironDemo\Content\Characters"
+if (-not (Test-Path $mannequin)) {
+  Write-Host "Mannequin content not found in this engine install; athletes fall back to greybox capsules." -ForegroundColor Yellow
+} elseif (-not (Test-Path (Join-Path $characters "Mannequins\Meshes\SKM_Manny_Simple.uasset"))) {
+  New-Item -ItemType Directory -Force $characters | Out-Null
+  Copy-Item -Recurse -Force (Join-Path $mannequin "*") $characters
+  Write-Host "Mannequin copied to /Game/Characters/Mannequins"
+} else { Write-Host "Mannequin already present" }
+
 if (-not $SkipGreybox) {
   Step "Building the greybox level with the editor's Python"
   $script = Join-Path $PSScriptRoot "build_greybox.py"
