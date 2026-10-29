@@ -180,3 +180,40 @@ dialog.gd-sheet .gd-sheet-body { padding: 16px 18px; max-height: 70vh; overflow:
 
 .gd-empty { color: var(--gd-text-3); font-size: 12px; padding: 6px 0; }
 @media (prefers-reduced-motion: reduce) { .gd-meter-track i, .gd-momentum i { transition: none; } }
+
+/* ---------- front office: medical, training, market, draft ---------- */
+.ops-case { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: var(--gd-radius-sm); border: 1px solid var(--gd-border); background: rgba(255, 255, 255, 0.03); }
+.ops-case + .ops-case { margin-top: 10px; }
+.ops-case header, .ops-agent header, .ops-scout header, .ops-prospect header { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.ops-case header b, .ops-agent header b, .ops-scout header b, .ops-prospect header b { display: block; font-size: 13px; }
+.ops-case header small, .ops-agent header small, .ops-scout header small, .ops-prospect header small { color: var(--gd-text-3); font-size: 11px; }
+.ops-quote { margin: 0; font-style: italic; color: var(--gd-text-2); font-size: 12px; }
+.ops-option { gap: 6px; }
+.ops-option.ops-rec { border-color: rgba(91, 227, 161, 0.55); }
+.ops-when { font: 800 18px var(--gd-display); }
+.ops-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.ops-week { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.ops-day { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: var(--gd-radius-sm); border: 1px solid var(--gd-border); background: rgba(255, 255, 255, 0.03); }
+.ops-day select, .ops-drill select, .ops-player select, .ops-scout select { width: 100%; font-size: 12px; padding: 6px 8px; min-height: 0; }
+.ops-day small, .ops-drill small { color: var(--gd-text-3); font-size: 11px; }
+.ops-drill { display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
+.ops-drill + .ops-drill { margin-top: 10px; }
+.ops-players { display: flex; flex-direction: column; }
+.ops-player { display: grid; grid-template-columns: 34px minmax(0, 1fr) 170px 150px; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--gd-border); }
+.ops-player b { display: block; font-size: 13px; } .ops-player small { color: var(--gd-text-3); font-size: 11px; }
+.ops-assets { display: flex; flex-direction: column; gap: 4px; }
+.ops-asset { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; }
+.ops-asset:hover { background: rgba(255, 255, 255, 0.04); }
+.ops-asset.on { border-color: rgba(var(--team-rgb), 0.6); background: rgba(var(--team-rgb), 0.12); }
+.ops-asset b { display: block; font-size: 12px; } .ops-asset small { color: var(--gd-text-3); font-size: 11px; }
+.ops-asset input { min-height: 0; }
+.ops-agents, .ops-scouts, .ops-class { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.ops-agent, .ops-scout, .ops-prospect { display: flex; flex-direction: column; gap: 7px; padding: 10px; border-radius: var(--gd-radius-sm); border: 1px solid var(--gd-border); background: rgba(255, 255, 255, 0.03); }
+.ops-scout label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--gd-text-2); }
+.ops-factors { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--gd-text-2); }
+.ops-prospect > small { color: var(--gd-text-2); font-size: 11px; line-height: 1.4; }
+.ops-reveal { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; }
+.ops-fog { color: var(--gd-text-3); font-style: italic; }
+.gd-classic { margin-top: 14px; color: var(--gd-text-2); }
+.gd-classic summary { cursor: pointer; font-size: 12px; }
+@media (max-width: 900px) { .ops-week { grid-template-columns: repeat(3, minmax(0, 1fr)); } .ops-player { grid-template-columns: 34px minmax(0, 1fr); } }

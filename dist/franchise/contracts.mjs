@@ -5,6 +5,7 @@ import {
   fanReaction,
 } from "./career-systems.mjs";
 import { consumeBoardPermit, isBlockbuster } from "./boardroom.mjs";
+import { signingFactors } from "./market.mjs";
 import {
   MILLION,
   capLedger,
@@ -198,6 +199,9 @@ export function offer(s, id, terms) {
   );
 }
 export function offerScore(s, p, o) {
+  return baseOfferScore(s, p, o) * signingFactors(s, p, o.team).total;
+}
+function baseOfferScore(s, p, o) {
   let c = o.contract,
     total =
       c.base.reduce((a, b) => a + b, 0) +
