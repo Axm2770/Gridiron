@@ -11,7 +11,7 @@ Get the Unreal Engine 5 match renderer running in a greybox level. The game deci
 
 ## 1. Install (one time, about 1–3 hours mostly downloading)
 
-1. **Epic Games Launcher** → sign in → *Unreal Engine* → *Library* → install **UE 5.4** (about 60 GB).
+1. **Epic Games Launcher** → sign in → *Unreal Engine* → *Library* → install **UE 5.4 or newer** (about 60 GB; verified on 5.8). Pick the Windows engine in the launcher: Epic's separate Linux download has no Windows editor.
 2. **Visual Studio 2022** (Community is free) with the workloads **Desktop development with C++** and **Game development with C++**.
 3. **Node.js 24** for the replay tool (the repository already uses it for `npm test`).
 
@@ -23,7 +23,7 @@ From the repository root:
 npm run ue:setup
 ```
 
-This finds UE 5.3+ and Visual Studio, links `GridironBridge` into `GridironDemo/Plugins`, compiles the plugin with RunUAT (several minutes the first time), and builds the greybox level. If compilation fails, the error names the file and line; paste it back to Claude to fix.
+This finds UE 5.3+ and Visual Studio, points the demo project at the installed engine version, links `GridironBridge` into `GridironDemo/Plugins`, compiles the plugin with RunUAT (several minutes the first time), and builds the greybox level. If compilation fails, the error names the file and line; paste it back to Claude to fix.
 
 Options: `-SkipBuild` (link and greybox only), `-EngineDir "D:\Epic\UE_5.4"` (custom install), `-Open` (open the editor afterwards).
 
@@ -44,7 +44,13 @@ To drive it from the real game instead, launch the desktop app with the bridge o
 - 22 team-coloured capsules line up and move through each play in sync, with no pops between frame chunks.
 - The ball travels the right arc; the capsule carrying it is the one the play's result names.
 - Cameras cut: wide before the snap → behind the offense → cable cam on passes → tight on the runner → a punch-in on big hits.
-- The Output Log shows `Gridiron bridge` connection messages; the replay terminal prints `[unreal] ue.ready`.
+- The Output Log shows `LogGridiron` lines: `Gridiron bridge connected`, then `Play <id>: <call> vs <coverage>, 22 players` and `Play <id> finished` for each snap. The replay terminal prints `[unreal] ue.ready`.
+
+## Troubleshooting
+
+- **"Visual C++ redistributable version … is outdated" dialog:** run `Engine\Extras\Redist\en-us\vc_redist.x64.exe` from your UE install (5.8 needs 14.50 or newer).
+- **Bridge log says `Bad protocol ''`:** the URL in `Config/DefaultGame.ini` must stay quoted. Unreal's config parser treats `//` as a comment, so an unquoted `ws://…` is cut to `ws:`.
+- **Black view:** rerun `npm run ue:setup -- -SkipBuild` to rebuild the greybox lights.
 
 ## 5. Next phases
 

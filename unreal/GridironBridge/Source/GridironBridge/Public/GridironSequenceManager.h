@@ -36,20 +36,20 @@ USTRUCT(BlueprintType)
 struct FGridironCinematicTemplate
 {
 	GENERATED_BODY()
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) TSoftObjectPtr<ULevelSequence> Sequence;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TSoftObjectPtr<ULevelSequence> Sequence;
 	// Performer class per cast slot (HeadCoach, Star, Prospect, …); falls back to DefaultPerformer.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) TMap<FName, TSoftClassPtr<AActor>> PerformerClasses;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) TSoftClassPtr<AActor> DefaultPerformer;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TMap<FName, TSoftClassPtr<AActor>> PerformerClasses;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TSoftClassPtr<AActor> DefaultPerformer;
 };
 
 USTRUCT(BlueprintType)
 struct FGridironLightingPreset
 {
 	GENERATED_BODY()
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) float SunIntensity = 8.f;   // lux
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) FLinearColor SunColor = FLinearColor::White;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) float SunPitch = -45.f;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) float SkyIntensity = 1.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") float SunIntensity = 8.f;   // lux
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") FLinearColor SunColor = FLinearColor::White;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") float SunPitch = -45.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") float SkyIntensity = 1.f;
 };
 
 UCLASS(BlueprintType)
@@ -58,13 +58,13 @@ class GRIDIRONBRIDGE_API UGridironCinematicLibrary : public UPrimaryDataAsset
 	GENERATED_BODY()
 public:
 	// Keyed by template name from the protocol (LS_Championship_Celebration, LS_DraftNight_Stage…).
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) TMap<FName, FGridironCinematicTemplate> Templates;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TMap<FName, FGridironCinematicTemplate> Templates;
 	// Keyed by timeOfDay (Afternoon, Dusk, Night).
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) TMap<FString, FGridironLightingPreset> Lighting;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TMap<FString, FGridironLightingPreset> Lighting;
 	// Keyed by weather (Rain, Snow, Wind) → an actor with the Niagara/audio for it.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) TMap<FString, TSoftClassPtr<AActor>> Weather;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TMap<FString, TSoftClassPtr<AActor>> Weather;
 	// Stadium dressing (banners, end zones, boards) reads HomePrimary/AwayPrimary etc. from this.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly) TSoftObjectPtr<UMaterialParameterCollection> TeamParameters;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TSoftObjectPtr<UMaterialParameterCollection> TeamParameters;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGridironCinematicStarted, const FGridironCinematic&, Cinematic);

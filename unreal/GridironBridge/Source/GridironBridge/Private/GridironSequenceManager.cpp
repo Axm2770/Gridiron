@@ -1,5 +1,6 @@
 #include "GridironSequenceManager.h"
 #include "GridironBridgeSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "GridironFlowSubsystem.h"
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
