@@ -1,40 +1,5 @@
-// Sandboxed preload: exposes only the Unreal bridge and in-game update channels. No Node APIs reach the renderer.
+// Sandboxed preload: exposes only the in-game update channels. No Node APIs reach the renderer.
 const { contextBridge, ipcRenderer } = require('electron');
-contextBridge.exposeInMainWorld('gridironUE', {
-  send: (message) => ipcRenderer.send('ue:send', message),
-  status: () => ipcRenderer.sendSync('ue:status'),
-  onMessage: (callback) => {
-    if (typeof callback !== 'function') return;
-    ipcRenderer.on('ue:message', (_event, message) => callback(message));
-  },
-  // Optional download of the Unreal renderer (Windows); null elsewhere.
-  renderer: {
-    status: () => ipcRenderer.sendSync('renderer:get'),
-    check: () => ipcRenderer.invoke('renderer:check'),
-    install: () => ipcRenderer.invoke('renderer:install'),
-    onStatus: (callback) => {
-      if (typeof callback !== 'function') return;
-      ipcRenderer.on('renderer:status', (_event, status) => callback(status));
-    },
-  },
-  // Embedded match view (Pixel Streaming): the page is the WebRTC player; signalling goes via IPC.
-  stream: {
-    available: () => ipcRenderer.sendSync('stream:available'),
-    start: () => ipcRenderer.invoke('stream:start'),
-    open: () => ipcRenderer.send('stream:open'),
-    send: (message) => ipcRenderer.send('stream:send', message),
-    close: () => ipcRenderer.send('stream:close'),
-    stop: () => ipcRenderer.send('stream:stop'),
-    onMessage: (callback) => {
-      if (typeof callback !== 'function') return;
-      ipcRenderer.on('stream:message', (_event, message) => callback(message));
-    },
-    onStatus: (callback) => {
-      if (typeof callback !== 'function') return;
-      ipcRenderer.on('stream:status', (_event, status) => callback(status));
-    },
-  },
-});
 contextBridge.exposeInMainWorld('gridironUpdates', {
   status: () => ipcRenderer.sendSync('updates:status'),
   check: () => ipcRenderer.invoke('updates:check'),

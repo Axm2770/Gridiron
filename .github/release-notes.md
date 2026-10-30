@@ -29,8 +29,8 @@ Every file in this release was built by GitHub Actions from this tag, passed the
 
 From 0.21.0 onwards the desktop app updates itself in-game: it checks for new releases on launch, downloads only the changed game files, verifies them, and asks you to reload. You only need to download a ZIP again when a release changes the desktop app itself; the app tells you when that happens.
 
-## Unreal match view (Windows)
+## Match view
 
-On Windows, the Matchday 3D panel can show the Unreal Engine broadcast view: players run with real strides, big tackles knock players down, cameras cut like a TV broadcast, the stadium takes both teams' colours, and big moments play as cutscenes. Start a match and choose **Download** above the 3D panel (about 400 MB, one time); the game verifies and installs it and switches the view on. **Classic 3D** in the panel's corner switches back. Mac and the browser version keep the classic 3D view.
+The Windows-only Unreal match view and its download have been removed. Matchday now opens on the 2D field, which follows every snap, score and clock change; **Switch to 3D** above the field still shows the browser 3D stadium.
 
 This release changes the desktop app itself, so existing installs need to download the ZIP once.

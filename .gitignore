@@ -8,16 +8,3 @@ release/
 __pycache__/
 *.pyc
 dist/downloads/
-# Unreal project outputs, the setup-created plugin junction and the generated greybox content
-unreal/GridironDemo/Plugins/
-unreal/GridironDemo/Binaries/
-unreal/GridironDemo/Intermediate/
-unreal/GridironDemo/Saved/
-unreal/GridironDemo/DerivedDataCache/
-unreal/GridironBridge/Binaries/
-unreal/GridironBridge/Intermediate/
-*.sln
-.vs/
-unreal/GridironDemo/Content/
-unreal/Build/
-unreal/GridironDemo/Config/DefaultInput.ini

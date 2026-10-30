@@ -1,5 +1,5 @@
 // Canonical, persisted log of narrative game events. Domain modules append; the social
-// engine, depth systems and the Unreal bridge read. Rendering never writes here.
+// engine and depth systems read. Rendering never writes here.
 import { hash } from "./career-systems.mjs";
 
 export const EVENT_KINDS = [

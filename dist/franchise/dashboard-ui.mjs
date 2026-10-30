@@ -4,7 +4,7 @@ import * as S from "./state.mjs";
 import { officeCounts } from "./newsroom.mjs";
 import { socialPulse, socialEnginePosts } from "./social-engine.mjs";
 import { activeDilemma, resolveDilemma, pressConference, answerPress, COACHING_TREE, treePoints, hasPerk, unlockNode, ensureDepth, momentum, environment, halftimeDeck, playHalftimeCard } from "./depth-systems.mjs";
-import { TEAM_COLORS } from "../bridge/ue-protocol.mjs";
+import { TEAM_COLORS } from "../presentation/team-colors.mjs";
 import { STAGES, SCOUT_COSTS, ensurePipeline, pipelineView, addToWatchlist, removeFromPipeline, moveStage, rankOnBoard, syncPipeline, talentRange, positionalNeed } from "./recruiting-pipeline.mjs";
 import { scout, draftPick } from "./personnel.mjs";
 import * as K from "../ui/kit.mjs";

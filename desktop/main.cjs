@@ -2,11 +2,7 @@ const {app,BrowserWindow,Menu,protocol,session,shell,dialog,ipcMain,net}=require
 const path=require('node:path');
 const fs=require('node:fs');
 const os=require('node:os');
-const {spawn}=require('node:child_process');
 const {appResponse}=require('./protocol.cjs');
-const {createBridge}=require('./ue-bridge.cjs');
-const {createSignalling}=require('./pixel-stream.cjs');
-const {createRendererInstaller}=require('./renderer-installer.cjs');
 const {createUpdater}=require('./updater.cjs');
 const smoke=process.argv.includes('--gridiron-smoke-test');
 app.setName('Gridiron Director');
@@ -19,37 +15,6 @@ process.on('uncaughtException',startupFailure);
 process.on('unhandledRejection',startupFailure);
 protocol.registerSchemesAsPrivileged([{scheme:'gridiron',privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true}}]);
 const origin='gridiron://game';let mainWindow;
-// Unreal bridge: loopback-only relay, off unless enabled from the Game menu or GRIDIRON_UE=1.
-let ueBridge=null;
-async function setUnrealBridge(enabled){try{if(enabled&&!ueBridge){ueBridge=createBridge({port:Number(process.env.GRIDIRON_UE_PORT)||47800,log,onUnrealMessage:msg=>mainWindow?.webContents.send('ue:message',msg)});await ueBridge.start();}else if(!enabled&&ueBridge){await ueBridge.stop();ueBridge=null;}}catch(error){log('Unreal bridge: '+error.message);ueBridge=null;}}
-// Packaged Unreal renderer (unreal/Tools/package.ps1 -Install puts it in userData/renderer).
-// Launched directly (no shell) with fixed arguments; it connects back to the loopback bridge.
-let rendererProcess=null;
-function rendererPath(){return [process.env.GRIDIRON_UE_EXE,path.join(app.getPath('userData'),'renderer','GridironDemo.exe')].filter(Boolean).find(p=>{try{return fs.statSync(p).isFile();}catch{return false;}})||null;}
-async function openRenderer(){const exe=rendererPath();if(!exe){dialog.showMessageBox(mainWindow,{type:'info',title:'3D match view',message:'The Unreal 3D match view is not installed.',detail:'Build it once with "npm run ue:package -- -Install" (see unreal/README.md). Then choose Game → Open 3D match view.'});return;}await setUnrealBridge(true);const item=Menu.getApplicationMenu()?.getMenuItemById('ue-bridge');if(item)item.checked=true;if(rendererProcess&&rendererProcess.exitCode===null&&!rendererProcess.killed)return;rendererProcess=spawn(exe,['-windowed','-ResX=1600','-ResY=900'],{detached:true,stdio:'ignore',shell:false});rendererProcess.on('error',error=>log('3D match view: '+error.message));rendererProcess.unref();}
-// Embedded match view: the renderer runs off-screen and streams into the game page over Pixel
-// Streaming (pixel-stream.cjs relays signalling; the page is the player via IPC). The inner game
-// binary is launched directly (GridironDemo.exe is only a launcher) so stopping it is reliable.
-let signalling=null,streamProcess=null;
-function streamBinary(exe){const dir=path.join(path.dirname(exe),'GridironDemo','Binaries','Win64');try{const inner=fs.readdirSync(dir).find(n=>/^GridironDemo(-Win64-[A-Za-z]+)?\.exe$/.test(n));return inner?path.join(dir,inner):exe;}catch{return exe;}}
-async function startEmbedded(){const exe=process.platform==='win32'?rendererPath():null;if(!exe)return{available:false};await setUnrealBridge(true);if(!signalling){signalling=createSignalling({port:Number(process.env.GRIDIRON_STREAM_PORT)||47801,log,onPlayerMessage:msg=>mainWindow?.webContents.send('stream:message',msg),onStatus:s=>mainWindow?.webContents.send('stream:status',s)});await signalling.start();}if(!streamProcess){streamProcess=spawn(streamBinary(exe),['-RenderOffScreen','-PixelStreamingConnectionURL='+signalling.url(),'-ResX=1920','-ResY=1080','-ForceRes','-Unattended','-NoSplash'],{stdio:'ignore',shell:false,windowsHide:true});streamProcess.on('error',error=>{log('Embedded match view: '+error.message);streamProcess=null;});streamProcess.on('exit',()=>{streamProcess=null;});}return{available:true,...signalling.status()};}
-function stopEmbedded(){signalling?.closePlayer();if(streamProcess?.pid)spawn('taskkill',['/PID',String(streamProcess.pid),'/T','/F'],{stdio:'ignore',shell:false,windowsHide:true});streamProcess=null;}
-ipcMain.on('stream:available',event=>{event.returnValue=process.platform==='win32'&&!!rendererPath();});
-ipcMain.handle('stream:start',event=>fromGame(event)?startEmbedded():{available:false});
-ipcMain.on('stream:open',event=>{if(fromGame(event))signalling?.openPlayer();});
-ipcMain.on('stream:send',(event,msg)=>{if(fromGame(event))signalling?.playerMessage(msg);});
-ipcMain.on('stream:close',event=>{if(fromGame(event))signalling?.closePlayer();});
-ipcMain.on('stream:stop',event=>{if(fromGame(event))stopEmbedded();});
-app.on('will-quit',()=>stopEmbedded());
-// Optional in-game download of the renderer from the GitHub release tagged "renderer" (Windows).
-// Extraction uses the tar.exe that ships with Windows 10/11 (it reads zip archives).
-const rendererInstaller=createRendererInstaller({userData:app.getPath('userData'),fetch:(url,options)=>net.fetch(url,options),log,extract:(zip,dir)=>new Promise((resolve,reject)=>{const tar=spawn(path.join(process.env.SystemRoot||'C:\\Windows','System32','tar.exe'),['-xf',zip,'-C',dir],{stdio:'ignore',shell:false,windowsHide:true});tar.on('error',reject);tar.on('exit',code=>code===0?resolve():reject(Error('tar exited with '+code)));})});
-rendererInstaller.onChange(status=>mainWindow?.webContents.send('renderer:status',status));
-ipcMain.on('renderer:get',event=>{event.returnValue=process.platform==='win32'?rendererInstaller.status():null;});
-ipcMain.handle('renderer:check',event=>fromGame(event)&&process.platform==='win32'?rendererInstaller.check():null);
-ipcMain.handle('renderer:install',event=>{if(!fromGame(event)||process.platform!=='win32')return null;stopEmbedded();return rendererInstaller.install();});
-ipcMain.on('ue:send',(event,msg)=>{if(event.sender===mainWindow?.webContents)ueBridge?.broadcast(msg);});
-ipcMain.on('ue:status',event=>{event.returnValue=ueBridge?ueBridge.status():{listening:false,clients:0,connected:false};});
 // In-game updates: content downloads from GitHub Releases into userData; see updater.cjs.
 const updater=createUpdater({packagedRoot:path.join(__dirname,'..','dist'),shellDir:__dirname,userData:app.getPath('userData'),appVersion:app.getVersion(),fetch:(url,options)=>net.fetch(url,options),log});
 let healthTimer=null;
@@ -81,8 +46,8 @@ if(!app.requestSingleInstanceLock())app.quit();else{
   await updater.init().catch(error=>log('Updater init: '+error.message));
   protocol.handle('gridiron',request=>appResponse(request,updater.root()));
   session.defaultSession.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));
-  const menu=[...(process.platform==='darwin'?[{label:app.name,submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]}]:[]),{label:'Game',submenu:[{label:'Open save data folder',click:()=>shell.openPath(app.getPath('userData'))},{label:'Open launch log',click:()=>shell.openPath(logFile)},{label:'Check for updates',click:()=>updater.check({manual:true})},{label:'Move a browser career into the app',click:()=>dialog.showMessageBox(mainWindow,{type:'info',title:'Import your career',message:'Export your career from Careers & saves in the browser, then choose Import a career in this app. Each app and browser keeps independent local saves.'})},{type:'separator'},...(process.platform==='win32'?[{label:'Open 3D match view (Unreal)',click:()=>openRenderer()}]:[]),{id:'ue-bridge',label:'Unreal Engine bridge (ws://127.0.0.1)',type:'checkbox',checked:process.env.GRIDIRON_UE==='1',click:item=>setUnrealBridge(item.checked)},{type:'separator'},...(process.platform==='darwin'?[{role:'close'}]:[{role:'quit'}])]},{role:'editMenu'},{label:'View',submenu:[{role:'reload'},{role:'togglefullscreen'},{type:'separator'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'}]},{role:'windowMenu'}];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(menu));if(process.env.GRIDIRON_UE==='1'&&!smoke)setUnrealBridge(true);createWindow();if(updater.isUnverified())armHealthCheck();scheduleUpdateChecks();app.on('activate',()=>{if(!BrowserWindow.getAllWindows().length)createWindow();});
+  const menu=[...(process.platform==='darwin'?[{label:app.name,submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]}]:[]),{label:'Game',submenu:[{label:'Open save data folder',click:()=>shell.openPath(app.getPath('userData'))},{label:'Open launch log',click:()=>shell.openPath(logFile)},{label:'Check for updates',click:()=>updater.check({manual:true})},{label:'Move a browser career into the app',click:()=>dialog.showMessageBox(mainWindow,{type:'info',title:'Import your career',message:'Export your career from Careers & saves in the browser, then choose Import a career in this app. Each app and browser keeps independent local saves.'})},{type:'separator'},...(process.platform==='darwin'?[{role:'close'}]:[{role:'quit'}])]},{role:'editMenu'},{label:'View',submenu:[{role:'reload'},{role:'togglefullscreen'},{type:'separator'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'}]},{role:'windowMenu'}];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(menu));createWindow();if(updater.isUnverified())armHealthCheck();scheduleUpdateChecks();app.on('activate',()=>{if(!BrowserWindow.getAllWindows().length)createWindow();});
  }).catch(startupFailure);
  app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 }

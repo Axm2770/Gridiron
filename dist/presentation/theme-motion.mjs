@@ -1,6 +1,6 @@
 // Screen-wide theme and motion: derives a readable accent from the club colour, applies it to
 // every view, animates view changes and counts up headline numbers.
-import { TEAM_COLORS } from "../bridge/ue-protocol.mjs";
+import { TEAM_COLORS } from "./team-colors.mjs";
 
 export function hexToHsl(hex) {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255),

@@ -1466,19 +1466,15 @@ import("./presentation.mjs")
     installExpansionUI({ views, isBusy: () => busy, heritage });
     installCalendarUI({views,initialize,isBusy:()=>busy,setBusy:value=>busy=value,settleRound});
     await installCareerManager({ views, isBusy: () => busy, initialize });
-    // Hub dashboard and Unreal bridge load last; a failure leaves the classic workspace intact.
+    // Hub dashboard and presentation load last; a failure leaves the classic workspace intact.
     try {
-      const [{ installDashboard }, { installUnrealBridge }, { installThemeMotion }, { installBroadcastHUD }, { installCinematics }, { installUnrealMatchView }] = await Promise.all([
+      const [{ installDashboard }, { installThemeMotion }, { installBroadcastHUD }, { installCinematics }] = await Promise.all([
         import("./dashboard-ui.mjs"),
-        import("../bridge/ue-hooks.mjs"),
         import("../presentation/theme-motion.mjs"),
         import("../presentation/broadcast-hud.mjs"),
         import("../presentation/cinematics.mjs"),
-        import("../bridge/ue-view.mjs"),
       ]);
       installDashboard({ views, isBusy: () => busy });
-      installUnrealBridge();
-      installUnrealMatchView();
       installBroadcastHUD();
       installCinematics({ isBusy: () => busy });
       installThemeMotion({ getSection: () => section });

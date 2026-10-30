@@ -16,7 +16,7 @@ The current game includes the earlier franchise expansion, news/inbox/social vie
 | Ownership / reputation / awards | See `docs/upgrade-architecture.md` |
 | Execution / officiating / rendering | `dist/engine/`, `dist/stadium.js`, `dist/match.js` |
 | Native app | `desktop/main.cjs`, `desktop/protocol.cjs`, `scripts/package-desktop.mjs` |
-| Event log / social engine / depth systems / Hub UI / Unreal bridge | `event-bus.mjs`, `social-engine.mjs`, `depth-systems.mjs`, `dashboard-ui.mjs`, `dist/ui/`, `dist/bridge/`, `desktop/ue-bridge.cjs`, `unreal/` — see `docs/overhaul-architecture.md` and `docs/ue5-engine-plan.md` |
+| Event log / social engine / depth systems / Hub UI | `event-bus.mjs`, `social-engine.mjs`, `depth-systems.mjs`, `dashboard-ui.mjs`, `dist/ui/` — see `docs/overhaul-architecture.md` |
 
 Paths in the table without a directory are under `dist/franchise/`. Consult exports directly rather than assuming an unseen API. Older implementation notes in README describe historical releases; this file and the calendar guide describe the current date-based holiday path.
 
