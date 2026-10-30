@@ -1,4 +1,3 @@
-import { boardFingerprint } from "./dist/franchise/boardroom.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
@@ -130,7 +129,6 @@ interview(s, "OC", chosen);
 assert(Staff.searchCompliance(s, "OC").ok);
 const beforeCash = s.franchise.clubs[s.team].cash;
 const hired = S.transact(s, (x) => {
-  boardPermit(x, "OC", chosen.id);
   Staff.hireStaff(x, "OC", chosen.id);
 });
 assert.equal(
@@ -152,7 +150,6 @@ assert(
 );
 assert.throws(() => Staff.hireStaff(hired, "OC", chosen.id), /search/);
 // A new vacancy starts its own search; previous interviews cannot unlock it.
-boardPermit(hired, "OC", null, chosen.id);
 Staff.fireStaff(hired, chosen.id);
 Staff.openStaffSearch(hired, "OC");
 assert(
@@ -192,7 +189,6 @@ assert.equal(
 for (const c of two) interview(s, "HC", c);
 assert.equal(Staff.searchCompliance(s, "HC").completed, 2);
 let next = S.transact(s, (x) => {
-  boardPermit(x, "HC", two[0].id);
   Staff.hireStaff(x, "HC", two[0].id);
 });
 assert.equal(
@@ -487,26 +483,3 @@ console.log(
   "PASS: actual staff/team/recruitment/archive/compliance and compact directional development HTML, search pagination controls and report modal.",
 );
 
-function boardPermit(
-  s,
-  role,
-  replacement,
-  id = s.franchise.clubs[s.team].staff.find((c) => c.role === role)?.id,
-) {
-  if (!id) return;
-  const payload = { id, replacement, role };
-  (s.franchise.boardroom ??= {
-    serial: 0,
-    active: null,
-    requests: [],
-    permits: [],
-  }).permits.push({
-    id: "staff-law-fixture",
-    team: s.team,
-    kind: "Staff change",
-    fingerprint: boardFingerprint("Staff change", payload),
-    scope: "Approved",
-    until: s.franchise.clock.day + 30,
-    used: false,
-  });
-}

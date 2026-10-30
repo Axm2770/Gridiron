@@ -3,7 +3,6 @@ import fs from "node:fs";
 import vm from "node:vm";
 import * as S from "./dist/franchise/state.mjs";
 import * as Staff from "./dist/franchise/staff.mjs";
-import * as B from "./dist/franchise/boardroom.mjs";
 import * as A from "./dist/franchise/awards.mjs";
 import { installExpansionUI } from "./dist/franchise/expansion-ui.mjs";
 const context = {
@@ -88,7 +87,6 @@ installExpansionUI({ views, isBusy: () => false, heritage });
 for (const key of [
   "Contracts",
   "Career dossier",
-  "Boardroom",
   "Records",
   "Awards",
   "Hall of Fame",
@@ -128,7 +126,7 @@ assert(
     output.includes("35,467") &&
     output.includes("Class of 2002"),
 );
-// The old trade submission helper must route through ownership rather than its captured action closure.
+// Trades go straight to the trade action: ownership no longer holds a separate approval meeting.
 const p = state.roster[0],
   target = state.franchise.clubs[0].players[0];
 p.ovr = 92;
@@ -136,17 +134,7 @@ nodes["trade-out"] = { value: p.id };
 nodes["trade-team"] = { value: "0" };
 nodes["trade-in"] = { value: target.id };
 F.trade();
-const request = B.activeBoardRequest(state);
-assert.equal(request.kind, "Trade");
-assert.equal(request.payload.id, p.id);
-assert(output.includes("Ownership") || output.includes("OWNERSHIP"));
-assert.equal(
-  calls.length,
-  0,
-  "an unapproved blockbuster cannot reach the old trade action",
-);
-Expansion.withdraw(request.id);
-assert.equal(B.activeBoardRequest(state), null);
+assert.deepEqual(calls.at(-1), ["trade", p.id, 0, target.id]);
 F.action("interview");
 assert.deepEqual(calls.at(-1), ["open", "Career dossier"]);
 Expansion.extension(p.id);
