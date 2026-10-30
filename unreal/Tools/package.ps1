@@ -45,23 +45,30 @@ $config = if ($Shipping) { "Shipping" } else { "Development" }
 # the build works wherever the repository is cloned.
 $stage = Join-Path $env:LOCALAPPDATA "GridironUE"
 Write-Host "==> Staging the project in $stage" -ForegroundColor Cyan
-$skip = @("Saved", "Intermediate", "Binaries", "DerivedDataCache", "Plugins", "Build")
+# Build/ is staged: it holds the recorded PSO cache (Build/Windows/PipelineCaches) the cook bundles.
+$skip = @("Saved", "Intermediate", "Binaries", "DerivedDataCache", "Plugins")
 robocopy (Join-Path $root "unreal\GridironDemo") (Join-Path $stage "GridironDemo") /MIR /XD $skip /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { Fail "Could not stage the project (robocopy $LASTEXITCODE)." }
 robocopy (Join-Path $root "unreal\GridironBridge") (Join-Path $stage "GridironDemo\Plugins\GridironBridge") /MIR /XD Binaries Intermediate /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { Fail "Could not stage the plugin (robocopy $LASTEXITCODE)." }
 $project = Join-Path $stage "GridironDemo\GridironDemo.uproject"
+Remove-Item -Recurse -Force (Join-Path $stage "GridironDemo\Saved\StagedBuilds") -ErrorAction SilentlyContinue
 # Throttle shader compile workers in the staged copy only (the editor project keeps its defaults).
 $unused = [Math]::Max(0, [Environment]::ProcessorCount - $ShaderThreads)
 Add-Content -Encoding utf8 (Join-Path $stage "GridironDemo\Config\DefaultEngine.ini") "`r`n[DevOptions.Shaders]`r`nNumUnusedShaderCompilingThreads=$unused`r`nNumUnusedShaderCompilingThreadsDuringGame=$unused`r`nWorkerProcessPriority=-1`r`n"
 Write-Host "Shader compiling limited to $ShaderThreads of $([Environment]::ProcessorCount) threads (-ShaderThreads to change)"
 
 Write-Host "==> Packaging GridironDemo ($config, Win64) with $EngineDir" -ForegroundColor Cyan
-& $uat BuildCookRun "-project=$project" -noP4 -platform=Win64 "-clientconfig=$config" -build -cook -stage -pak -archive "-archivedirectory=$archive" "-map=/Game/Gridiron/Maps/Greybox" "-AdditionalCookerOptions=-corelimit=$ShaderThreads" -unattended -utf8output
+# UE 5.8's UnrealPak crashes (access violation in its worker threads while writing IoStore
+# containers) when it gets all 32 threads of this machine; 8 cores packs reliably.
+& $uat BuildCookRun "-project=$project" -noP4 -platform=Win64 "-clientconfig=$config" -build -cook -stage -pak -archive "-archivedirectory=$archive" "-map=/Game/Gridiron/Maps/Greybox" "-AdditionalCookerOptions=-corelimit=$ShaderThreads" "-AdditionalPakOptions=-corelimit=8" "-AdditionalIoStoreOptions=-corelimit=8" -unattended -utf8output
 if ($LASTEXITCODE -ne 0) { Fail "BuildCookRun failed; the errors above name the step." }
 $exe = Join-Path $archive "Windows\GridironDemo.exe"
 if (-not (Test-Path $exe)) { Fail "The build finished but $exe is missing." }
 Write-Host "Packaged: $exe" -ForegroundColor Green
+if (-not (Get-ChildItem (Join-Path $root "unreal\GridironDemo\Build\Windows\PipelineCaches") -Filter *.spc -ErrorAction SilentlyContinue)) {
+  Write-Host "No recorded PSO cache (only used on D3D12). Record one with unreal\Tools\perf.ps1 -RecordPSO, then package again." -ForegroundColor Yellow
+}
 
 if ($Install) {
   $target = Join-Path $env:APPDATA "Gridiron Director\renderer"
