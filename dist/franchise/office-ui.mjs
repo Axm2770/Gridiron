@@ -21,6 +21,7 @@ import {
 import { effectiveAttributes } from "./ratings.mjs";
 import { faceSVG } from "./newgens.mjs";
 import { icon, searchKey } from "./presentation.mjs";
+import { storyArt } from "../presentation/pixel-art.mjs";
 const fmtBio = (n) => Number(n).toLocaleString("en-US");
 const num = (n, d = 1) =>
   Number.isFinite(n)
@@ -240,7 +241,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
         .slice(news.page * 9, news.page * 9 + 9)
         .map(
           (a, i) =>
-            `<article class="story-card story-topic-${a.category.toLowerCase()} ${i === 0 ? "lead-story" : ""}"><div class="story-top"><span>${esc(a.source)}</span><button class="icon-button" aria-label="${a.bookmarked ? "Unsave" : "Save"} story" onclick="Office.storyBookmark('${a.id}')">${a.bookmarked ? "★" : "☆"}</button></div><div class="story-category">${badge(a.category)}<span>${a.year} · Week ${a.week + 1}</span></div><h2>${esc(a.title)}</h2><p>${esc(a.body)}</p><div class="story-bottom"><span>${logo(a.team)}${esc(clubs[a.team][2])}</span>${a.messageId ? `<button class="link" onclick="Office.fromStory('${a.messageId}')">Open brief ${icon("arrow")}</button>` : a.route ? `<button class="link" onclick="W.open('${a.route}')">Explore ${icon("arrow")}</button>` : a.playerId ? `<button class="link" onclick="W.player('${a.playerId}',${a.team})">Player ${icon("arrow")}</button>` : ""}</div></article>`,
+            `<article class="story-card story-topic-${a.category.toLowerCase()} ${i === 0 ? "lead-story" : ""}"><div class="story-top"><span>${esc(a.source)}</span><button class="icon-button" aria-label="${a.bookmarked ? "Unsave" : "Save"} story" onclick="Office.storyBookmark('${a.id}')">${a.bookmarked ? "★" : "☆"}</button></div><div class="story-category">${badge(a.category)}<span>${a.year} · Week ${a.week + 1}</span></div>${storyArt(a)}<h2>${esc(a.title)}</h2><p>${esc(a.body)}</p><div class="story-bottom"><span>${logo(a.team)}${esc(clubs[a.team][2])}</span>${a.messageId ? `<button class="link" onclick="Office.fromStory('${a.messageId}')">Open brief ${icon("arrow")}</button>` : a.route ? `<button class="link" onclick="W.open('${a.route}')">Explore ${icon("arrow")}</button>` : a.playerId ? `<button class="link" onclick="W.player('${a.playerId}',${a.team})">Player ${icon("arrow")}</button>` : ""}</div></article>`,
         )
         .join("") ||
       '<div class="office-empty"><h2>No stories in this view.</h2><p>Change your filters or follow more franchises.</p></div>'

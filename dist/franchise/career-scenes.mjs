@@ -202,6 +202,11 @@ export function installCareerScenes({
             : [],
         },
       );
+      // Pixel theme: render the conversation stage at low resolution and scale it up crisply.
+      if (document.body.classList.contains("gd-pixel")) {
+        sceneStage.renderer.setPixelRatio?.(0.4);
+        sceneStage.resize();
+      }
     },
     choose(index) {
       if (isBusy()) return;
