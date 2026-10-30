@@ -197,25 +197,50 @@ export function simulateExecution(input) {
     ),
     kick = ["Punt", "Field goal"].includes(input.call),
     deep = ["Deep pass", "Play action"].includes(input.call),
+    playAction = input.call === "Play action",
     blitz = /blitz/i.test(input.coverage),
     zone = !/Man/.test(input.coverage),
     spot = input.spot;
   let runLane = pass ? 0 : (rng() > 0.5 ? 1 : -1) * (3 + rng() * 2);
+  // Outside runs pick an edge each snap and turn upfield once they reach it.
+  const edge = (rng() > 0.5 ? 1 : -1) * (9 + rng() * 5);
+  // Per-snap variation, all drawn from the play seed so a replay is identical: effort (top speed
+  // ±5%), defender reaction delay and pursuit lead, and each receiver's route (depth, break point
+  // and direction). Without it identical calls resolved to the same yardage every time.
+  for (const a of actors) {
+    a.maxSpeed *= 0.95 + rng() * 0.1;
+    a.react = a.side ? 0.03 + rng() * 0.12 : 0;
+    a.lead = 0.55 + rng() * 0.3;
+    a.zoneDepth = (rng() - 0.5) * 4;
+  }
+  const baseDepth = { "Quick pass": 5, "Short pass": 9, Screen: 1.5, "Deep pass": 24, "Play action": 26 }[input.call] ?? (deep ? 24 : 9);
+  const routes = actors.slice(0, 11).map(() => ({
+    depth: baseDepth * (0.75 + rng() * 0.5),
+    breakAt: 0.6 + rng() * 0.7,
+    dir: rng() > 0.5 ? 1 : -1,
+  }));
+  // Linebackers may bite on the play-action fake and step up before dropping.
+  const bite = playAction && rng() < 0.65 ? 0.55 + rng() * 0.45 : 0;
+  // The quarterback reads separation with an error that shrinks with awareness.
+  const awareness = actors[0].skills?.awareness ?? actors[0].rating;
+  const misread = actors.slice(0, 11).map(() => (rng() - 0.5) * 2.4 * clamp((105 - awareness) / 40, 0.2, 1.5));
   let ball = { x: actors[0].x, y: 1.6, z: 0 };
+  let catchTime = 0;
   const routeTarget = (i, t) => {
+    const route = routes[i];
     let depth = deep
-        ? Math.min(32, t * 5)
+        ? Math.min(Math.min(34, route.depth), t * 5.5)
         : input.call === "Screen"
-          ? 2
-          : Math.min(11, t * 3.6),
+          ? route.depth
+          : Math.min(Math.min(14, route.depth), t * 3.6),
       z = zOff[i];
     if (input.personnel === "12" && i === 10) z = -8;
     if (input.personnel === "21" && i === 10) z = -3;
     if (input.formation === "Empty backfield" && i === 1) z = -24;
-    let cut = Math.max(0, t - 0.85);
+    let cut = Math.max(0, t - route.breakAt);
     return {
       x: spot + depth,
-      z: clamp(z + (i % 2 ? 1 : -1) * Math.min(9, cut * 4), -24, 24),
+      z: clamp(z + route.dir * Math.min(9, cut * 4), -24, 24),
     };
   };
   emit("Snap", {
@@ -296,11 +321,14 @@ export function simulateExecution(input) {
     for (let i = 0; i < 11; i++) {
       let a = actors[i];
       if (i === carrier && caught) {
+        // Outside runs press the edge while gaining ground, then turn upfield once there.
+        const outside = !pass && input.call === "Outside run",
+          turned = outside && Math.abs(a.z - edge) < 2.5;
         steer(
           a,
           {
-            x: pass ? 110 : a.x + 6,
-            z: pass ? a.z : input.call === "Outside run" ? 12 : runLane,
+            x: pass ? 110 : outside && !turned ? Math.max(spot + 1.5, a.x + 2.5) : a.x + 6,
+            z: pass ? a.z : outside ? edge : runLane,
           },
           dt,
           0.94,
@@ -330,7 +358,7 @@ export function simulateExecution(input) {
               x: 110,
               z:
                 input.call === "Outside run"
-                  ? 12
+                  ? edge
                   : input.formation === "I formation"
                     ? 0
                     : 2,
@@ -367,12 +395,19 @@ export function simulateExecution(input) {
           emit("BlockEngaged", { blocker: blocker.id, rusher: a.id });
       } else if (caught || (!pass && time > 1.15)) {
         let runner = actors[carrier];
-        steer(
-          a,
-          { x: runner.x + runner.vx * 0.65, z: runner.z + runner.vz * 0.65 },
-          dt,
-          1.02,
-        );
+        // Each defender reacts to the catch or handoff a beat late and takes his own angle.
+        if (time < (pass ? catchTime : 1.15) + a.react) {
+          a.x = clamp(a.x + a.vx * dt, -9, 109);
+          a.z = clamp(a.z + a.vz * dt, -26.6, 26.6);
+        } else
+          steer(
+            a,
+            { x: runner.x + runner.vx * a.lead, z: runner.z + runner.vz * a.lead },
+            dt,
+            1.02,
+          );
+      } else if (bite && i <= 17 && time < bite) {
+        steer(a, { x: spot + 1, z: a.z }, dt, 0.8);
       } else {
         let wr = actors[[1, 4, 10, 2, 3, 2, 3][i - 15]];
         let depth =
@@ -385,6 +420,7 @@ export function simulateExecution(input) {
                 : input.coverage === "Quarters"
                   ? 16
                   : 9;
+        depth += a.zoneDepth;
         let coverageTarget = zone
           ? {
               x: Math.max(spot + Math.min(depth, time * 3.8), wr.x + 1.5),
@@ -403,9 +439,9 @@ export function simulateExecution(input) {
       let candidates = [2, 3, 4, 10, 1]
         .map((i) => ({
           i,
-          separation: Math.min(
-            ...actors.slice(15).map((d) => distance(d, actors[i])),
-          ),
+          separation:
+            Math.min(...actors.slice(15).map((d) => distance(d, actors[i]))) +
+            misread[i],
         }))
         .sort((a, b) => b.separation - a.separation);
       let progression = [2, 3, 4, 10, 1],
@@ -419,12 +455,13 @@ export function simulateExecution(input) {
           targetId: actors[read.i].id,
         });
       if (
-        (time > (deep ? 2.05 : 1.55) && read.separation > 1.2) ||
+        (time > (playAction ? 2.35 : deep ? 2.05 : 1.55) && read.separation > 1.2) ||
         time > 3.2
       ) {
         target = read.i;
         let receiver = actors[target],
-          lead = 0.6,
+          // Lead the receiver by the ball's flight time, so deep balls land where he will be.
+          lead = clamp(distance(actors[0], receiver) / 22, 0.42, 1.3),
           aim = {
             x: receiver.x + receiver.vx * lead + throwingError,
             z: clamp(
@@ -516,6 +553,8 @@ export function simulateExecution(input) {
               0.91 +
                 (receiver.rating - 75) / 250 -
                 error * 0.045 -
+                // Contested deep balls are caught less often than underneath throws.
+                (deep ? 0.22 : 0) -
                 (input.weather === "Rain" ? 0.09 : 0),
               0.15,
               0.97,
@@ -523,6 +562,7 @@ export function simulateExecution(input) {
         ) {
           carrier = target;
           caught = true;
+          catchTime = time;
           emit("CatchCompleted", {
             actorId: receiver.id,
             name: receiver.name,
@@ -570,7 +610,7 @@ export function simulateExecution(input) {
           passing: pass,
         };
         emit("OutOfBounds", { name: runner.name });
-      } else if (nearest.d < 1.05 && time > 0.9) {
+      } else if (nearest.d < 1.2 && time > 0.9) {
         let escape = clamp(
           0.05 + (runner.rating - nearest.a.rating) / 200,
           0.015,

@@ -1,6 +1,6 @@
 // Broadcast HUD for the 3D match: TV scorebug, down-and-distance, big-play banners, replay
 // wipe, and theater/fullscreen viewing. Pure presentation over state.live.
-import { TEAM_COLORS } from "../bridge/ue-protocol.mjs";
+import { TEAM_COLORS } from "./team-colors.mjs";
 
 const e = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const ORD = ["", "1ST", "2ND", "3RD", "4TH"];

@@ -1,0 +1,2 @@
+// Primary colour per club index (0-31), shared by the dashboard, broadcast HUD, cinematics and theme.
+export const TEAM_COLORS = ["#14388c", "#058e91", "#17315d", "#125f3a", "#4b2581", "#ee631d", "#7e4125", "#dbb92a", "#193f56", "#1c55a0", "#008a91", "#489ab9", "#e76d24", "#cd2434", "#484f59", "#62b8dc", "#29588a", "#1855a0", "#126566", "#8b253b", "#d36323", "#388cc9", "#235e43", "#743caa", "#bf293b", "#249dcc", "#b69a60", "#b93231", "#b62f45", "#3b6cc8", "#b92b3c", "#245785"];
