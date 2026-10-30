@@ -2,6 +2,7 @@ const {app,BrowserWindow,Menu,protocol,session,shell,dialog,ipcMain,net}=require
 const path=require('node:path');
 const fs=require('node:fs');
 const os=require('node:os');
+const {spawn}=require('node:child_process');
 const {appResponse}=require('./protocol.cjs');
 const {createUpdater}=require('./updater.cjs');
 const smoke=process.argv.includes('--gridiron-smoke-test');
@@ -15,15 +16,24 @@ process.on('uncaughtException',startupFailure);
 process.on('unhandledRejection',startupFailure);
 protocol.registerSchemesAsPrivileged([{scheme:'gridiron',privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true}}]);
 const origin='gridiron://game';let mainWindow;
-// In-game updates: content downloads from GitHub Releases into userData; see updater.cjs.
-const updater=createUpdater({packagedRoot:path.join(__dirname,'..','dist'),shellDir:__dirname,userData:app.getPath('userData'),appVersion:app.getVersion(),fetch:(url,options)=>net.fetch(url,options),log});
+// In-game updates from GitHub Releases; see updater.cjs. Content updates download into userData.
+// App updates replace the install itself, so they need a packaged app in a writable location: a
+// macOS app still running from App Translocation (opened from Downloads, never moved) is read-only.
+function appInstallTarget(){if(!app.isPackaged||smoke)return null;if(process.platform==='win32')return{platform:'Windows-x64',installDir:path.dirname(process.execPath),exe:process.execPath,pid:process.pid};if(process.platform==='darwin'){const bundle=path.resolve(process.execPath,'..','..','..');if(!bundle.endsWith('.app')||bundle.includes('/AppTranslocation/'))return null;return{platform:'macOS-'+(process.arch==='arm64'?'arm64':'x64'),bundle,pid:process.pid};}return null;}
+// The OS's own unzip tools: tar.exe ships with Windows 10/11, ditto with macOS.
+function extractZip(zip,dir){return new Promise((resolve,reject)=>{const [command,args]=process.platform==='win32'?[path.join(process.env.SystemRoot||'C:\\Windows','System32','tar.exe'),['-xf',zip,'-C',dir]]:['/usr/bin/ditto',['-x','-k',zip,dir]];const child=spawn(command,args,{stdio:'ignore',shell:false,windowsHide:true});child.on('error',reject);child.on('exit',code=>code===0?resolve():reject(Error('unzip exited with '+code)));});}
+function launchDetached(command,args){spawn(command,args,{detached:true,stdio:'ignore',shell:false,windowsHide:true}).unref();}
+const updater=createUpdater({packagedRoot:path.join(__dirname,'..','dist'),shellDir:__dirname,userData:app.getPath('userData'),appVersion:app.getVersion(),fetch:(url,options)=>net.fetch(url,options),log,appInstall:appInstallTarget(),extract:extractZip,launch:launchDetached});
+// Hands off to the install helper, then quits so it can replace the app and relaunch it.
+let installingApp=false;
+function restartIntoAppUpdate(){if(installingApp)return;installingApp=true;updater.installApp().then(started=>{if(started)app.quit();else installingApp=false;}).catch(error=>{installingApp=false;log('Updater install: '+error.message);});}
 let healthTimer=null;
 const fromGame=event=>event.sender===mainWindow?.webContents;
 updater.onChange(status=>mainWindow?.webContents.send('updates:status',status));
 ipcMain.on('updates:status',event=>{event.returnValue=updater.status();});
 ipcMain.handle('updates:check',event=>fromGame(event)?updater.check():null);
 ipcMain.handle('updates:download',event=>fromGame(event)?updater.download():null);
-ipcMain.on('updates:reload',event=>{if(fromGame(event)){armHealthCheck();mainWindow.reload();}});
+ipcMain.on('updates:reload',event=>{if(!fromGame(event))return;if(updater.appUpdateStaged()){restartIntoAppUpdate();return;}armHealthCheck();mainWindow.reload();});
 ipcMain.on('updates:ready',event=>{if(fromGame(event)){clearTimeout(healthTimer);updater.markHealthy().catch(error=>log('Updater: '+error.message));}});
 ipcMain.on('updates:open-release',event=>{if(fromGame(event))safeExternal(updater.status().releaseUrl);});
 // New content must boot and call ready within 45s, or it is rolled back to the packaged game.
@@ -50,4 +60,6 @@ if(!app.requestSingleInstanceLock())app.quit();else{
   Menu.setApplicationMenu(Menu.buildFromTemplate(menu));createWindow();if(updater.isUnverified())armHealthCheck();scheduleUpdateChecks();app.on('activate',()=>{if(!BrowserWindow.getAllWindows().length)createWindow();});
  }).catch(startupFailure);
  app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
+ // An app update downloaded during play ("After this session") installs when the game closes.
+ app.on('before-quit',event=>{if(updater.appUpdateStaged()&&!installingApp){event.preventDefault();restartIntoAppUpdate();}});
 }

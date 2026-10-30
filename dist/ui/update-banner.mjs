@@ -8,11 +8,15 @@ function view(s) {
   const size = s.bytes ? ` · ${s.bytes >= MB ? (s.bytes / MB).toFixed(1) + " MB" : Math.max(1, Math.round(s.bytes / 1024)) + " KB"}` : "";
   switch (s.phase) {
     case "available":
-      return { tone: "info", text: `Update ${s.latest} is available (${s.files} file${s.files === 1 ? "" : "s"}${size}).`, actions: [["install", "Install now", true], ["later", "Later"]] };
+      return s.kind === "app"
+        ? { tone: "info", text: `Update ${s.latest} is available (full app update${size}).`, actions: [["install", "Download now", true], ["later", "Later"]] }
+        : { tone: "info", text: `Update ${s.latest} is available (${s.files} file${s.files === 1 ? "" : "s"}${size}).`, actions: [["install", "Install now", true], ["later", "Later"]] };
     case "downloading":
-      return { tone: "info", text: `Installing update ${s.latest}… ${s.progress || 0}%`, progress: s.progress || 0, actions: [] };
+      return { tone: "info", text: `${s.kind === "app" ? "Downloading" : "Installing"} update ${s.latest}… ${s.progress || 0}%`, progress: s.progress || 0, actions: [] };
     case "ready":
-      return { tone: "good", text: `${s.message} Your careers are saved and carry over.`, actions: [["reload", "Reload now", true], ["later", "After this session"]] };
+      return s.kind === "app"
+        ? { tone: "good", text: `${s.message} Your careers are saved and carry over.`, actions: [["reload", "Restart now", true], ["later", "When I quit"]] }
+        : { tone: "good", text: `${s.message} Your careers are saved and carry over.`, actions: [["reload", "Reload now", true], ["later", "After this session"]] };
     case "shell-required":
       return { tone: "warn", text: s.message, actions: [["release", "Open download page", true], ["later", "Later"]] };
     case "error":
