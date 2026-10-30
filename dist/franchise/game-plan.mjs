@@ -106,14 +106,24 @@ function counters(s, opp, ours, theirs, t) {
     add = (key, value, reason) =>
       out.some((c) => c.key === key) || out.push({ key, value, reason });
   const runEdge = ours.RB + ours.OL - theirs.DL - theirs.LB;
-  if (t.coverage === "Blitz-heavy" || theirs.DL - ours.OL >= 5)
+  // In simulated games "Feed the RB" overrides "Protect the QB", and both override the play style,
+  // so the plan suggests one offensive lever and switches off any that would cancel it.
+  const directives = s.franchise.directives || {};
+  if (t.coverage === "Blitz-heavy" || theirs.DL - ours.OL >= 5) {
     add("protectQB", true, `Their pass rush (DL ${theirs.DL}) out-rates your line (OL ${ours.OL}). Get the ball out quickly.`);
-  if (theirs.DB - ours.REC >= 4 && runEdge >= -5)
-    add("style", "Run-first", `Their secondary (${theirs.DB}) is stronger than your receivers (${ours.REC}). Lean on the run.`);
-  else if (ours.REC - theirs.DB >= 4 || (t.coverage === "Zone coverage" && ours.QB >= 80))
-    add("style", "Vertical offense", `Your receivers (${ours.REC}) beat their secondary (${theirs.DB}). Take deep shots.`);
-  if (ours.RB >= 80 && theirs.DL + theirs.LB / 2 < ours.OL + ours.RB / 2 - 3)
-    add("feedRB", true, `Their front (DL ${theirs.DL}, LB ${theirs.LB}) is soft against your run game.`);
+    if (directives.feedRB) add("feedRB", false, "Feeding the running back would cancel the quick passing game.");
+  } else {
+    if (theirs.DB - ours.REC >= 4 && runEdge >= -5)
+      add("style", "Run-first", `Their secondary (${theirs.DB}) is stronger than your receivers (${ours.REC}). Lean on the run.`);
+    else if (ours.RB >= 80 && theirs.DL + theirs.LB / 2 < ours.OL + ours.RB / 2 - 3)
+      add("style", "Run-first", `Their front (DL ${theirs.DL}, LB ${theirs.LB}) is soft against your run game.`);
+    else if (ours.REC - theirs.DB >= 4)
+      add("style", "Vertical offense", `Your receivers (${ours.REC}) beat their secondary (${theirs.DB}). Take deep shots.`);
+    else if (t.coverage === "Zone coverage" && ours.QB >= 80)
+      add("style", "Vertical offense", `They sit in zone. Your quarterback (${ours.QB}) can attack the gaps downfield.`);
+    if (out.length && directives.feedRB) add("feedRB", false, "Feeding the running back overrides your play style in simulated games.");
+    if (out.length && directives.protectQB) add("protectQB", false, "Quick passing overrides your play style in simulated games.");
+  }
   if (t.lean === "Pass-heavy")
     add("defense", theirs.REC >= 82 ? "Dime" : "Nickel", `They throw ${t.pass}% of the time. Add defensive backs.`);
   else if (t.lean === "Run-heavy")

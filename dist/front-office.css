@@ -15,7 +15,7 @@
 .fo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .fo-span-2 { grid-column: span 2; }
 .fo-card { background: var(--fo-surface); border: 1px solid var(--fo-border); padding: 18px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
-.fo-card > header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.fo-card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .fo-card h3 { font-size: 13px; letter-spacing: .04em; }
 .fo-card button:not(.link) { align-self: flex-start; }
 .fo-note { color: var(--fo-text-2); font-size: 12px; line-height: 1.55; }
@@ -26,7 +26,7 @@
 .fo-chip.good { color: var(--fo-good); border-color: color-mix(in srgb, var(--fo-good) 45%, transparent); }
 .fo-chip.warn { color: var(--fo-warn); border-color: color-mix(in srgb, var(--fo-warn) 45%, transparent); }
 .fo-chip.bad { color: var(--fo-bad); border-color: color-mix(in srgb, var(--fo-bad) 45%, transparent); }
-.fo-meter { display: block; height: 7px; background: var(--fo-raised); overflow: hidden; flex: 1; min-width: 40px; }
+.fo-meter { display: block; height: 7px; min-height: 7px; background: var(--fo-raised); overflow: hidden; flex: 1 0 auto; min-width: 40px; }
 .fo-meter i { display: block; height: 100%; background: var(--fo-accent); }
 .fo-meter.good i { background: var(--fo-good); }
 .fo-meter.warn i { background: var(--fo-warn); }
@@ -63,10 +63,11 @@
 .fo-objectives small { color: var(--fo-text-2); }
 .fo-options, .fo-segments { display: grid; gap: 6px; }
 .fo-segments { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
-.fo-option, .fo-segments button { text-align: left; background: var(--fo-raised); color: var(--gd-text, var(--text)); border: 1px solid var(--fo-border); padding: 9px 11px; font-weight: 600; }
+.fo-option, .fo-segments button { display: block !important; text-align: left; background: var(--fo-raised); color: var(--gd-text, var(--text)); border: 1px solid var(--fo-border); padding: 9px 11px; font-weight: 600; }
 .fo-option small, .fo-segments small { display: block; font-weight: 400; color: var(--fo-text-2); font-size: 11px; margin-top: 3px; }
-.fo-option.active, .fo-segments button.active { border-color: var(--fo-accent); box-shadow: inset 3px 0 0 var(--fo-accent); }
+.fo-option.active, .fo-segments button.active { border-color: var(--fo-accent) !important; background: color-mix(in srgb, var(--fo-accent) 18%, var(--fo-raised)) !important; box-shadow: inset 4px 0 0 var(--fo-accent); color: var(--fo-accent); }
 .fo-action { display: grid; gap: 6px; margin-top: 6px; }
+.fo-action button { justify-self: start; }
 .fo-action small { color: var(--fo-text-2); font-size: 11px; }
 .fo-project { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px dashed var(--fo-accent); }
 .fo-project small { display: block; color: var(--fo-text-2); font-size: 11px; }

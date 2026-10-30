@@ -142,7 +142,7 @@ for (const html of [views.Boardroom(), views["Locker room"](), window.plan()]) {
   assert(html.length > 1000);
   assert(!/undefined|NaN|\[object/.test(html), html.slice(0, 200));
 }
-assert(views.Boardroom().includes("JOB SECURITY") && views.Boardroom().includes("FrontOffice.budget()"));
+assert(views.Boardroom().includes("Job security") && views.Boardroom().includes("FrontOffice.budget()"));
 assert(window.plan().includes("OPPONENT ANALYSIS") && window.plan().includes("Suggested counters"));
 assert(views["Locker room"]().includes("TEAM MORALE") && views["Locker room"]().includes("CHEMISTRY"));
 const budget = state.franchise.clubs[state.team].staffBudget;
@@ -150,8 +150,13 @@ FrontOffice.budget();
 assert(state.franchise.clubs[state.team].staffBudget >= budget && /Ownership/.test(toasts.at(-1)));
 FrontOffice.plan("style", "Vertical offense");
 assert.equal(state.coach.style, "Vertical offense");
+FrontOffice.plan("feedRB", true);
 FrontOffice.applyCounters();
 assert(G.opponentReport(state).counters.every((c) => c.applied));
+// Feed RB / Protect QB override the play style in simulated games, so applied counters never leave both active.
+if (G.opponentReport(state).counters.some((c) => c.key === "style"))
+  assert(!state.franchise.directives.feedRB && !state.franchise.directives.protectQB);
+else assert(!(state.franchise.directives.feedRB && state.franchise.directives.protectQB));
 FrontOffice.mandate("Rebuild");
 assert.equal(B.boardOverview(state).mandate, "Rebuild");
 FrontOffice.mandate("Contend");
