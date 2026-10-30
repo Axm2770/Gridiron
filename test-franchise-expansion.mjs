@@ -48,13 +48,6 @@ function fresh() {
   Staff.ensureStaff(s);
   return s;
 }
-function approve(s, kind, payload) {
-  const r = B.beginBoardRequest(s, kind, payload);
-  B.answerBoard(s, r.id, 0, 1);
-  B.answerBoard(s, r.id, 1, 0);
-  assert.notEqual(r.outcome, "Rejected");
-  return r;
-}
 let s = fresh();
 const migrated = JSON.stringify(s);
 S.migrate(s);
@@ -108,53 +101,20 @@ K.setCooldown(s, "Test", "club", 14);
 assert.throws(() => K.checkCooldown(s, "Test"), /14 football/);
 K.advanceCareerTime(s, 14, "week3");
 K.checkCooldown(s, "Test");
-// Board permits bind the exact proposal, are single-use, persist and expire.
+// Facility projects are funded directly; ownership responses vary with job security.
 s = fresh();
-s.franchise.coachReputation.value = 95;
-s.franchise.clubs[s.team].owner.patience = 99;
-const cash = s.franchise.clubs[s.team].cash,
-  payload = { area: "training", funding: "Private" };
-assert.throws(() => W.stadiumProject(s, "training", "Private"), /Ownership/);
-let r = approve(s, "Stadium", payload);
-assert(B.hasBoardPermit(s, "Stadium", payload));
-assert(!B.hasBoardPermit(s, "Stadium", { ...payload, area: "medical" }));
-const saved = JSON.parse(JSON.stringify(s));
-assert(B.hasBoardPermit(saved, "Stadium", payload));
-W.stadiumProject(saved, "training", "Private");
-assert(!B.hasBoardPermit(saved, "Stadium", payload));
-assert(saved.franchise.clubs[s.team].cash < cash);
-assert.throws(
-  () => W.stadiumProject(saved, "medical", "Private"),
-  /construction/,
-);
-assert.throws(
-  () =>
-    B.beginBoardRequest(s, "Stadium", { area: "medical", funding: "Private" }),
-  /football calendar/,
-);
-assert.throws(() => B.answerBoard(s, r.id, 1, 0), /no longer/);
-let expired = JSON.parse(JSON.stringify(s));
-K.advanceCareerTime(expired, 31, "expire");
-assert(!B.hasBoardPermit(expired, "Stadium", payload));
-assert.throws(
-  () => W.stadiumProject(expired, "training", "Private"),
-  /Ownership/,
-);
+const cash = s.franchise.clubs[s.team].cash;
+W.stadiumProject(s, "training", "Private");
+assert(s.franchise.clubs[s.team].cash < cash);
+assert.throws(() => W.stadiumProject(s, "medical", "Private"), /construction/);
 const outcomes = new Set();
 for (let i = 0; i < 24; i++) {
   const q = fresh();
-  q.franchise.clubs[q.team].owner.patience = 20 + i * 3;
-  q.franchise.coachReputation.value = 10 + i * 3;
-  const z = B.beginBoardRequest(q, "Budget", { amount: 5 });
-  B.answerBoard(q, z.id, 0, i % 3);
-  B.answerBoard(q, z.id, 1, i % 3);
-  outcomes.add(z.outcome);
+  q.franchise.clubs[q.team].owner.patience = i * 4;
+  q.franchise.clubs[q.team].fanApproval = i * 4;
+  outcomes.add(B.requestStaffBudget(q).outcome);
 }
-assert(
-  outcomes.has("Rejected") &&
-    outcomes.has("Compromise") &&
-    outcomes.has("Approved"),
-);
+assert(outcomes.has("Rejected") && outcomes.has("Partial") && outcomes.has("Approved"));
 // A contract extension retains original signing-bonus obligations and rolls back impossible cap terms.
 s = fresh();
 let p = s.roster.find((p) => s.franchise.contracts[p.id].years >= 2),
@@ -418,5 +378,5 @@ assert.equal(
   35939,
 );
 console.log(
-  "PASS: persisted expansion migration, reputation idempotency, personality rifts, calendar cooldowns, board outcomes/permits/expiry, contract extensions/cap rollback, regular-season records and milestones, pre-playoff frozen awards, 50 ranked ballots, QB/turnaround biases, deferred rule changes, rumor lifecycle, social voices, actual coaching career transfers, and 32-team factual heritage.",
+  "PASS: persisted expansion migration, reputation idempotency, personality rifts, calendar cooldowns, direct facility funding and ownership budget outcomes, contract extensions/cap rollback, regular-season records and milestones, pre-playoff frozen awards, 50 ranked ballots, QB/turnaround biases, deferred rule changes, rumor lifecycle, social voices, actual coaching career transfers, and 32-team factual heritage.",
 );

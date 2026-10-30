@@ -1,4 +1,3 @@
-import { consumeBoardPermit } from "./boardroom.mjs";
 import {
   ensureCareerSystems,
   coachPerks,
@@ -597,7 +596,7 @@ export function hiringCheck(s, role, id) {
       club.staffBudget
     )
       reasons.push(
-        "The appointment exceeds the annual staff budget. Request ownership backing.",
+        "The appointment exceeds the annual staff budget. Ask for a budget increase in the Boardroom.",
       );
     if (
       club.owner.trait === "Penny-Pincher" &&
@@ -612,7 +611,7 @@ export function hiringCheck(s, role, id) {
     );
   return { ok: !reasons.length, reasons, compliance };
 }
-export function hireStaff(s, role, id, { boardDelegated = false } = {}) {
+export function hireStaff(s, role, id) {
   const x = validSearch(s, role),
     check = hiringCheck(s, role, id);
   if (!check.ok) throw Error(check.reasons[0]);
@@ -621,19 +620,6 @@ export function hireStaff(s, role, id, { boardDelegated = false } = {}) {
     from = c.employer,
     club = f.clubs[s.team],
     old = club.staff.find((q) => q.role === role);
-  let permit = null;
-  if (
-    old &&
-    ["HC", "GM", "OC", "DC", "STC"].includes(role) &&
-    !(boardDelegated && s.team !== f.humanTeam)
-  )
-    permit = consumeBoardPermit(s, "Staff change", {
-      id: old.id,
-      replacement: id,
-      role,
-    });
-  if (permit?.scope === "Compromise" && staffOfferSalary(s, c) > old.salary)
-    throw Error("Ownership approved a cost-neutral replacement only.");
   const agreedSalary = staffOfferSalary(s, c);
   if (old) {
     club.cash -= Math.round(old.salary * Math.max(1, old.years) * 0.5);
@@ -692,19 +678,6 @@ export function fireStaff(s, id) {
   const severance = Math.round(c.salary * Math.max(1, c.years) * 0.5);
   if (club.cash < severance)
     throw Error("Ownership cannot fund the severance payment.");
-  const permit = ["HC", "GM", "OC", "DC", "STC"].includes(c.role)
-    ? consumeBoardPermit(s, "Staff change", {
-        id,
-        replacement: null,
-        role: c.role,
-      })
-    : null;
-  if (
-    permit?.scope === "Compromise" &&
-    club.staff.filter((q) => ["HC", "OC", "DC"].includes(q.role) && q.id !== id)
-      .length < 2
-  )
-    throw Error("Ownership requires two senior coaches to remain in place.");
   club.cash -= severance;
   club.staff = club.staff.filter((q) => q.id !== id);
   s.franchise.staffPool.push({ ...c, employer: null, tenure: 0 });

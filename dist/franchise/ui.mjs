@@ -1,6 +1,6 @@
 import {installCalendarUI} from './calendar-ui.mjs';
+import { installFrontOfficeUI } from './front-office-ui.mjs';
 import {ensureCalendar} from './calendar-core.mjs';
-import {ensureDelegation} from './delegation.mjs';
 import { recordDecision, capturePreseason } from "./career-systems.mjs";
 import { configureCareerHistory } from "./records.mjs";
 import { installExpansionUI } from "./expansion-ui.mjs";
@@ -98,7 +98,7 @@ const stat = (label, value, small = "") =>
 function initialize() {
   S.migrate(state);
   ensureStaff(state);
-  ensureCalendar(state);ensureDelegation(state);
+  ensureCalendar(state);
   capturePreseason(state);
   migrateImmersion(state);
   for (let p of [...state.roster, ...state.agents]) {
@@ -453,17 +453,8 @@ function overviewView() {
     cap = S.capLedger(state),
     issues = S.gameEligibility(state);
   return `<div class="stats">${stat("CAREER ROLE", f.role, "Responsibilities are enforced")}${stat("CAP ROOM", moneyText(cap.room), "Includes dead money and rollover")}${stat("OWNERSHIP CASH", moneyText(c.cash), c.owner.trait)}${stat("ACTIVE ROSTER", S.active(state).filter((p) => p.status === "active").length + " / 53", situation())}</div>${issues.length ? panel("Before your next game", issues.map((x) => `<p class="negative">${esc(x)}</p>`).join("") + button("Manage roster", "F.tab('Roster')")) : ""}<div class="two">${panel(
-    "Assistant delegation",
-    `<p class="subtitle">Set your directives before delegating the next game or a period.</p>${Object.entries(
-      f.directives,
-    )
-      .map(
-        ([k, v]) =>
-          `<label class="f-check"><input type="checkbox" ${v ? "checked" : ""} onchange="F.action('directive','${k}',this.checked)"> ${{ protectQB: "Protect the QB — short passing", feedRB: "Feed RB1 — rushing preference", rookies: "Young players in fourth-quarter blowouts", halftime: "Delegate halftime adjustments" }[k]}</label>`,
-      )
-      .join(
-        "",
-      )}<div class="f-actions">${button("Sim next game", "F.holiday(1)")}${button("Sim 4 weeks", "F.holiday(4)", "", true)}${button("Sim to offseason", "F.holiday(25)", "", true)}${busy ? button("Stop after this week", "F.stopHoliday()", "", true) : ""}</div><p id="holiday-progress" class="subtitle">${busy ? "Assistant is simulating…" : "Calendar pauses after the championship."}</p>`,
+    "Advance the season",
+    `<p class="subtitle">Your game plan applies to simulated games. The calendar pauses whenever a decision needs you.</p><div class="f-actions">${button("Sim next game", "F.holiday(1)")}${button("Sim 4 weeks", "F.holiday(4)", "", true)}${button("Sim to offseason", "F.holiday(25)", "", true)}${button("Game plan", "W.open('Game plan')", "", true)}${busy ? button("Stop after this week", "F.stopHoliday()", "", true) : ""}</div><p id="holiday-progress" class="subtitle">${busy ? "Simulating…" : "Calendar pauses after the championship."}</p>`,
   )}${panel(
     "Franchise news",
     f.events
@@ -1136,13 +1127,11 @@ F.holiday = async function (rounds = 1) {
       if (el)
         el.textContent = `Simulating ${phaseName()} · round ${i + 1} of ${rounds}…`;
       await settleRound({ live: state.live });
-      state.interviewPending = null;
-      S.log(
-        state,
-        "Assistant match report",
-        "Coordinators executed your delegation directives and handled halftime/media.",
-      );
       render();
+      if (state.interviewPending) {
+        toast("Simulation paused: your press conference is waiting.");
+        break;
+      }
       if (
         ensureOffice(state).preferences.pauseOnUrgent &&
         officeCounts(state).urgent
@@ -1465,6 +1454,7 @@ import("./presentation.mjs")
     installStaffUI({ views, isBusy: () => busy });
     installExpansionUI({ views, isBusy: () => busy, heritage });
     installCalendarUI({views,initialize,isBusy:()=>busy,setBusy:value=>busy=value,settleRound});
+    installFrontOfficeUI({ views, isBusy: () => busy });
     await installCareerManager({ views, isBusy: () => busy, initialize });
     // Hub dashboard and presentation load last; a failure leaves the classic workspace intact.
     try {

@@ -11,7 +11,8 @@ The current game includes the earlier franchise expansion, news/inbox/social vie
 | Bootstrap / career / UI | `dist/game.js`, `dist/stadium.js`, `dist/franchise/ui.mjs`, `dist/franchise/career-manager.mjs` |
 | Save migration / contracts / compliance | `state.mjs`, `contracts.mjs`, `compliance.mjs`, `staff.mjs` under `dist/franchise/` |
 | Season / fixtures / fast match | `lifecycle.mjs`, `fast-worker.mjs`, `history.mjs` |
-| Calendar / delegation | `calendar-core.mjs`, `calendar-operations.mjs`, `delegation.mjs`, `calendar-ui.mjs` |
+| Calendar | `calendar-core.mjs`, `calendar-operations.mjs`, `calendar-ui.mjs` |
+| Boardroom / Tactics / Locker room | `boardroom.mjs`, `game-plan.mjs`, `locker-room.mjs`, `front-office-ui.mjs`, `dist/front-office.css` |
 | News / inbox / conversations | `newsroom.mjs`, `office-ui.mjs`, `career-scenes.mjs`, `world.mjs` |
 | Ownership / reputation / awards | See `docs/upgrade-architecture.md` |
 | Execution / officiating / rendering | `dist/engine/`, `dist/stadium.js`, `dist/match.js` |
@@ -22,15 +23,15 @@ Paths in the table without a directory are under `dist/franchise/`. Consult expo
 
 ## Persisted additions
 
-`franchise.calendarSim` holds `version`, `date`, `nextRoundDate`, idempotent `completed` round keys, dated `events`, the holiday `session`, and `offseasonDays`. A session records target, start, delegation mode, status, rounds and days. Reloading an interrupted session pauses it for explicit resumption.
+`franchise.calendarSim` holds `version`, `date`, `nextRoundDate`, idempotent `completed` round keys, dated `events`, the holiday `session`, and `offseasonDays`. A session records target, start, status, rounds and days. Reloading an interrupted session pauses it for explicit resumption.
 
-`franchise.delegation` holds preferences, an optional preferred deputy ID, bounded action history and seen-operation keys. Existing careers receive available assistant-head-coach candidates; existing vacancies remain vacant. New careers seed an AHC. Staff `userControlled`, suspended, unavailable or expired entries cannot act as the deputy.
+`franchise.delegation` is no longer read; saves that carry it load unchanged. `franchise.boardroom` keeps any old `requests`/`permits` untouched and adds `mandate`, `mandateYear` and a bounded `decisions` list. Ownership no longer issues permits: trades, staff changes and facility projects run directly under the usual role, cash and compliance checks.
 
 Calendar advancement increments the reputation/cooldown action clock once per elapsed day. Existing legacy weekly saves derive an initial date from their saved season/week; they do not recover an unavailable real-world fixture date. League dates are modeled for the generated schedule.
 
 ## Tests added
 
-`test-calendar-delegation.mjs` covers exact dates, migration, deputy fallback, actual inbox responses/consequences, press conferences, absent staff, idempotency, round/date boundaries, offseason market timing, persistence and actual calendar rendering. `test-desktop.mjs` covers local protocol serving, MIME/CSP, path and symlink rejection, sandbox settings and packaging configuration. All 23 suites passed on Linux. A browser holiday reached the exact requested return date and completed its due game with a staff activity report.
+`test-calendar.mjs` covers exact dates, migration, pausing for urgent decisions, no automatic training camp, idempotency, round/date boundaries, offseason market timing, persistence and actual calendar rendering. `test-desktop.mjs` covers local protocol serving, MIME/CSP, path and symlink rejection, sandbox settings and packaging configuration. All 23 suites passed on Linux. A browser holiday reached the exact requested return date and completed its due game with a staff activity report.
 
 ## Remaining release work
 
