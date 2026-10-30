@@ -101,9 +101,8 @@ body.gd-pixel :is(.gd-meter-track, .condition) > * {
   background-image: repeating-linear-gradient(90deg, transparent 0 6px, rgba(5, 7, 13, 0.55) 6px 8px) !important;
 }
 
-/* Images and portraits go through the mosaic filter; canvases scale up without smoothing. */
+/* Images and portraits go through the mosaic filter; canvases (the 3D match) stay crisp. */
 body.gd-pixel :is(img, .team-logo) { image-rendering: pixelated; filter: url(#gd-pixelate); }
-body.gd-pixel canvas { image-rendering: pixelated; }
 
 /* Motion steps like sprite animation instead of easing smoothly. */
 body.gd-pixel * { transition-timing-function: steps(4, end) !important; animation-timing-function: steps(6, end) !important; }
