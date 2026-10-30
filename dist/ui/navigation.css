@@ -93,3 +93,21 @@ tr.me td { background: rgba(199, 244, 91, 0.06); }
 .profile-contract-facts dd { margin: 2px 0 0; font-weight: 700; }
 
 @media (max-width: 1000px) { .nav-snapshot { grid-template-columns: 1fr; } }
+
+/* The pixel theme raises every button; breadcrumb links and jump chips stay flat text. */
+body #breadcrumb .breadcrumb-trail button {
+  border: 0 !important; box-shadow: none !important; background: none !important;
+  padding: 2px 4px !important; min-height: 0 !important; transform: none !important;
+}
+body #breadcrumb .breadcrumb-back {
+  box-shadow: none !important; background: transparent !important; padding: 3px 9px !important;
+  white-space: nowrap; transform: none !important;
+}
+#breadcrumb .breadcrumb-trail { flex-wrap: nowrap; overflow: hidden; }
+#breadcrumb .breadcrumb-trail > * { white-space: nowrap; }
+body .related-links .related-link { box-shadow: none !important; }
+#app .nav-leader-row, #app .nav-team-link {
+  border: 0 !important; box-shadow: none !important; background: none !important; transform: none !important;
+}
+#app .nav-leader-row { border-bottom: 1px solid var(--gd-border, #2e3a6e) !important; padding: 6px 4px !important; }
+#app .nav-leader-row:hover b { color: var(--gd-accent, #c7f45b); }

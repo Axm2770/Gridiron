@@ -55,6 +55,15 @@ body.gd-pixel :is(#breadcrumb, .eyebrow, [class*="eyebrow"], .gd-chip, .tag, .ro
   line-height: 1.4;
 }
 body.gd-pixel :is(td, li, p, .kv) { line-height: 1.5; }
+/* Reading floor: many screens set captions at 8–10px. Keep them smaller than their parent text
+   (about 0.8×) but never under 11px; table cells read at 12px or more. */
+body.gd-pixel :is(small, summary, label, kbd, time, .office-badge, .position-chip, .honor-chip, td .metric-pill, .calendar-chip, .career, .exp-tag, button.small, .continue-button, th button,
+  .inbox-row-meta span, .inbox-list-heading > *, .message-topline span, .message-actions .link, .career-toolbar button, .office-table-note,
+  .finder-budget span, .finder-chips span, .finder-filter-tabs button, .finder-filter-bottom span, .finder-view-tools button, .finder-page-controls span,
+  .finder-pagination span, .finder-total, .finder-legend span:not(.metric-pill)) {
+  font-size: max(11px, 0.8em) !important;
+}
+body.gd-pixel td { font-size: max(12px, 1em) !important; }
 body.gd-pixel .score-team strong, body.gd-pixel .mini-result { font-size: 30px !important; }
 body.gd-pixel .score-time { font-size: 18px !important; }
 

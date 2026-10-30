@@ -518,9 +518,7 @@ export function installPresentation({
   function header() {
     let current = active(),
       label =
-        current === "Overview"
-          ? "Club overview"
-          : descriptions[current]?.[0] || current;
+        descriptions[current]?.[0] || crumbLabel(current);
     let group = groups.find(([, items]) => items.some(([r]) => r === current)),
       tab = window.Nav?.tabLabel(current),
       divider = `<span class="breadcrumb-divider">/</span>`;
