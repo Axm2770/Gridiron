@@ -6,7 +6,7 @@ Read `README.md`, `docs/handoff.md` and the module nearest your change before ed
 
 - Node 24 LTS: `npm ci`.
 - Web preview: `npm run serve` (http://localhost:4173).
-- Regression checks: `npm test` (30 suites; play-variety guards against repeating play outcomes; updater covers in-game updates; ops-systems covers medical, training, market and draft room; the overhaul added social-engine, depth-systems, recruiting-pipeline and presentation).
+- Regression checks: `npm test` (31 suites; play-variety guards against repeating play outcomes; updater covers in-game content updates and app-update covers full app self-updates; ops-systems covers medical, training, market and draft room; the overhaul added social-engine, depth-systems, recruiting-pipeline and presentation).
 - Desktop development: `npm start` on a desktop host.
 - Mac archives (requires a Mac; signs and launch-tests the app and extracted ZIP): `npm run package:mac:arm64` and `npm run package:mac:x64`.
 - macOS installer builds: `npm run dist:mac` on a Mac.

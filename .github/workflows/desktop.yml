@@ -84,7 +84,7 @@ jobs:
           node-version: '24'
       # Installed apps read this manifest to update in-game without a reinstall.
       - name: Build in-game update manifest
-        run: node scripts/content-manifest.mjs downloads/content-manifest.json "${GITHUB_REF_NAME}"
+        run: node scripts/content-manifest.mjs downloads/content-manifest.json "${GITHUB_REF_NAME}" downloads
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}

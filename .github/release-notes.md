@@ -25,26 +25,12 @@ Careers are saved locally on your computer, and each install keeps its own saves
 
 Every file in this release was built by GitHub Actions from this tag, passed the full regression suite, and was launch-tested (the app opened, loaded the career workspace and ran a simulation) before and after zipping.
 
-## Updates
+## Updates without re-downloading
 
-From 0.21.0 onwards the desktop app updates itself in-game: it checks for new releases on launch, downloads only the changed game files, verifies them, and asks you to reload. You only need to download a ZIP again when a release changes the desktop app itself; the app tells you when that happens.
+The game now updates itself completely in-game, including releases that change the desktop app itself. When a new version is out, a bar appears in the corner. Choose **Download now**, then **Restart now** (or **When I quit**), and the game installs the new version and reopens. Your careers are untouched. Downloads are checked against the release's published checksums before anything is installed, and if an install fails the previous version is put back.
 
-## Pixel theme
+Game-content updates still download only the files that changed and only need a reload.
 
-The whole game has a new retro pixel look: pixel fonts, square panels with hard shadows, a pixel-art 2D field with sprite players, and a pixelated 3D stadium. It is on by default; **Settings → Interface → Pixel theme** switches back to the classic look on this device.
+**One last manual download:** 0.23.0 and earlier can't install this kind of update yet, so download this version once from this page. From here on, updates arrive in-game.
 
-## Every snap plays out differently
-
-Play calls no longer resolve to the same result every time. Each snap now varies player effort, defender reactions and pursuit angles, receiver routes and the quarterback's read:
-- outside runs attack either edge and turn upfield instead of losing two yards;
-- play action can freeze linebackers;
-- deep balls are thrown to where the receiver will be;
-- short passes gain different yardage after the catch.
-
-Full games still land in realistic ranges.
-
-## Match view
-
-The Windows-only Unreal match view and its download have been removed. Matchday now opens on the 2D field, which follows every snap, score and clock change; **Switch to 3D** above the field still shows the browser 3D stadium.
-
-This release changes the desktop app itself, so existing installs need to download the ZIP once.
+If the game can't replace itself (for example a Mac copy still running from the Downloads folder, or a folder you don't have write access to), it links to this page instead. On macOS, move **Gridiron Director.app** into Applications to get in-game updates.
