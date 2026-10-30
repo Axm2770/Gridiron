@@ -55,7 +55,6 @@ const groups = [
     [
       ["Scouting", "Scouting", "search"],
       ["Draft", "Draft room", "target"],
-      ["Next generation", "Next generation", "users"],
       ["Market", "Transfers & free agency", "chart"],
     ],
   ],
@@ -113,7 +112,6 @@ const descriptions = {
   League: ["League office", "Follow the decisions shaping the competition."],
   Archives: ["History & records", "Every season leaves a legacy."],
   "Hall of Fame": ["Hall of Fame", "The people who made the game."],
-  "Next generation": ["Next generation", "New faces. New possibilities."],
   Conversations: ["Conversations", "Your words shape the room."],
   Database: ["Data & saves", "Your roster database and career backups."],
   Development: [
@@ -666,7 +664,7 @@ export function installPresentation({
         icon: "check",
       });
     tasks.push({
-      title: "Plan for the next generation",
+      title: "Scout the next draft class",
       body: `${f.scoutPoints} scouting points available.`,
       route: "Scouting",
       icon: "target",

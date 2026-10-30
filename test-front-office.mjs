@@ -230,7 +230,7 @@ for (const key of ["Draft", "Market", "Club", "Archives", "News"]) {
 }
 assert(views.Draft().includes("data-player-id="));
 assert(views.Draft().includes("1–" + Math.min(25, s.prospects.length) + " of"));
-assert(views.Market().includes("tone-"), "ability grades use semantic color");
+assert(views.Market().includes("ops-windows") && /Trade deadline|Trading reopens|Offseason trading/.test(views.Market()), "the market states the trade and free-agency windows");
 assert(globalThis.calendar().includes("hub-fixture-grid"));
 Hub.scheduleScope("Results");
 Hub.scheduleLayout("List");
@@ -240,7 +240,7 @@ assert(views.Club().includes("Legacy facility controls"));
 Hub.clubTab("Staff");
 assert(views.Club().includes("Hire staff"));
 Hub.marketTab("Trade center");
-assert(views.Market().includes("Trade controls"));
+assert(views.Market().includes("Propose trade"), "the market opens on the multi-asset trade builder");
 Hub.mediaTab("Fan network");
 assert(views.News().includes("Two QBs"));
 assert(!views.News().includes("PRIVATE"));

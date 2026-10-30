@@ -12,6 +12,7 @@ import { installTouchlineUI } from "./touchline-ui.mjs";
 import { installNegotiationUI } from "./negotiation-ui.mjs";
 import { installSocialNetwork } from "./social-ui.mjs";
 import { installHubUI } from "./hub-ui.mjs";
+import { installScoutCard } from "./scout-card-ui.mjs";
 import { installRecruitmentUI } from "./recruitment-ui.mjs";
 import { installPlayerUI } from "./player-ui.mjs";
 import { installOfficeUI } from "./office-ui.mjs";
@@ -69,7 +70,6 @@ const sections = [
   "Archives",
   "Conversations",
   "Hall of Fame",
-  "Next generation",
   "Development",
   "Careers & saves",
   "Database",
@@ -1462,6 +1462,7 @@ import("./presentation.mjs")
     installSocialNetwork({ isBusy: () => busy });
     installTouchlineUI({ isBusy: () => busy });
     installNegotiationUI({ isBusy: () => busy });
+    installScoutCard({ isBusy: () => busy });
     installStaffUI({ views, isBusy: () => busy });
     installExpansionUI({ views, isBusy: () => busy, heritage });
     installCalendarUI({views,initialize,isBusy:()=>busy,setBusy:value=>busy=value,settleRound});

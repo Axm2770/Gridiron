@@ -332,7 +332,7 @@ export function installRecruitmentUI({ views, isBusy, snapshot, reference }) {
               .map(([k]) => `<td>${cell(e, k)}</td>`)
               .join(
                 "",
-              )}<td><button class="player-peek-button" onclick="PlayerUI.peek('${e.p.id}',${e.team},this)" aria-label="Preview ${esc(e.p.name)}">${icon("search")}</button>${e.pool === "Draft" ? `<button class="finder-report-button" onclick="Recruit.report('${e.p.id}')" aria-label="Scout ${esc(e.p.name)}">Report</button>` : ""}</td></tr>`,
+              )}<td><button class="player-peek-button" onclick="PlayerUI.peek('${e.p.id}',${e.team},this)" aria-label="Preview ${esc(e.p.name)}">${icon("search")}</button>${e.team !== state.team ? `<button class="finder-report-button" onclick="Recruit.report('${e.p.id}')" aria-label="Scout ${esc(e.p.name)}">Report</button>` : ""}</td></tr>`,
         )
         .join("") ||
       `<tr><td colspan="12"><div class="finder-empty"><b>${error ? "Check your filters" : "No players match this search."}</b><p>${esc(error || "Remove a filter or choose another player pool.")}</p><button class="secondary small" onclick="Recruit.reset()">Reset filters</button></div></td></tr>`
@@ -604,33 +604,7 @@ export function installRecruitmentUI({ views, isBusy, snapshot, reference }) {
       Recruit.saveSearch();
     },
     report(id) {
-      const p = state.prospects.find((p) => p.id === id);
-      if (!p) {
-        toast("This prospect is no longer in the draft pool.");
-        return;
-      }
-      const e = data().find((e) => e.p.id === id),
-        r = state.franchise.reports[id];
-      modal(
-        `<div class="prospect-report"><div class="prospect-report-head">${playerFace(p)}<div><span class="eyebrow">DRAFT SCOUTING REPORT</span><h2>${esc(p.name)}</h2><p>${positionBadge(p)} ${p.age} years · ${heightLabel(p)} · ${p.weight || "—"} lb</p></div><button class="icon-button" onclick="closeModal()" aria-label="Close scouting report">×</button></div><div class="report-rating-row"><span>Estimated ability ${scorePill("rating", e.talent.rating, e.talent.ratingLabel)}</span><span>Potential range ${scorePill("potential", e.talent.potential, e.talent.potentialLabel)}</span><span><b>${e.talent.confidence}%</b> confidence</span></div><div class="report-notes">${(
-          r?.notes || [
-            "Regional interest only. Request a report to improve knowledge.",
-          ]
-        )
-          .slice(-4)
-          .map((n) => `<p>${esc(n)}</p>`)
-          .join(
-            "",
-          )}</div><div class="report-request"><label>Scouting activity<select id="prospect-activity">${["Regional report", "Combine", "Pro day", "Medical check", "Private visit"].map((v) => `<option>${v}</option>`).join("")}</select></label><button ${S.allowed(state, "scout") && !isBusy() ? "" : "disabled"} onclick="Recruit.request('${id}')">Request report</button></div><p class="finder-note">Regional report: 1 point · Combine, Pro day, Medical: 2 · Private visit: 3. ${state.franchise.scoutPoints} available. ${S.allowed(state, "scout") ? "" : "Your GM handles scouting assignments in this career role."}</p></div>`,
-      );
-    },
-    request(id) {
-      const kind = document.getElementById("prospect-activity").value;
-      if (F.action("scout", id, kind)) {
-        memo = null;
-        PlayerUI.refresh();
-        Recruit.report(id);
-      }
+      Scout.open(id);
     },
     export() {
       const r = result();

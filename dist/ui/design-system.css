@@ -228,3 +228,45 @@ dialog.gd-sheet .gd-sheet-body { padding: 16px 18px; max-height: 70vh; overflow:
 .gd-update-progress { flex: 1 1 100%; height: 4px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; }
 .gd-update-progress i { display: block; height: 100%; background: var(--gd-accent); transition: width .2s; }
 
+
+/* Market windows, blocked-action explanations and the scouting card */
+.ops-windows { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin: 0 0 var(--gd-gap); }
+.ops-window { padding: 10px 12px; border-radius: var(--gd-radius-sm); border: 1px solid var(--gd-border); border-left: 3px solid var(--gd-good); background: var(--gd-surface); }
+.ops-window.closed { border-left-color: var(--gd-bad); }
+.ops-window b { display: block; font-size: 12px; }
+.ops-window small, .ops-help, .ops-verdict small, .ops-why, .scout-note { color: var(--gd-text-2); font-size: 12px; }
+.ops-label { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gd-warn); }
+.ops-blockers { margin: 0 0 10px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.ops-blockers li { padding: 8px 10px; border-radius: var(--gd-radius-sm); background: rgba(255, 107, 107, 0.08); border: 1px solid rgba(255, 107, 107, 0.25); font-size: 12px; }
+.ops-blockers li span { display: block; color: var(--gd-text-2); margin-top: 2px; }
+.ops-callout { margin-bottom: 10px; }
+.ops-callout > b { display: block; margin-bottom: 6px; }
+.ops-response { padding: 10px 12px; margin: 10px 0; border-radius: var(--gd-radius-sm); border: 1px solid var(--gd-border-strong); font-size: 12px; }
+.ops-response.good { border-color: rgba(91, 227, 161, 0.4); }
+.ops-response.bad { border-color: rgba(255, 107, 107, 0.4); }
+.ops-response p { margin: 4px 0; color: var(--gd-text-2); }
+.ops-fogged { color: var(--gd-warn); }
+.ops-report { font-size: 11px; }
+.ops-table { width: 100%; font-size: 12px; }
+.ops-table td small { display: block; color: var(--gd-text-3); }
+.ops-actions { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.ops-clock { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 12px; margin-bottom: var(--gd-gap); border-radius: var(--gd-radius-sm); border: 1px solid var(--gd-border); background: var(--gd-surface); }
+.ops-clock > div { flex: 1 1 320px; }
+.ops-clock b, .ops-clock small { display: block; }
+.ops-digest { padding: 10px 12px; margin-bottom: var(--gd-gap); border-radius: var(--gd-radius-sm); border: 1px solid rgba(91, 227, 161, 0.35); font-size: 12px; }
+.ops-digest ul { margin: 6px 0 0; padding-left: 18px; }
+.scout-card { display: flex; flex-direction: column; gap: 12px; max-width: 760px; }
+.scout-card header { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.scout-card header h2 { margin: 2px 0; }
+.scout-card header p { margin: 0 0 6px; color: var(--gd-text-2); }
+.scout-window { margin: 0; padding: 8px 10px; border-radius: var(--gd-radius-sm); border-left: 3px solid var(--gd-good); background: var(--gd-surface); font-size: 12px; }
+.scout-window.closed { border-left-color: var(--gd-bad); }
+.scout-attrs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.scout-attrs div { display: flex; justify-content: space-between; padding: 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); font-size: 12px; }
+.scout-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.scout-action { display: flex; flex-direction: column; gap: 4px; max-width: 280px; }
+.scout-action small { font-size: 11px; color: var(--gd-text-2); }
+.neg-blockers { padding: 10px 12px; margin-bottom: 12px; border-radius: 9px; border: 1px solid rgba(255, 107, 107, 0.4); background: rgba(255, 107, 107, 0.08); }
+.neg-blockers p { margin: 6px 0 0; font-size: 13px; }
+.neg-blockers span { color: #a6b4bf; }
+@media (max-width: 640px) { .scout-card header { grid-template-columns: 1fr auto; } .scout-card header > :first-child { display: none; } }

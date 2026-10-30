@@ -10,7 +10,7 @@ const AREA_WORDS = { roster: "trades and roster moves", finance: "contracts", sc
 
 export function roleBlocker(s, area) {
   if (allowed(s, area)) return null;
-  return { reason: `In a ${s.franchise.role} career, your general manager handles ${AREA_WORDS[area] || area}.`, fix: "Switch your career role to Owner or GM in Career dossier to do it yourself." };
+  return { reason: `Your ${s.franchise.role} role delegates ${AREA_WORDS[area] || area} to your general manager.`, fix: "Switch your career role to Owner or GM in Career dossier to do it yourself." };
 }
 
 export function rosterLimit(s) {
@@ -38,7 +38,7 @@ export function restructureRoom(s, c) {
   return amount > 0 ? amount - Math.ceil(amount / term) : 0;
 }
 
-// "Cap space short by $2.1M: release X (saves $2.4M) or restructure Y (up to $3.0M)."
+// "You are $2.1M short of cap space. Fix: release X (saves $2.4M) or restructure Y."
 export function capShortfall(s, short, { exclude = [] } = {}) {
   const f = s.franchise,
     pool = s.roster.filter((p) => !exclude.includes(p.id) && f.contracts[p.id]),
@@ -55,7 +55,7 @@ export function capShortfall(s, short, { exclude = [] } = {}) {
   if (release) options.push(`release ${release.p.name} (saves ${moneyText(release.v)})`);
   if (restructure) options.push(`restructure ${restructure.p.name} (frees up to ${moneyText(restructure.v)})`);
   return {
-    reason: `Cap space short by ${moneyText(short)}.`,
+    reason: `You are ${moneyText(short)} short of cap space.`,
     fix: options.length ? `Fix: ${options.join(" or ")} in Contracts.` : "No single release or restructure covers it; combine moves in Contracts or reduce the salary involved.",
   };
 }
