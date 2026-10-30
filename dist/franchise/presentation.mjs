@@ -709,7 +709,7 @@ export function installPresentation({
     )
       .map(
         ([key, value]) =>
-          `<label class="f-check"><input type="checkbox" ${value ? "checked" : ""} onchange="F.action('directive','${key}',this.checked)">${{ protectQB: "Protect the quarterback", feedRB: "Feed the starting running back", rookies: "Young players in late blowouts", halftime: "Delegate halftime adjustments" }[key]}</label>`,
+          `<label class="f-check"><input type="checkbox" ${value ? "checked" : ""} onchange="F.action('directive','${key}',this.checked)">${{ protectQB: "Protect the quarterback", feedRB: "Feed the starting running back", rookies: "Young players in late blowouts", halftime: "Speed up when trailing at halftime" }[key]}</label>`,
       )
       .join(
         "",
