@@ -272,4 +272,17 @@ Effort assumes one developer part-time, with Claude writing code and editor scri
   - `package.ps1 -Install` builds a Development `GridironDemo.exe` (about 905 MB with content) and installs it;
   - the packaged build, without the editor, connects to `ue:replay`, dresses the stadium, plays every snap, ragdolls on big tackles, and plays `LS_Walkoff_Mob` with mannequin performers;
   - fixes it needed: staging under a short path (repository paths over 260 characters), `r.PSOPrecaching=0` (D3D12 E_OUTOFMEMORY at startup), and always cooking `/Game/Characters/Mannequins` and `/Game/Gridiron/Cinematics`, which are loaded by path.
-- Not verified: frame-rate budget at 1440p, replay angles, skipping or interrupting a cinematic at runtime (the code paths exist but were not exercised), stadium art streaming, the crowd and weather cost in a packaged build, the desktop menu launch (covered by a static test only), a Shipping build, a bundled PSO cache and the hub ↔ match ↔ celebration hitch budget in Unreal Insights. Expect small API adjustments on other engine versions.
+- Smoothness verified on UE 5.8 (i9-14900K, RTX 4090, packaged Development build, 1600×900, uncapped, `unreal/Tools/perf.ps1`):
+  - Four venue scenarios, two minutes each, with 22 MetaHuman players, the crowd and weather. Steady play after 30 s:
+
+    | Scenario | Average frame | Average fps | p99 | Worst frame | Frames over 33 ms |
+    |---|---|---|---|---|---|
+    | Clear afternoon | 2.3 ms | 442 | 3.0 ms | 12 ms | 0 |
+    | Rainy night | 2.9 ms | 346 | 4.0 ms | 13 ms | 0 |
+    | Snowy dusk | 2.9 ms | 346 | 3.8 ms | 13 ms | 0 |
+    | Foggy night | 3.5 ms | 282 | 5.0 ms | 13 ms | 0 |
+
+  - Startup: two frames of about 1 s while the level loads.
+  - The packaged build falls back from D3D12 (device creation fails, 0x887E0003) to D3D11. D3D11 has no PSOs, so `perf.ps1 -RecordPSO` records nothing there; precompiled shaders ship in the cooked shader library and no shader hitches show during play. The PSO cache tooling (`NeedsShaderStableKeys`, `r.ShaderPipelineCache.Enabled`, `Build/Windows/PipelineCaches`) is in place for D3D12.
+  - UE 5.8's UnrealPak crashes writing IoStore containers with 32 threads; `package.ps1` limits it to 8 cores.
+- Not verified: why D3D12 device creation fails in the packaged build, replay angles, skipping or interrupting a cinematic at runtime (the code paths exist but were not exercised), stadium art streaming, the desktop menu launch (covered by a static test only) and the hub ↔ match ↔ celebration hitch budget in Unreal Insights. Expect small API adjustments on other engine versions.
