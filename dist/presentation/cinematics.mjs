@@ -549,17 +549,18 @@ export function installCinematics({ isBusy }) {
   const pending = [];
   const previous = render;
   render = function () {
-    previous();
-    if (!state.franchise) return;
     // Signings and coaching changes made outside round settlement (offers, trades, calendar
-    // days) are picked up here; settlement runs the same detection through the social engine.
-    if (!isBusy())
+    // days) are picked up before drawing, so their news cards show on this render; settlement
+    // runs the same detection through the social engine.
+    if (state.franchise && !isBusy())
       try {
         const arrivals = detectArrivals(state);
         if (arrivals.length) processSocialRound(state, arrivals);
       } catch (error) {
         console.warn("Arrivals:", error);
       }
+    previous();
+    if (!state.franchise) return;
     const fresh = eventsSince(state, cursor);
     cursor = Number(state.franchise.eventLog?.serial ?? cursor);
     pending.push(...fresh.filter((e) => e.team === state.team));

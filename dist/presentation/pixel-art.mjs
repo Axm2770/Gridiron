@@ -16,9 +16,13 @@ const luma = (c) => {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 };
 const OUTLINE = "#0b0d12";
+// The app keeps `state` and `clubs` as classic-script globals (script scope, not window
+// properties); tests may set them on globalThis instead.
+const gameState = () => (typeof state !== "undefined" ? state : globalThis.state);
+const clubTable = () => (typeof clubs !== "undefined" ? clubs : globalThis.clubs);
 
 // Uniform colours: an approved (non-alternate) uniform wins, then the club's primary colour.
-export function teamColors(team, s = globalThis.state) {
+export function teamColors(team, s = gameState()) {
   const club = s?.franchise?.clubs?.[team],
     u = club?.uniform && !club.uniform.alternateOnly ? club.uniform : null,
     primary = hex(u?.primary) || TEAM_COLORS[team] || "#3b6cc8",
@@ -28,9 +32,9 @@ export function teamColors(team, s = globalThis.state) {
   return { primary, secondary: trim, dark: shade(primary, 0.62) };
 }
 
-export function teamLabel(team, s = globalThis.state) {
+export function teamLabel(team, s = gameState()) {
   const id = s?.franchise?.clubs?.[team]?.identity,
-    c = globalThis.clubs?.[team];
+    c = clubTable()?.[team];
   return {
     abbr: id?.abbr || c?.[0] || "GD",
     city: id?.city || c?.[1] || "",
@@ -370,7 +374,7 @@ const lastName = (name) => {
 /* ---------------------------------------------------------- scene copy */
 
 // Converts an arrival event (or a news card, which carries the same fields) into scene data.
-export function sceneData(e, s = globalThis.state) {
+export function sceneData(e, s = gameState()) {
   const team = Number(e.team),
     label = teamLabel(team, s),
     colors = teamColors(team, s),
@@ -415,7 +419,7 @@ const esc = (v) => escAttr(v);
 
 // Compact pixel card for a news story: jersey or coach card when the story carries one, else a
 // pixel portrait of the player it is about. Returns "" when there is nothing to draw.
-export function storyArt(a, s = globalThis.state) {
+export function storyArt(a, s = gameState()) {
   const card = a?.card;
   if (card?.type === "jersey" || card?.type === "coach") {
     const d = sceneData(card, s),
@@ -424,7 +428,7 @@ export function storyArt(a, s = globalThis.state) {
         d.kind === "coach"
           ? pixelPortrait(card.face, { seed: card.coachId || card.name, outfit: "suit", colors: d.colors, cap: true, label: d.name })
           : pixelPortrait(card.face, { seed: card.playerId || card.name, colors: d.colors, label: d.name }) + pixelJersey({ colors: d.colors, name: lastName(d.name), number: d.number });
-    return `<div class="px-card px-card-${d.kind}" style="${style}"><div class="px-card-art">${art}</div><div class="px-card-copy"><span class="px-kicker">${esc(d.kicker)}</span><b>${esc(d.name)}</b><small>${esc(d.kind === "coach" ? `${d.city} ${d.teamName}` : `#${d.number} · ${card.pos || ""} · ${d.abbr}`)}</small></div><button class="px-watch" onclick="PixelScenes.replay('${esc(a.id)}')" aria-label="Watch the ${esc(d.kicker.toLowerCase())} scene">Watch ▸</button></div>`;
+    return `<div class="px-card px-card-${d.kind}" style="${style}"><div class="px-card-art">${art}</div><div class="px-card-copy"><span class="px-kicker">${esc(d.kicker)}</span><b>${esc(d.name)}</b><small>${esc(d.kind === "coach" ? `${d.city} ${d.teamName}` : `#${d.number} · ${card.pos || ""} · ${d.abbr}`)}</small></div><button class="px-watch" onclick="PixelScenes.replay('${esc(a.id)}')" aria-label="Watch the scene: ${esc(d.kicker)}, ${esc(d.name)}">Watch ▸</button></div>`;
   }
   const p = a?.playerId && findPlayer(s, a.playerId);
   if (!p) return "";
@@ -503,7 +507,7 @@ export function installPixelScenes() {
   globalThis.PixelScenes = {
     play: playPixelScene,
     replay(storyId) {
-      const a = globalThis.state?.franchise?.office?.stories?.find((x) => x.id === storyId);
+      const a = gameState()?.franchise?.office?.stories?.find((x) => x.id === storyId);
       if (a?.card) playPixelScene({ id: "replay-" + storyId, ...a.card, kind: a.card.type === "coach" ? "CoachingMove" : "Signing" });
     },
   };

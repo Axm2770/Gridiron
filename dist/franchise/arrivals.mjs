@@ -73,7 +73,7 @@ const SIGN_BODIES = [
   "{name} ({pos}, {ovr} overall, age {age}) will wear number {number}. {role}",
   "The {team} hand number {number} to {name}. {role} The {pos} turns {age} this season.",
   "{name} held up a number {number} jersey at the facility. {role}",
-  "A {ovr}-rated {pos} joins the {team}. {role} {name} takes number {number}.",
+  "Rated {ovr} overall, {pos} {name} joins the {team}. {role} He takes number {number}.",
 ];
 const ROLE = {
   starter: ["He projects straight into the starting lineup.", "Coaches expect him to start right away.", "He arrives as a starter, not a project."],
@@ -104,9 +104,12 @@ export function detectArrivals(s, { leagueThreshold = 76, leaguePerWeek = 8, own
   if (!f?.clubs?.length) return [];
   ensureEventLog(s);
   const now = snapshot(s),
-    out = [];
-  if (f.arrivals?.version !== 1) {
-    f.arrivals = { version: 1, ...now, weekly: { key: "", count: 0 } };
+    out = [],
+    // The coach profile identifies the career, so a newly created career (which can reuse the
+    // boot world's franchise object) starts from its own baseline.
+    world = `${f.userCoach?.saveName ?? ""}|${f.userCoach?.name ?? ""}`;
+  if (f.arrivals?.version !== 1 || (f.arrivals.world ?? world) !== world) {
+    f.arrivals = { version: 1, world, ...now, weekly: { key: "", count: 0 } };
     if (isNewCareer(s)) {
       const e = emitGameEvent(s, `coach:${s.team}:user:${s.year}`, {
         kind: "CoachingMove",

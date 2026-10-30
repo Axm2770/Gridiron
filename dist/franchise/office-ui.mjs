@@ -224,12 +224,14 @@ export function installOfficeUI({ views, isBusy, getSection }) {
             "Sunday Review": 0,
             "Team communications": 1,
             "Gridiron Journal": 1,
+            "Transactions wire": 1,
             "League desk": 2,
           }[a.source] ?? 3) -
             ({
               "Sunday Review": 0,
               "Team communications": 1,
               "Gridiron Journal": 1,
+              "Transactions wire": 1,
               "League desk": 2,
             }[b.source] ?? 3),
       );
