@@ -29,6 +29,10 @@ Every file in this release was built by GitHub Actions from this tag, passed the
 
 From 0.21.0 onwards the desktop app updates itself in-game: it checks for new releases on launch, downloads only the changed game files, verifies them, and asks you to reload. You only need to download a ZIP again when a release changes the desktop app itself; the app tells you when that happens.
 
+## Pixel theme
+
+The whole game has a new retro pixel look: pixel fonts, square panels with hard shadows, a pixel-art 2D field with sprite players, and a pixelated 3D stadium. It is on by default; **Settings → Interface → Pixel theme** switches back to the classic look on this device.
+
 ## Match view
 
 The Windows-only Unreal match view and its download have been removed. Matchday now opens on the 2D field, which follows every snap, score and clock change; **Switch to 3D** above the field still shows the browser 3D stadium.

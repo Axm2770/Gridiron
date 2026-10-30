@@ -1,0 +1,161 @@
+/* Pixel theme (body.gd-pixel, toggled by ui/pixel-theme.mjs). Loaded last so it can restyle every
+   screen: pixel fonts, square corners, hard drop shadows, a 16-colour-style palette, stepped motion
+   and a pixel-art 2D field. Fonts are bundled under assets/fonts (SIL OFL 1.1, licences alongside). */
+@font-face { font-family: "Press Start 2P"; src: url("../assets/fonts/PressStart2P-Regular.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "Pixelify Sans"; src: url("../assets/fonts/PixelifySans-Variable.ttf") format("truetype"); font-weight: 400 700; font-display: swap; }
+
+body.gd-pixel {
+  --px-ink: #05070d;
+  --px-chalk: #f4f1de;
+  --px-turf-a: #2f8a3c;
+  --px-turf-b: #287a34;
+  --gd-bg: #0c1124;
+  --gd-bg-2: #131a33;
+  --gd-surface: #182041;
+  --gd-surface-strong: #1e2850;
+  --gd-border: #2e3a6e;
+  --gd-border-strong: #5566a8;
+  --gd-text: #f4f1de;
+  --gd-text-2: #b6bde0;
+  --gd-text-3: #7d86b6;
+  --gd-accent: #b8f03a;
+  --gd-good: #4ee38a;
+  --gd-warn: #ffd23f;
+  --gd-bad: #ff5c5c;
+  --gd-radius: 0;
+  --gd-radius-sm: 0;
+  --gd-blur: none;
+  --gd-shadow: 4px 4px 0 var(--px-ink);
+  --gd-display: "Press Start 2P", ui-monospace, monospace;
+  --gd-body: "Pixelify Sans", ui-monospace, monospace;
+  --lime: var(--gd-accent);
+  background: var(--gd-bg) !important;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+}
+
+/* Typography: Pixelify Sans everywhere (it stays readable at small sizes), Press Start 2P for
+   titles, numbers on the scoreboard and labels. */
+body.gd-pixel, body.gd-pixel :is(button, input, select, textarea, table, td, th, small, b, strong, span, p, div, label, li, a) {
+  font-family: var(--gd-body) !important;
+  /* Pixelify's x-height is small; size it like the sans it replaces so layouts keep their reading size. */
+  font-size-adjust: 0.56;
+}
+body.gd-pixel :is(h1, .gd-wordmark, .brand, .score-team strong, .score-time, .mini-result, .gd-stat b, .gd-stat strong, .endzone span) {
+  font-family: var(--gd-display) !important;
+  letter-spacing: 0 !important;
+  font-weight: 400 !important;
+}
+body.gd-pixel h1 { font-size: clamp(16px, 2.1vw, 26px) !important; line-height: 1.35 !important; text-transform: uppercase; }
+body.gd-pixel :is(h2, h3) { font-weight: 700 !important; letter-spacing: 0.02em; text-transform: uppercase; }
+body.gd-pixel :is(#breadcrumb, .eyebrow, [class*="eyebrow"], .gd-chip, .tag, .role-badge, th) {
+  font-family: var(--gd-display) !important;
+  font-size: 8px !important;
+  letter-spacing: 0.06em !important;
+  line-height: 1.6;
+}
+body.gd-pixel .score-team strong, body.gd-pixel .mini-result { font-size: 30px !important; }
+body.gd-pixel .score-time { font-size: 18px !important; }
+
+/* Hard pixel geometry: no rounding, no glass blur, chunky borders and offset shadows. */
+body.gd-pixel *, body.gd-pixel *::before, body.gd-pixel *::after { border-radius: 0 !important; }
+body.gd-pixel * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; text-shadow: none !important; }
+body.gd-pixel :is(.panel, .gd-card, .gd-hero, .card, dialog, .settings-content, .settings-nav, .scoreboard, .play-card, .match-panel, .gd-stat) {
+  background: var(--gd-surface) !important;
+  border: 3px solid var(--gd-border-strong) !important;
+  box-shadow: 4px 4px 0 var(--px-ink) !important;
+}
+body.gd-pixel .gd-hero { background: linear-gradient(var(--gd-surface-strong), var(--gd-surface-strong)) !important; border-color: var(--team) !important; }
+body.gd-pixel aside { background: #10152e !important; border-right: 3px solid var(--gd-border-strong) !important; }
+/* The sticky header relied on glass blur; without blur it needs a solid fill. */
+body.gd-pixel main > header { background: var(--gd-bg) !important; border-bottom: 3px solid var(--gd-border) !important; }
+body.gd-pixel dialog::backdrop { background: rgba(5, 7, 13, 0.75); }
+
+/* Buttons as raised 8-bit blocks that press in. */
+body.gd-pixel button:not(.link):not(.athlete) {
+  border: 2px solid var(--px-ink) !important;
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.35), inset 3px 3px 0 rgba(255, 255, 255, 0.22), 3px 3px 0 var(--px-ink) !important;
+  transition: none !important;
+}
+/* Sidebar entries and tabs stay flat; the active one gets a solid block marker. */
+body.gd-pixel :is(aside .nav-item, aside nav button, aside .sidebar-settings, .settings-nav button):not(.link):not(.athlete) {
+  border: 0 !important;
+  border-left: 4px solid transparent !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+body.gd-pixel :is(aside .nav-item, aside nav button, .settings-nav button).active { border-left-color: var(--gd-accent) !important; background: var(--gd-surface-strong) !important; color: var(--gd-accent) !important; }
+body.gd-pixel button:not(.link):not(:disabled):active { transform: translate(2px, 2px); box-shadow: inset 3px 3px 0 rgba(0, 0, 0, 0.35), 1px 1px 0 var(--px-ink) !important; }
+body.gd-pixel button:disabled { opacity: 0.55; box-shadow: none !important; }
+body.gd-pixel :is(input, select, textarea) {
+  border: 2px solid var(--gd-border-strong) !important;
+  background: #0b0f20 !important;
+  box-shadow: inset 2px 2px 0 var(--px-ink) !important;
+}
+body.gd-pixel :is(a, button, input, select, [tabindex]):focus-visible { outline: 3px dashed var(--gd-accent) !important; outline-offset: 2px; }
+body.gd-pixel .gd-chip { border: 2px solid currentColor !important; background: transparent !important; padding: 3px 6px !important; }
+
+/* Meters and progress bars fill in whole blocks. */
+body.gd-pixel :is(.gd-meter-track, .condition, .gd-update-progress) { border: 2px solid var(--px-ink); background: #0b0f20 !important; }
+body.gd-pixel :is(.gd-meter-track, .condition) > * {
+  background-image: repeating-linear-gradient(90deg, transparent 0 6px, rgba(5, 7, 13, 0.55) 6px 8px) !important;
+}
+
+/* Images and portraits go through the mosaic filter; canvases scale up without smoothing. */
+body.gd-pixel :is(img, .team-logo) { image-rendering: pixelated; filter: url(#gd-pixelate); }
+body.gd-pixel canvas { image-rendering: pixelated; }
+
+/* Motion steps like sprite animation instead of easing smoothly. */
+body.gd-pixel * { transition-timing-function: steps(4, end) !important; animation-timing-function: steps(6, end) !important; }
+
+/* A faint CRT scanline over the whole app. */
+body.gd-pixel::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2147483000;
+  background: repeating-linear-gradient(180deg, transparent 0 2px, rgba(0, 0, 0, 0.07) 2px 3px);
+}
+@media (prefers-reduced-motion: reduce) { body.gd-pixel::after { display: none; } }
+body.gd-pixel.reduce-motion::after { display: none; }
+
+/* ---------- 2D match field as pixel art ---------- */
+body.gd-pixel .live-field {
+  border: 4px solid var(--px-chalk) !important;
+  box-shadow: 0 0 0 3px var(--px-ink), 6px 6px 0 3px var(--px-ink) !important;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 6px, rgba(0, 0, 0, 0.05) 6px 8px),
+    repeating-linear-gradient(90deg, var(--px-turf-a) 0 8.333%, var(--px-turf-b) 8.333% 16.666%) !important;
+  image-rendering: pixelated;
+}
+body.gd-pixel .endzone { background: #1d2f7a !important; border-right: 4px solid var(--px-chalk); }
+body.gd-pixel .endzone.right { background: #7a1d2f !important; border-right: 0; border-left: 4px solid var(--px-chalk); }
+body.gd-pixel .endzone span { font-size: 14px !important; color: var(--px-chalk) !important; }
+body.gd-pixel .yard-line { border-left: 2px solid rgba(244, 241, 222, 0.8) !important; }
+body.gd-pixel .yard-line span { font-family: var(--gd-display) !important; font-size: 8px !important; color: var(--px-chalk) !important; }
+body.gd-pixel .yard-line::after { border-left: 0 !important; width: 4px; left: -1px; background: repeating-linear-gradient(180deg, var(--px-chalk) 0 4px, transparent 4px 10px); opacity: 0.55; }
+body.gd-pixel .line-scrimmage { width: 4px !important; background: #3fa9ff !important; opacity: 1 !important; }
+body.gd-pixel .line-first { width: 4px !important; background: #ffd23f !important; opacity: 1 !important; }
+body.gd-pixel .route-line { stroke: var(--gd-accent) !important; stroke-linecap: square; stroke-dasharray: 3 3 !important; shape-rendering: crispEdges; opacity: 0.9 !important; }
+body.gd-pixel .pitch-center { opacity: 0.18 !important; }
+/* Players: square sprites with a helmet band, a dark outline and a hard shadow. */
+body.gd-pixel .athlete {
+  width: 18px !important;
+  height: 18px !important;
+  border: 2px solid var(--px-ink) !important;
+  background: #f4f1de !important;
+  color: var(--px-ink) !important;
+  font: 6px/1 var(--gd-display) !important;
+  box-shadow: 2px 2px 0 rgba(5, 7, 13, 0.7), inset 0 4px 0 #3b6cc8 !important;
+  padding-top: 3px;
+}
+body.gd-pixel .athlete.defender { background: #ffb38a !important; box-shadow: 2px 2px 0 rgba(5, 7, 13, 0.7), inset 0 4px 0 #c0392b !important; }
+body.gd-pixel .ball-dot {
+  width: 10px !important;
+  height: 6px !important;
+  background: #8b4a1c !important;
+  border: 1px solid var(--px-ink) !important;
+  box-shadow: inset 0 -2px 0 #5c2f10, 0 0 0 1px #f4f1de44 !important;
+}
+body.gd-pixel .play-overlay { border: 2px solid var(--px-chalk); background: var(--px-ink) !important; font-size: 12px !important; }

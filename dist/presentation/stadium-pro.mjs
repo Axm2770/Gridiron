@@ -62,7 +62,9 @@ function enhance(s, G) {
   const pro = s.__pro;
   r.toneMapping = THREE.ACESFilmicToneMapping;
   r.toneMappingExposure = 1;
-  r.setPixelRatio(Math.min(devicePixelRatio, 2));
+  // The pixel theme renders the stadium at a fraction of the canvas size; CSS scales it up with
+  // nearest-neighbour sampling (ui/pixel.css), which gives chunky pixels at a lower GPU cost.
+  r.setPixelRatio(document.body.classList.contains("gd-pixel") ? 0.35 : Math.min(devicePixelRatio, 2));
   s.sun.shadow.mapSize.set(2048, 2048);
   s.sun.shadow.normalBias = 0.02;
   s.scene.fog = new THREE.Fog(0xa9c6da, 160, 420);

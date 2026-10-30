@@ -60,6 +60,8 @@ for (const hex of ["#17315d", "#0b1320", "#ee631d", "#dbb92a", "#484f59"]) {
 const stadium = fs.readFileSync("dist/stadium.js", "utf8"),
   index = fs.readFileSync("dist/index.html", "utf8");
 assert(stadium.includes("window.GridironStadium=") && stadium.includes("presentation/stadium-pro.mjs"));
-assert(index.includes("ui/presentation.css") && index.includes('class="gd-themed"') && index.includes("gd-wordmark"));
+assert(index.includes("ui/presentation.css") && /<body class="[^"]*\bgd-themed\b/.test(index) && index.includes("gd-wordmark"));
+// The pixel theme loads after every other stylesheet and is on before scripts run.
+assert(index.indexOf("ui/pixel.css") > index.indexOf("ui/presentation.css") && /<body class="[^"]*\bgd-pixel\b/.test(index));
 
 console.log("PASS: time-of-day lighting, Director camera cuts, broadcast banners and scorebug, club accent contrast and presentation wiring.");
