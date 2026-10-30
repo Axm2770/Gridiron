@@ -6,6 +6,7 @@ import {
   generateJobOffers,
 } from "./career-systems.mjs";
 import { recordRound } from "./records.mjs";
+import { recordMatchups } from "./matchups.mjs";
 import { freezeAwards } from "./awards.mjs";
 import {
   processRumors,
@@ -88,6 +89,7 @@ export function finishRound(s, results) {
         team[g.score[k] > g.score[1 - k] ? "w" : "l"]++;
       }
   }
+  recordMatchups(s, games, roundInfo);
   processDevelopment(s, results);
   recordRound(s, results, roundInfo);
   processCoachRound(s, results, roundInfo);

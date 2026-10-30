@@ -40,14 +40,13 @@ export const searchKey = (text) =>
 const money = (n) => "$" + (n / S.MILLION).toFixed(1) + "M";
 const groups = [
   [
-    "Squad & tactics",
+    "Team",
     [
       ["Roster", "Squad", "users"],
       ["Game plan", "Tactics", "target"],
       ["Medical", "Medical & training", "medical"],
       ["Development", "Player development", "chart"],
       ["Locker room", "Locker room", "users"],
-      ["Conversations", "Conversations", "mic"],
     ],
   ],
   [
@@ -60,37 +59,69 @@ const groups = [
     ],
   ],
   [
-    "Organization",
+    "Front office",
     [
       ["Contracts", "Contracts & salary cap", "wallet"],
       ["Club", "Organization hub", "building"],
       ["Staff", "Coaching staff", "users"],
       ["Boardroom", "Boardroom", "building"],
-      ["Career dossier", "Career dossier", "briefcase"],
-      ["Career", "Coach profile", "briefcase"],
-      ["Media room", "Media room", "mic"],
+      ["Career", "Coach career", "briefcase"],
     ],
   ],
   [
-    "Competition",
+    "League",
     [
-      ["Calendar", "Calendar & holiday", "calendar"],
-      ["Schedule", "Schedule", "calendar"],
-      ["League desk", "Around the league", "chart"],
-      ["Records", "Records & milestones", "chart"],
-      ["Awards", "Awards watch", "history"],
-      ["Archives", "History & records", "history"],
-      ["Hall of Fame", "Hall of Fame", "history"],
-    ],
-  ],
-  [
-    "Performance",
-    [
+      ["Calendar", "Schedule & calendar", "calendar"],
+      ["League desk", "League snapshot", "chart"],
+      ["Records", "Records & milestones", "history"],
       ["Statistics", "Statistics", "chart"],
       ["Analysis", "Data & analysis", "target"],
     ],
   ],
 ];
+// Screens reachable from search and related links but not listed in the sidebar.
+const secondary = [
+  ["Conversations", "Conversations", "mic"],
+  ["Career dossier", "Career dossier", "briefcase"],
+  ["Media room", "Media room", "mic"],
+  ["Hall of Fame", "Hall of Fame", "history"],
+  ["Awards", "Awards watch", "history"],
+];
+// Retired routes open the screen that absorbed them, on the matching tab.
+export const ROUTE_ALIASES = {
+  Schedule: ["Calendar", "Fixtures"],
+  Archives: ["Records", "Champions"],
+  "Hall of Fame": ["Records", "Hall of Fame"],
+  Awards: ["Records", "Awards"],
+};
+// Quick jumps shown under each screen title.
+export const RELATED = {
+  Overview: ["Inbox", "Calendar", "Roster"],
+  Roster: ["Development", "Medical", "Contracts", "Statistics", "Game plan"],
+  "Game plan": ["Roster", "Calendar", "Analysis"],
+  Medical: ["Roster", "Development"],
+  Development: ["Roster", "Medical", "Statistics"],
+  "Locker room": ["Conversations", "Roster", "Inbox"],
+  Conversations: ["Locker room", "Inbox"],
+  Scouting: ["Draft", "Market"],
+  Draft: ["Scouting", "Market", "Roster"],
+  Market: ["Contracts", "Scouting", "Roster"],
+  Contracts: ["Market", "Roster", "Boardroom"],
+  Club: ["Staff", "Boardroom", "Contracts"],
+  Staff: ["Club", "Career"],
+  Boardroom: ["Club", "Contracts", "Career"],
+  Career: ["Career dossier", "Staff", "Boardroom"],
+  "Career dossier": ["Career", "Boardroom"],
+  Calendar: ["Matchday", "League desk", "Roster"],
+  "League desk": ["Calendar", "Statistics", "Records", "News"],
+  Records: ["League desk", "Statistics"],
+  Statistics: ["Analysis", "Records", "League desk", "Roster"],
+  Analysis: ["Statistics", "Roster"],
+  News: ["Media room", "Inbox", "League desk"],
+  "Media room": ["News", "Inbox"],
+  Inbox: ["News", "Calendar"],
+};
+export const NAV_GROUPS = groups;
 const legacy = new Set(["Game plan", "Schedule", "Media room", "Matchday"]);
 const descriptions = {
   Overview: ["Club overview", "The decisions that shape your next Sunday."],
@@ -112,6 +143,20 @@ const descriptions = {
   ],
   League: ["League office", "Follow the decisions shaping the competition."],
   Archives: ["History & records", "Every season leaves a legacy."],
+  Calendar: [
+    "Schedule & calendar",
+    "Fixtures, results, rivals and the days in between.",
+  ],
+  "League desk": [
+    "League snapshot",
+    "Standings, leaders and the moves around the league.",
+  ],
+  Records: [
+    "Records & milestones",
+    "Champions, record marks and the Hall of Fame.",
+  ],
+  Career: ["Coach career", "Build your coaching career."],
+  "Career dossier": ["Career dossier", "Your record, reputation and offers."],
   "Hall of Fame": ["Hall of Fame", "The people who made the game."],
   "Next generation": ["Next generation", "New faces. New possibilities."],
   Conversations: ["Conversations", "Your words shape the room."],
@@ -128,6 +173,14 @@ const descriptions = {
   Settings: ["Settings", "Your workspace, audio, news and data tools."],
   Debug: ["Developer console", "Inspect, adjust and test your simulation."],
 };
+const routeEntry = (route) =>
+  [...groups.flatMap((g) => g[1]), ...secondary].find(([r]) => r === route);
+export const crumbLabel = (route) =>
+  route === "Overview"
+    ? "Club overview"
+    : route === "Matchday"
+      ? "Matchday"
+      : routeEntry(route)?.[1] || descriptions[route]?.[0] || route;
 const initials = (p) =>
   p.name
     .split(" ")
@@ -162,13 +215,16 @@ export function installPresentation({
 }) {
   let squadFilter = { query: "", unit: "All", status: "All", sort: "ovr" },
     commandQuery = "",
-    openGroups = new Set(["Squad & tactics", "Recruitment"]);
+    openGroups = new Set(["Team", "League"]),
+    // Visited screens for the Back button (route, tab).
+    trail = [],
+    returning = false;
   try {
-    openGroups = new Set(
-      JSON.parse(localStorage.getItem("gridiron-nav-groups")) || [
-        ...openGroups,
-      ],
-    );
+    // Group names changed when the sidebar was consolidated; ignore stale stored names.
+    let stored = (
+      JSON.parse(localStorage.getItem("gridiron-nav-groups")) || []
+    ).filter((name) => groups.some(([g]) => g === name));
+    if (stored.length) openGroups = new Set(stored);
     document.body.dataset.density =
       localStorage.getItem("gridiron-density") || "comfortable";
   } catch {}
@@ -293,14 +349,23 @@ export function installPresentation({
       .classList.remove("player-drawer", "command-dialog");
   };
   window.W = {
-    open(route) {
+    open(route, tab) {
       document.body.classList.remove("nav-visible");
+      if (ROUTE_ALIASES[route]) [route, tab] = ROUTE_ALIASES[route];
+      if (tab !== undefined) window.Nav?.setTab(route, tab);
       if (legacy.has(route)) {
         go(route);
       } else {
         setSection(route);
         go("Franchise");
       }
+    },
+    back() {
+      if (trail.length < 2) return W.open("Overview");
+      trail.pop();
+      let [route, tab] = trail.at(-1);
+      returning = true;
+      W.open(route, tab ?? undefined);
     },
     group(name, opened) {
       opened ? openGroups.add(name) : openGroups.delete(name);
@@ -348,6 +413,7 @@ export function installPresentation({
           ["Settings", "Settings", "filter"],
           ["Careers & saves", "Careers & saves", "briefcase"],
           ...groups.flatMap((g) => g[1]),
+          ...secondary,
         ].filter((r) =>
           (r[0] + " " + r[1]).toLowerCase().includes(commandQuery),
         ),
@@ -455,8 +521,11 @@ export function installPresentation({
         current === "Overview"
           ? "Club overview"
           : descriptions[current]?.[0] || current;
+    let group = groups.find(([, items]) => items.some(([r]) => r === current)),
+      tab = window.Nav?.tabLabel(current),
+      divider = `<span class="breadcrumb-divider">/</span>`;
     document.getElementById("breadcrumb").innerHTML =
-      `<button class="mobile-menu icon-button" onclick="W.mobile()" aria-label="Toggle navigation">${icon("menu")}</button><span class="breadcrumb-club">${esc(clubs[state.team][2])}</span><span class="breadcrumb-divider">/</span><b>${esc(label)}</b>`;
+      `<button class="mobile-menu icon-button" onclick="W.mobile()" aria-label="Toggle navigation">${icon("menu")}</button>${trail.length > 1 ? `<button class="breadcrumb-back" onclick="W.back()" aria-label="Back to ${esc(crumbLabel(trail.at(-2)[0]))}" title="Back (Alt+←)">← Back</button>` : ""}<nav class="breadcrumb-trail" aria-label="Breadcrumb"><button class="breadcrumb-club" onclick="W.open('Overview')">${esc(clubs[state.team][2])}</button>${group ? `${divider}<button class="breadcrumb-group" onclick="W.open('${group[1][0][0]}')">${esc(group[0])}</button>` : ""}${divider}${tab ? `<button class="breadcrumb-screen" onclick="W.open('${current}',null)">${esc(label)}</button>${divider}<b aria-current="page">${esc(tab)}</b>` : `<b aria-current="page">${esc(label)}</b>`}</nav>`;
     document.querySelector("header>div").innerHTML =
       `<button class="search-trigger" onclick="W.command()" aria-label="Search players and screens">${icon("search")}<span>Search anything</span><kbd>⌘ K</kbd></button><button class="icon-button density-toggle" onclick="W.open('Settings')" aria-label="Settings" title="Settings">${icon("filter")}</button><span class="calendar-chip">${icon("calendar")}${state.year} · ${phaseName()}</span><button class="continue-button" onclick="advance()" ${isBusy() ? "disabled" : ""}>${state.live ? "Return to game" : state.interviewPending ? "Press conference" : state.phase === "offseason" ? "Offseason hub" : "Continue"}${icon("arrow")}</button>`;
     document.getElementById("club").innerHTML =
@@ -723,15 +792,34 @@ export function installPresentation({
     }
     originalRender();
     document.body.classList.add("workspace-ready");
+    let section = active(),
+      tabNow = window.Nav?.tabLabel(section) ?? null,
+      last = trail.at(-1);
+    if (!last || last[0] !== section) {
+      // Returning from Back replays an entry already on the trail.
+      if (!returning) trail.push([section, tabNow]);
+      trail = trail.slice(-40);
+    } else last[1] = tabNow;
+    returning = false;
     navigation();
     header();
-    let section = active(),
-      title = document.querySelector("#app>.title-row");
+    let title = document.querySelector("#app>.title-row"),
+      related = (RELATED[section] || [])
+        .filter((r) => r !== section)
+        .map(
+          (r) =>
+            `<button class="related-link" onclick="W.open('${r}')">${esc(crumbLabel(r))}</button>`,
+        )
+        .join(""),
+      relatedRow = related
+        ? `<div class="related-links" aria-label="Related screens"><span>Jump to</span>${related}</div>`
+        : "";
     if (view === "Franchise" && title) {
       let [name, description] = descriptions[section] || [section, ""];
-      title.innerHTML = `<div><div class="eyebrow">${esc(clubs[state.team][1])} ${esc(clubs[state.team][2])} <span> / </span> ${state.year} SEASON</div><h1>${name}</h1><p class="subtitle">${description}</p></div><div class="page-context"><span class="role-badge">${esc(state.franchise.role)}</span><button class="icon-button" onclick="W.help()" aria-label="Workspace help">?</button></div>`;
+      title.innerHTML = `<div><div class="eyebrow">${esc(clubs[state.team][1])} ${esc(clubs[state.team][2])} <span> / </span> ${state.year} SEASON</div><h1>${name}</h1><p class="subtitle">${description}</p>${relatedRow}</div><div class="page-context"><span class="role-badge">${esc(state.franchise.role)}</span><button class="icon-button" onclick="W.help()" aria-label="Workspace help">?</button></div>`;
       document.querySelector(".f-tabs")?.remove();
-    }
+    } else if (title && relatedRow && !title.querySelector(".related-links"))
+      title.firstElementChild?.insertAdjacentHTML("beforeend", relatedRow);
     if (title && view !== "Franchise") {
       let names = {
         Matchday: "Matchday",
@@ -754,6 +842,22 @@ export function installPresentation({
       W.command();
     }
     if (e.key === "Escape") document.body.classList.remove("nav-visible");
+    if (
+      e.altKey &&
+      e.key === "ArrowLeft" &&
+      !document.getElementById("modal")?.open &&
+      !e.target.closest?.("input,textarea,select")
+    ) {
+      e.preventDefault();
+      W.back();
+    }
+  });
+  // The mouse "back" side button follows the in-app trail.
+  document.addEventListener("mouseup", (e) => {
+    if (e.button === 3 && !document.getElementById("modal")?.open) {
+      e.preventDefault();
+      W.back();
+    }
   });
   showHelp = () => W.help();
   showLicensing = () => W.sources();
