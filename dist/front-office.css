@@ -148,7 +148,7 @@
 .fo-why { font-size: 11px; color: var(--fo-text-2); max-width: 280px; }
 
 @media (max-width: 1100px) {
-  .fo-grid, .fo-tactics { grid-template-columns: 1fr; }
+  .fo-grid, .fo-tactics { grid-template-columns: minmax(0, 1fr); }
   .fo-span-2 { grid-column: auto; }
   .fo-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .fo-attention { grid-template-columns: repeat(2, minmax(0, 1fr)); }

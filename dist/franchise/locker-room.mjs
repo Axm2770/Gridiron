@@ -24,9 +24,13 @@ function playerCauses(s, p, startersByPos) {
   if (!p.starter && !p.injury && starters.length && p.ovr >= Math.min(...starters))
     add("Wants more playing time", "warn");
   if (p.starter && (p.morale ?? 75) >= 70) add("Secure starting role", "good");
+  if (!p.starter && (p.persona?.ambition ?? 0) > 0.7) add("Ambitious: wants a bigger role", "warn");
   for (const e of (p.moodLog || []).slice(0, 3))
     if (e.delta && e.year === s.year && s.week - e.week <= 3)
       add(`${e.reason} (${e.delta > 0 ? "+" : ""}${e.delta})`, e.delta > 0 ? "good" : "bad");
+  if (!causes.length)
+    if ((p.morale ?? 75) < 60) add("Low morale has built up over several weeks", "warn");
+    else add(p.starter ? "Starting role" : "Depth role, no recent concerns", "");
   return causes.slice(0, 4);
 }
 

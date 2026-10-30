@@ -94,7 +94,8 @@ export function boardOverview(s) {
     patience = club.owner.patience,
     fans = club.fanApproval,
     security = Math.round(
-      clamp(patience * 0.55 + fans * 0.15 + 30 + clamp(gap, -5, 5) * 6),
+      // Early-season pace is noisy; results count fully after eight games.
+      clamp(patience * 0.55 + fans * 0.15 + 30 + clamp(gap, -5, 5) * 6 * Math.min(1, played / 8)),
     ),
     status =
       security >= 80
