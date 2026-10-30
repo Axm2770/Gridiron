@@ -1,5 +1,6 @@
 import { migrate, validate } from "./franchise/state.mjs";
 import { CareerStore, parseCareerSave } from "./franchise/save-store.mjs";
+import "./ui/pixel-theme.mjs";
 try {
   window.__gridironHadLegacy = !!localStorage.getItem("gridiron-v1");
 } catch {}
