@@ -23,8 +23,19 @@ import { hireStaff } from "./staff.mjs";
 import { assertCanAdvance } from "./compliance.mjs";
 import { random, clamp } from "../engine/random.mjs";
 import { offerScore, proposal } from "./contracts.mjs";
-export function marketDay(s, {calendarManaged=false}={}) {
-  assertCanAdvance(s);
+// In season the calendar moves a round at a time, so free-agent decisions and waiver claims are
+// settled with each round (two market days: every offer made that week reaches its deadline).
+// Idempotent per round key; the calendar date itself is not moved.
+export function settleMarketRound(s, roundKey) {
+  const f = s.franchise;
+  f.market.settled ??= [];
+  if (s.phase === "offseason" || f.market.settled.includes(roundKey)) return;
+  f.market.settled.push(roundKey);
+  f.market.settled = f.market.settled.slice(-60);
+  for (let i = 0; i < 2; i++) marketDay(s, { calendarManaged: true, compliance: false });
+}
+export function marketDay(s, {calendarManaged=false, compliance=true}={}) {
+  if (compliance) assertCanAdvance(s);
   let f = s.franchise;
   f.market.day++;
   f.calendar.day++;

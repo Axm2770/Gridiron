@@ -3,6 +3,7 @@
 // (career-systems.recordDraftDevelopment); this module never spends points or drafts itself.
 import { reactTo } from "./social-engine.mjs";
 import { emitGameEvent } from "./event-bus.mjs";
+import { scoutRange } from "./scouting.mjs";
 
 export const STAGES = [
   ["watchlist", "Watchlist"],
@@ -29,12 +30,11 @@ export function ensurePipeline(s) {
 
 const prospect = (s, id) => s.prospects?.find((p) => p.id === id);
 
-// Talent range from the report; narrows as confidence rises (matches the classic scouting view).
+// Talent range from the report; narrows as confidence rises (shared with every scouting view).
 export function talentRange(s, p) {
   const r = s.franchise.reports?.[p.id],
-    estimate = r?.estimate ?? p.ovr + (p.id.length % 9) - 4,
-    spread = Math.ceil((100 - (r?.confidence || 25)) / 10);
-  return { low: Math.max(40, estimate - spread), high: Math.min(99, estimate + spread), estimate, confidence: r?.confidence || 25, notes: r?.notes ?? [], visits: r?.visits ?? [] };
+    v = scoutRange(s, p, -2);
+  return { low: v.ovr[0], high: v.ovr[1], estimate: v.estimate, confidence: v.confidence, notes: r?.notes ?? [], visits: r?.visits ?? [] };
 }
 
 export function positionalNeed(s, pos) {

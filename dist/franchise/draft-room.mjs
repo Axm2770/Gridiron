@@ -8,6 +8,7 @@ import { identitySeed } from "./newgens.mjs";
 import { log, MILLION, requireRole } from "./state.mjs";
 import { draftOne, beginDraft, ensureDraftRoom } from "./personnel.mjs";
 import { slotValue } from "./market.mjs";
+import { scoutRange } from "./scouting.mjs";
 
 export const REGIONS = ["West", "Southwest", "Midwest", "Southeast", "Northeast"];
 const GROUPS = { QB: "QB", RB: "Skill", WR: "Skill", TE: "Skill", OL: "Line", DL: "Line", LB: "Front 7", CB: "Secondary", S: "Secondary", K: "Specialist", P: "Specialist" };
@@ -82,13 +83,11 @@ export function scoutedView(s, p) {
   const r = s.franchise.reports?.[p.id],
     confidence = r?.confidence ?? 25,
     pr = profile(p),
-    estimate = r?.estimate ?? p.ovr + (p.id.length % 9) - 4,
-    spread = Math.ceil((100 - confidence) / 10),
     reveal = (min, value) => (confidence >= min ? value : null);
   return {
     id: p.id,
     confidence,
-    range: [Math.max(40, estimate - spread), Math.min(99, estimate + spread)],
+    range: scoutRange(s, p, -2).ovr,
     region: pr.region,
     storyline: pr.story.text,
     archetype: p.archetype ?? null,
