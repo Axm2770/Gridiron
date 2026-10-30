@@ -53,6 +53,9 @@ robocopy (Join-Path $root "unreal\GridironBridge") (Join-Path $stage "GridironDe
 if ($LASTEXITCODE -ge 8) { Fail "Could not stage the plugin (robocopy $LASTEXITCODE)." }
 $project = Join-Path $stage "GridironDemo\GridironDemo.uproject"
 Remove-Item -Recurse -Force (Join-Path $stage "GridironDemo\Saved\StagedBuilds") -ErrorAction SilentlyContinue
+# Archiving adds to the folder, so clear it: a published zip must not carry another configuration's
+# binaries or the logs and profiler captures of earlier test runs.
+Remove-Item -Recurse -Force (Join-Path $archive "Windows") -ErrorAction SilentlyContinue
 # Throttle shader compile workers in the staged copy only (the editor project keeps its defaults).
 $unused = [Math]::Max(0, [Environment]::ProcessorCount - $ShaderThreads)
 Add-Content -Encoding utf8 (Join-Path $stage "GridironDemo\Config\DefaultEngine.ini") "`r`n[DevOptions.Shaders]`r`nNumUnusedShaderCompilingThreads=$unused`r`nNumUnusedShaderCompilingThreadsDuringGame=$unused`r`nWorkerProcessPriority=-1`r`n"
