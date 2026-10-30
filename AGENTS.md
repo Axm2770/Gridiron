@@ -19,11 +19,12 @@ Read `README.md`, `docs/handoff.md` and the module nearest your change before ed
 - Browser assets are in `dist/`; this is intentionally a buildless ESM/classic-script application. Keep existing script initialization order.
 - The canonical career is the existing root state. Own-team players live in `state.roster`; other rosters live in `franchise.clubs`. Do not duplicate player records.
 - Domain modules accept explicit state and work without the DOM. Keep view code in UI modules. Use existing transaction/validation boundaries for mutations.
-- Money is integer cents. Preserve cap, roster, hiring, injury, position and role checks across manual, worker and delegated paths.
+- Money is integer cents. Preserve cap, roster, hiring, injury, position and role checks across manual and worker paths.
 - Live and fast games share execution and rule reducers. Rendering must never change results.
 - Migrate saves additively and idempotently. Never replace existing careers during startup or silently reset data after a load error.
 - Exact calendar dates use UTC ISO strings. `calendar-core.mjs` is the clock authority. Round settlement is idempotent; do not add another seven-day tick.
-- Delegation selects actual available staff, uses actual inbox/conversation/roster operations and records consequences. Never bypass compliance or fabricate successful actions.
+- The user makes club decisions; there is no staff delegation. The calendar pauses for pending decisions instead of answering them. Never bypass compliance or fabricate successful actions.
+- Tactics only write existing match settings (`coach.style`, `coach.offense`, `coach.defense`, `coach.calling`, `franchise.directives`); results are decided by the engine.
 - Preserve the Electron sandbox/context isolation and protocol path restrictions. Do not expose Node to renderer content.
 - Keep gameplay in-universe. Research, implementation limitations and provenance belong in repository documentation.
 
