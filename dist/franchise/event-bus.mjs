@@ -94,6 +94,19 @@ export function deriveRoundEvents(s, results, roundKey, { phase = s.phase } = {}
     if (phase === "playoffs") tags.push("playoffs");
     if (margin === 0) tags.push("tie");
     tags.push(margin > 0 ? "win" : margin < 0 ? "loss" : "draw");
+    // Storyline tags for the newsroom: game shape, upsets by record, and how a streak turned.
+    if (us + them >= 60) tags.push("shootout");
+    if (us + them <= 23) tags.push("defensive-battle");
+    const pct = (t) => {
+        const r = s.teams?.[t];
+        return r && r.w + r.l >= 3 ? r.w / (r.w + r.l) : null;
+      },
+      gap = pct(opponent) != null && pct(s.team) != null ? pct(opponent) - pct(s.team) : 0;
+    if (margin > 0 && gap >= 0.25) tags.push("upset");
+    if (margin < 0 && gap <= -0.25) tags.push("upset-loss");
+    if (margin >= 14 && pct(opponent) >= 0.6) tags.push("statement");
+    const previous = ensureEventLog(s).streak ?? 0;
+    if (margin > 0 && previous < 0) tags.push(previous <= -3 ? "skid-snapped" : "bounce-back");
     const streak = updateStreak(s, margin);
     if (streak >= 3) tags.push("win-streak");
     if (streak <= -3) tags.push("losing-streak");
