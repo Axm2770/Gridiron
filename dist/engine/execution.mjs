@@ -1006,9 +1006,9 @@ export function simulateExecution(input) {
         // Gunners release at the snap and race to the catch; the jammers ride their hips.
         for (const g of [2, 3]) {
           const a = actors[g];
-          steer(a, time < 0.15 ? a : { x: landing.x - 1.2, z: landing.z + (g === 2 ? -1.5 : 1.5) }, dt, time < kickT ? 0.9 : 1);
+          steer(a, time < 0.15 ? a : { x: landing.x - 1.2, z: landing.z + (g === 2 ? -1.5 : 1.5) }, dt, time < kickT ? 1.1 : 1.2);
           const jam = actors[g === 2 ? 18 : 19];
-          steer(jam, { x: a.x + 0.9, z: a.z + (g === 2 ? 0.7 : -0.7) }, dt, 0.98);
+          steer(jam, { x: a.x + 0.9, z: a.z + (g === 2 ? 0.7 : -0.7) }, dt, 1.15);
         }
         // Returner settles under the ball; the up man drifts back to block.
         const settle = landing.x > 98 ? { x: 96, z: landing.z } : { x: landing.x - 0.3, z: landing.z };
