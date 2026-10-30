@@ -1,6 +1,7 @@
 /* Pixel theme (body.gd-pixel, toggled by ui/pixel-theme.mjs). Loaded last so it can restyle every
-   screen: pixel fonts, square corners, hard drop shadows, a 16-colour-style palette, stepped motion
-   and a pixel-art 2D field. Fonts are bundled under assets/fonts (SIL OFL 1.1, licences alongside). */
+   screen: square corners, hard drop shadows, a 16-colour-style palette, stepped motion and a
+   pixel-art 2D field. Menus use a clean sans-serif for legibility; the bundled pixel fonts
+   (assets/fonts, SIL OFL 1.1, licences alongside) stay available as --px-font-* for scenes. */
 @font-face { font-family: "Press Start 2P"; src: url("../assets/fonts/PressStart2P-Regular.ttf") format("truetype"); font-display: swap; }
 @font-face { font-family: "Pixelify Sans"; src: url("../assets/fonts/PixelifySans-Variable.ttf") format("truetype"); font-weight: 400 700; font-display: swap; }
 
@@ -26,34 +27,43 @@ body.gd-pixel {
   --gd-radius-sm: 0;
   --gd-blur: none;
   --gd-shadow: 4px 4px 0 var(--px-ink);
-  --gd-display: "Press Start 2P", ui-monospace, monospace;
-  --gd-body: "Pixelify Sans", ui-monospace, monospace;
+  --px-font-display: "Press Start 2P", ui-monospace, monospace;
+  --px-font-body: "Pixelify Sans", ui-monospace, monospace;
+  --gd-display: "DM Sans", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --gd-body: "DM Sans", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
   --lime: var(--gd-accent);
   background: var(--gd-bg) !important;
-  -webkit-font-smoothing: none;
-  font-smooth: never;
 }
 
-/* Typography: Pixelify Sans everywhere (it stays readable at small sizes), Press Start 2P for
-   titles, numbers on the scoreboard and labels. */
+/* Typography: one legible sans-serif for every menu, table and label. Titles stay heavy and
+   uppercase so screens keep their arcade character without pixel glyphs. */
 body.gd-pixel, body.gd-pixel :is(button, input, select, textarea, table, td, th, small, b, strong, span, p, div, label, li, a) {
   font-family: var(--gd-body) !important;
-  /* Pixelify's x-height is small; size it like the sans it replaces so layouts keep their reading size. */
-  font-size-adjust: 0.56;
 }
 body.gd-pixel :is(h1, .gd-wordmark, .brand, .score-team strong, .score-time, .mini-result, .gd-stat b, .gd-stat strong, .endzone span) {
   font-family: var(--gd-display) !important;
-  letter-spacing: 0 !important;
-  font-weight: 400 !important;
+  letter-spacing: 0.01em !important;
+  font-weight: 800 !important;
 }
-body.gd-pixel h1 { font-size: clamp(16px, 2.1vw, 26px) !important; line-height: 1.35 !important; text-transform: uppercase; }
-body.gd-pixel :is(h2, h3) { font-weight: 700 !important; letter-spacing: 0.02em; text-transform: uppercase; }
+body.gd-pixel h1 { font-size: clamp(22px, 2.4vw, 32px) !important; line-height: 1.2 !important; text-transform: uppercase; }
+body.gd-pixel :is(h2, h3) { font-weight: 700 !important; letter-spacing: 0.01em; }
+/* Small labels never drop below 11px and keep enough weight to read on the dark palette. */
 body.gd-pixel :is(#breadcrumb, .eyebrow, [class*="eyebrow"], .gd-chip, .tag, .role-badge, th) {
-  font-family: var(--gd-display) !important;
-  font-size: 8px !important;
-  letter-spacing: 0.06em !important;
-  line-height: 1.6;
+  font-size: max(11px, 1em) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  line-height: 1.4;
 }
+body.gd-pixel :is(td, li, p, .kv) { line-height: 1.5; }
+/* Reading floor: many screens set captions at 8–10px. Keep them smaller than their parent text
+   (about 0.8×) but never under 11px; table cells read at 12px or more. */
+body.gd-pixel :is(small, summary, label, kbd, time, .office-badge, .position-chip, .honor-chip, td .metric-pill, .calendar-chip, .career, .exp-tag, button.small, .continue-button, th button,
+  .inbox-row-meta span, .inbox-list-heading > *, .message-topline span, .message-actions .link, .career-toolbar button, .office-table-note,
+  .finder-budget span, .finder-chips span, .finder-filter-tabs button, .finder-filter-bottom span, .finder-view-tools button, .finder-page-controls span,
+  .finder-pagination span, .finder-total, .finder-legend span:not(.metric-pill)) {
+  font-size: max(11px, 0.8em) !important;
+}
+body.gd-pixel td { font-size: max(12px, 1em) !important; }
 body.gd-pixel .score-team strong, body.gd-pixel .mini-result { font-size: 30px !important; }
 body.gd-pixel .score-time { font-size: 18px !important; }
 

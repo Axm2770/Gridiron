@@ -28,7 +28,17 @@ Paths in the table without a directory are under `dist/franchise/`. Consult expo
 
 Calendar advancement increments the reputation/cooldown action clock once per elapsed day. Existing legacy weekly saves derive an initial date from their saved season/week; they do not recover an unavailable real-world fixture date. League dates are modeled for the generated schedule.
 
+`franchise.matchups` (`matchups.mjs`) holds `version` and `games`: every settled league game as `{year, phase, week, a, b, score, final?}`, appended by `finishRound` and backfilled idempotently from the live schedule and bracket for saves that predate it. Schedules are replaced each season, so this log is the only cross-season score history; it feeds head-to-head records (Schedule & calendar) and the Super Bowl list (Records & milestones). Historical seasons before the career have champion and game MVP only.
+
+## Navigation
+
+The sidebar groups live in `presentation.mjs` (`NAV_GROUPS`). Retired routes (Schedule, Archives, Hall of Fame, Awards) are `ROUTE_ALIASES` that open the absorbing screen on a tab; `navigation-ui.mjs` owns those tabs (`window.Nav`), the League snapshot and the Records hub. `W.open(route, tab)` accepts an optional tab; `W.back()` follows the in-app trail (also Alt+Left and the mouse back button). `RELATED` lists the quick jumps shown under each title.
+
 ## Tests added
+
+`test-matchups.mjs` covers head-to-head tallies, streaks and ordering, a full season through `finishRound`, backfill idempotency, the final-game flag and the championship list.
+
+
 
 `test-calendar-delegation.mjs` covers exact dates, migration, deputy fallback, actual inbox responses/consequences, press conferences, absent staff, idempotency, round/date boundaries, offseason market timing, persistence and actual calendar rendering. `test-desktop.mjs` covers local protocol serving, MIME/CSP, path and symlink rejection, sandbox settings and packaging configuration. All 23 suites passed on Linux. A browser holiday reached the exact requested return date and completed its due game with a staff activity report.
 
