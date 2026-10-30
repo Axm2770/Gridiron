@@ -8,6 +8,8 @@
     { "Name": "PythonScriptPlugin", "Enabled": true },
     { "Name": "EditorScriptingUtilities", "Enabled": true },
     { "Name": "PixelStreaming2", "Enabled": true },
+    { "Name": "MetaHumanCharacter", "Enabled": true },
+    { "Name": "MetaHumanSDK", "Enabled": true },
     { "Name": "AndroidFileServer", "Enabled": false }
   ]
 }

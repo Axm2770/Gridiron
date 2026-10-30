@@ -3,6 +3,7 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Animation/BlendSpace.h"
+#include "AnimationRuntime.h"
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "PhysicsEngine/PhysicalAnimationComponent.h"
@@ -53,26 +54,79 @@ AGridironAthlete::AGridironAthlete()
 	Helmet = MakeGear(TEXT("Helmet"), Sphere.Succeeded() ? Sphere.Object : nullptr);
 	Facemask = MakeGear(TEXT("Facemask"), Cube.Succeeded() ? Cube.Object : nullptr);
 	Pads = MakeGear(TEXT("Pads"), Cube.Succeeded() ? Cube.Object : nullptr);
+
+	Face = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Face"));
+	Face->SetupAttachment(Mesh);
+	Face->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// MetaHumans from build_metahumans.py: three builds in three skin tones each.
+	const struct { const TCHAR* Shape; float MaxMassKg; float HeightCm; } Shapes[] = {
+		{ TEXT("Skill"), 100.f, 184.f }, { TEXT("Mid"), 125.f, 191.f }, { TEXT("Big"), 1000.f, 195.f } };
+	for (const auto& Shape : Shapes)
+		for (const TCHAR* Tone : { TEXT("A"), TEXT("B"), TEXT("C") })
+		{
+			const FString Name = FString(Shape.Shape) + Tone;
+			const FString Folder = FString::Printf(TEXT("/Game/Gridiron/MetaHumans/Built/%s"), *Name);
+			FGridironBodyVariant& Variant = MetaHumans.AddDefaulted_GetRef();
+			Variant.Body = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(FString::Printf(TEXT("%s/Body/SKM_%s_BodyMesh.SKM_%s_BodyMesh"), *Folder, *Name, *Name)));
+			Variant.Face = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(FString::Printf(TEXT("%s/Face/SKM_%s_FaceMesh.SKM_%s_FaceMesh"), *Folder, *Name, *Name)));
+			Variant.MaxMassKg = Shape.MaxMassKg;
+			Variant.HeightCm = Shape.HeightCm;
+		}
 }
 
 void AGridironAthlete::AttachGear()
 {
-	// Place each piece in world space against the reference pose (actor upright, facing +X), then
-	// attach keeping that transform so it follows the bone through animation and ragdoll.
-	const FVector Forward = GetActorForwardVector(), Up = GetActorUpVector();
-	const FRotator Facing = GetActorRotation();
+	// Gear is laid out in the body's component space against its reference pose (bodies face +Y,
+	// Z up), then stored relative to the bone so it fits any default body and follows animation
+	// and ragdoll.
+	const FReferenceSkeleton& Skeleton = Mesh->GetSkinnedAsset()->GetRefSkeleton();
+	const FQuat Facing = FRotator(0.f, 90.f, 0.f).Quaternion(); // gear X axis along the body's forward (+Y)
 	auto Place = [&](UStaticMeshComponent* Part, FName Bone, const FVector& Offset, const FVector& Size)
 	{
-		if (Mesh->GetBoneIndex(Bone) == INDEX_NONE) return false;
-		Part->SetWorldLocationAndRotation(Mesh->GetSocketLocation(Bone) + Offset, Facing);
-		Part->SetWorldScale3D(Size / 100.f); // engine shapes are 100 cm
-		Part->AttachToComponent(Mesh, FAttachmentTransformRules::KeepWorldTransform, Bone);
+		const int32 Index = Skeleton.FindBoneIndex(Bone);
+		if (Index == INDEX_NONE) return false;
+		const FTransform BoneRef = FAnimationRuntime::GetComponentSpaceTransformRefPose(Skeleton, Index);
+		const FTransform Wanted(Facing, BoneRef.GetLocation() + Offset, Size / 100.f); // engine shapes are 100 cm
+		Part->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Bone);
+		Part->SetRelativeTransform(Wanted.GetRelativeTransform(FTransform(BoneRef.GetRotation(), BoneRef.GetLocation())));
 		Part->SetVisibility(true);
 		return true;
 	};
-	bGear = Place(Helmet, TEXT("head"), Up * 9.f + Forward * 2.f, FVector(27.f, 25.f, 28.f));
-	if (bGear) Place(Facemask, TEXT("head"), Up * 3.f + Forward * 14.f, FVector(3.f, 18.f, 12.f));
-	Place(Pads, TEXT("spine_05"), Up * -2.f, FVector(32.f, 54.f, 12.f));
+	// Offsets in component space: +Z up, +Y forward.
+	bGear = Place(Helmet, TEXT("head"), FVector(0.f, 2.f, 9.f), FVector(27.f, 25.f, 28.f));
+	if (bGear) Place(Facemask, TEXT("head"), FVector(0.f, 14.f, 3.f), FVector(3.f, 18.f, 12.f));
+	Place(Pads, TEXT("spine_05"), FVector(0.f, 0.f, -2.f), FVector(32.f, 54.f, 12.f));
+}
+
+bool AGridironAthlete::UseMetaHuman(const FGridironRosterEntry& Entry)
+{
+	// Lightest band that fits the player's mass, else the heaviest band.
+	float Band = TNumericLimits<float>::Max(), Heaviest = 0.f;
+	for (const FGridironBodyVariant& V : MetaHumans)
+	{
+		Heaviest = FMath::Max(Heaviest, V.MaxMassKg);
+		if (V.MaxMassKg >= Entry.MassKg) Band = FMath::Min(Band, V.MaxMassKg);
+	}
+	if (Band == TNumericLimits<float>::Max()) Band = Heaviest;
+	TArray<const FGridironBodyVariant*> Choices;
+	for (const FGridironBodyVariant& V : MetaHumans)
+		if (V.MaxMassKg == Band && !V.Body.IsNull()) Choices.Add(&V);
+	if (Choices.IsEmpty()) return false;
+	const int32 Seed = Entry.Jersey != INDEX_NONE ? Entry.Jersey : Entry.Index;
+	const FGridironBodyVariant& Pick = *Choices[FMath::Abs(Seed) % Choices.Num()];
+	USkeletalMesh* Body = Pick.Body.LoadSynchronous();
+	if (!Body) return false; // not built yet: keep the mannequin
+	if (Mesh->GetSkeletalMeshAsset() != Body)
+	{
+		Mesh->SetSkeletalMesh(Body);
+		Face->SetSkeletalMesh(Pick.Face.LoadSynchronous());
+		Face->SetLeaderPoseComponent(Mesh);
+		StartLocomotion();
+		AttachGear();
+	}
+	CurrentBodyHeight = Pick.HeightCm;
+	return true;
 }
 
 void AGridironAthlete::BeginPlay()
@@ -91,8 +145,10 @@ void AGridironAthlete::LoadDefaultArt()
 			Mesh->SetSkeletalMesh(Body);
 			// The mannequin faces +Y; actors face +X.
 			Mesh->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
-			// Gear fits the default mannequin only; Blueprint art brings its own.
+			// Gear fits the default bodies only; Blueprint art brings its own.
 			AttachGear();
+			bDefaultArt = true;
+			CurrentBodyHeight = BodyMeshHeight;
 		}
 	}
 	if (!Mesh->GetSkeletalMeshAsset()) return;
@@ -100,7 +156,11 @@ void AGridironAthlete::LoadDefaultArt()
 	MeshRelativeLocation = Mesh->GetRelativeLocation();
 	MeshRelativeRotation = Mesh->GetRelativeRotation();
 	PhysicalAnimation->SetSkeletalMeshComponent(Mesh);
+	StartLocomotion();
+}
 
+void AGridironAthlete::StartLocomotion()
+{
 	// No AnimBP set: drive the locomotion blend space directly from telemetry speed.
 	if (!Mesh->GetAnimInstance() || Mesh->GetAnimationMode() == EAnimationMode::AnimationSingleNode)
 	{
@@ -130,14 +190,17 @@ void AGridironAthlete::UpdateLocomotion()
 
 void AGridironAthlete::ApplyLook_Implementation(const FGridironRosterEntry& Entry, FLinearColor TeamColor)
 {
+	if (bDefaultArt) UseMetaHuman(Entry);
 	const bool bHasArt = Mesh->GetSkeletalMeshAsset() != nullptr;
 	Proxy->SetVisibility(!bHasArt);
 	const FLinearColor Tint = Entry.Side == TEXT("offense") ? TeamColor : TeamColor * 0.55f;
 	if (bHasArt)
 	{
-		// Height from the roster; heavier players are a little broader.
-		const float Height = Entry.HeightCm > 0.f ? Entry.HeightCm / BodyMeshHeight : 1.f;
-		const float Breadth = FMath::GetMappedRangeValueClamped(FVector2f(80.f, 160.f), FVector2f(0.95f, 1.25f), Entry.MassKg);
+		// Height from the roster; heavier players are a little broader (MetaHuman bands already
+		// carry most of the build, so they stretch less).
+		const float Height = Entry.HeightCm > 0.f ? Entry.HeightCm / CurrentBodyHeight : 1.f;
+		const bool bMetaHuman = Face->GetSkeletalMeshAsset() != nullptr;
+		const float Breadth = FMath::GetMappedRangeValueClamped(FVector2f(80.f, 160.f), bMetaHuman ? FVector2f(0.97f, 1.06f) : FVector2f(0.95f, 1.25f), Entry.MassKg);
 		Mesh->SetRelativeScale3D(FVector(Breadth, Breadth, Height));
 		for (int32 Slot = 0; Slot < Mesh->GetNumMaterials(); ++Slot)
 			if (UMaterialInstanceDynamic* Mat = Mesh->CreateDynamicMaterialInstance(Slot)) Mat->SetVectorParameterValue(TintParameter, Tint);
