@@ -29,9 +29,11 @@ $zip = Join-Path $out $name
 if (Test-Path $zip) { Remove-Item -Force $zip }
 Write-Host "==> Zipping $build" -ForegroundColor Cyan
 # Windows' bsdtar writes zip when the archive name ends in .zip (-a); contents sit at the zip root.
-& "$env:SystemRoot\System32\tar.exe" -a -c -f $zip -C $build *
+# Debug symbols (.pdb, ~250 MB) stay out of the player download.
+& "$env:SystemRoot\System32\tar.exe" -a -c -f $zip --exclude "*.pdb" -C $build *
 if ($LASTEXITCODE -ne 0) { Fail "tar could not create $zip." }
 $size = (Get-Item $zip).Length
+if ($size -ge 2GB) { Fail ("$name is {0:N2} GB; GitHub release assets must be under 2 GB." -f ($size / 1GB)) }
 $sha = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
 $manifest = Join-Path $out "renderer-manifest.json"
 $json = [ordered]@{ schema = 1; version = $Version; protocol = "gridiron.ue/1"; zip = [ordered]@{ name = $name; sha256 = $sha; size = $size } } | ConvertTo-Json -Depth 4
