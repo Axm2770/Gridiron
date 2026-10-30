@@ -3,7 +3,8 @@
 //   light/solid → partial physical-animation hit react below the spine or pelvis, blended back out
 //   big (on the hit player) → full ragdoll, then a get-up montage if one is assigned, otherwise
 //   the physics blend weight eases back to the animated pose on the telemetry path.
-// With no art assigned it loads the engine mannequin and drives its idle/walk/run blend space
+// With no art assigned it loads the engine mannequin (or, once built, a MetaHuman matched to the
+// player's build) and drives the idle/walk/run blend space
 // straight from telemetry speed (no Animation Blueprint needed); without that content it shows
 // a team-coloured capsule.
 #pragma once
@@ -29,6 +30,20 @@ enum class EGridironBodyState : uint8
 	Recovering  // get-up montage from the ragdoll pose snapshot
 };
 
+// A MetaHuman body built by unreal/Tools/build_metahumans.py. Players take the lightest band
+// that fits their mass (the heaviest band takes everyone above), and a skin tone within the band
+// from their jersey number.
+USTRUCT(BlueprintType)
+struct FGridironBodyVariant
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TSoftObjectPtr<USkeletalMesh> Body;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") TSoftObjectPtr<USkeletalMesh> Face;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") float MaxMassKg = 0.f;
+	// Standing height of the body as built (cm); players are scaled from it.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gridiron") float HeightCm = 185.f;
+};
+
 UCLASS(Blueprintable)
 class GRIDIRONBRIDGE_API AGridironAthlete : public APawn
 {
@@ -44,7 +59,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<UPhysicalAnimationComponent> PhysicalAnimation;
 	// Greybox stand-in shown until a skeletal mesh is assigned, tinted with the team colour.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<UStaticMeshComponent> Proxy;
-	// Football gear from engine shapes, attached to the default mannequin (team-coloured helmet with a
+	// MetaHuman head, following the body's skeleton (leader pose). Empty for the mannequin.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<USkeletalMeshComponent> Face;
+	// Football gear from engine shapes, attached to the default bodies (team-coloured helmet with a
 	// grey facemask, shoulder pads). Hidden when a Blueprint supplies its own character art.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<UStaticMeshComponent> Helmet;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gridiron") TObjectPtr<UStaticMeshComponent> Facemask;
@@ -66,6 +83,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Art") FName TintParameter = TEXT("Paint Tint");
 	// Height of the default mesh (cm); players are scaled from it.
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Art") float BodyMeshHeight = 180.f;
+	// MetaHuman players replace the mannequin when built (see FGridironBodyVariant). Clear to keep mannequins.
+	UPROPERTY(EditAnywhere, Category = "Gridiron|Art") TArray<FGridironBodyVariant> MetaHumans;
 
 	// --- Tuning ---
 	UPROPERTY(EditAnywhere, Category = "Gridiron|Physics") FName PelvisBone = TEXT("pelvis");
@@ -104,8 +123,13 @@ private:
 	void EndRagdoll();
 	void StopPhysics();
 	void LoadDefaultArt();
+	void StartLocomotion();
+	// Swaps in the MetaHuman for this player's build; false keeps the current body.
+	bool UseMetaHuman(const FGridironRosterEntry& Entry);
 	void AttachGear();
 	bool bGear = false;
+	bool bDefaultArt = false;          // the plugin chose the body, so it may swap it
+	float CurrentBodyHeight = 180.f;
 	void UpdateLocomotion();
 
 	// Top of the locomotion blend space's speed axis; faster players play it faster.
