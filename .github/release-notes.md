@@ -33,6 +33,16 @@ From 0.21.0 onwards the desktop app updates itself in-game: it checks for new re
 
 The whole game has a new retro pixel look: pixel fonts, square panels with hard shadows, a pixel-art 2D field with sprite players, and a pixelated 3D stadium. It is on by default; **Settings → Interface → Pixel theme** switches back to the classic look on this device.
 
+## Every snap plays out differently
+
+Play calls no longer resolve to the same result every time. Each snap now varies player effort, defender reactions and pursuit angles, receiver routes and the quarterback's read:
+- outside runs attack either edge and turn upfield instead of losing two yards;
+- play action can freeze linebackers;
+- deep balls are thrown to where the receiver will be;
+- short passes gain different yardage after the catch.
+
+Full games still land in realistic ranges.
+
 ## Match view
 
 The Windows-only Unreal match view and its download have been removed. Matchday now opens on the 2D field, which follows every snap, score and clock change; **Switch to 3D** above the field still shows the browser 3D stadium.
