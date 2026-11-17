@@ -4,10 +4,15 @@
 // contracts.mjs/state.mjs and are reused here, never re-implemented.
 import { random, clamp } from "../engine/random.mjs";
 import { identitySeed } from "./newgens.mjs";
-import { MILLION, capLedger, capHit, roster, log, requireRole, financeYear, bonusCharge } from "./state.mjs";
-import { checkCooldown, setCooldown, fanReaction, coachReputation } from "./career-systems.mjs";
-import { isBlockbuster } from "./boardroom.mjs";
+import { MILLION, capLedger, capHit, roster, log, financeYear, bonusCharge } from "./state.mjs";
+import { setCooldown, cooldownRemaining, fanReaction, coachReputation } from "./career-systems.mjs";
 import { reactTo } from "./social-engine.mjs";
+import { ensureCalendar, leagueDates, seasonAnchor, addDays } from "./calendar-core.mjs";
+import { scoutRange } from "./scouting.mjs";
+import { roleBlocker, capShortfall, rosterFull, rosterLimit, activeCount, blockerText, moneyText } from "./blockers.mjs";
+
+// Clubs live in a classic-script global in the browser; Node tests run without it.
+const clubTable = () => (typeof clubs !== "undefined" ? clubs : globalThis.clubs);
 
 const POS_WEIGHT = { QB: 1.6, DL: 1.15, OL: 1.05, WR: 1.05, CB: 1.0, TE: 0.8, LB: 0.85, S: 0.85, RB: 0.7, K: 0.2, P: 0.2 };
 const STARTERS = { QB: 1, RB: 1, WR: 3, TE: 1, OL: 5, DL: 4, LB: 3, CB: 3, S: 2, K: 1, P: 1 };
@@ -25,6 +30,41 @@ export function teamMode(s, team) {
 
 const tradeDeadline = (s) => s.franchise.rules?.tradeDeadline || 9;
 export const deadlinePressure = (s) => (s.phase === "season" ? clamp(1 - (tradeDeadline(s) - s.week) / 3, 0, 1) : 0);
+
+/* ------------------------------------------------------------------- windows */
+
+const draftLive = (s) => !!(s.franchise.draft && s.franchise.draft.year === s.year && s.franchise.draft.cursor < s.franchise.draft.picks.length);
+const draftDone = (s) => !!(s.franchise.draft && s.franchise.draft.year === s.year && s.franchise.draft.cursor >= s.franchise.draft.picks.length);
+
+// When trading, free agency and the draft are open, with exact dates from the league calendar.
+// Each window: { open, status, detail, date? } — status is a short label, detail one sentence.
+export function marketWindows(s) {
+  const today = ensureCalendar(s).date,
+    dates = leagueDates(s.year, s.schedule?.length || 18),
+    anchor = seasonAnchor(s.year),
+    deadlineWeek = tradeDeadline(s),
+    // Trades are allowed while s.week < deadline: they close once that week's games are played.
+    deadlineDate = addDays(anchor, (deadlineWeek - 1) * 7 + 6),
+    nextDeadline = addDays(seasonAnchor(s.year + 1), (deadlineWeek - 1) * 7 + 6),
+    market = s.franchise.market || {};
+  let trade;
+  if (s.live) trade = { open: false, status: "Paused", detail: "Trades pause while a game is being played." };
+  else if (s.phase === "season" && s.week < deadlineWeek) trade = { open: true, status: "Open", detail: `Trade deadline: ${deadlineDate}, after the week ${deadlineWeek} games.`, date: deadlineDate };
+  else if (s.phase === "season" || s.phase === "playoffs") trade = { open: false, status: "Closed", detail: `The deadline passed on ${deadlineDate}. Trading reopens after the championship (${dates.championship}).`, date: dates.championship };
+  else if (draftLive(s)) trade = { open: false, status: "Draft in progress", detail: "Player trades pause during the draft. Swap picks on the clock in the Draft room." };
+  else trade = { open: true, status: "Open", detail: `Offseason trading. Next deadline: ${nextDeadline}.`, date: nextDeadline };
+  let freeAgency;
+  if (s.phase !== "offseason") freeAgency = { open: true, status: "In-season", detail: "Unsigned players can be signed. Offers are decided after each game week, or by advancing a market day." };
+  else if (today < dates.tampering) freeAgency = { open: false, status: "Opens " + dates.tampering, detail: `Negotiating window opens ${dates.tampering}; signings from ${dates.freeAgency}. Advance a market day to jump there.`, date: dates.tampering };
+  else if (market.phase === "Tampering") freeAgency = { open: true, status: "Negotiating only", detail: `Offers can be made now; no player can sign before ${dates.freeAgency}.`, date: dates.freeAgency };
+  else freeAgency = { open: true, status: "Open", detail: `Free agency opened ${dates.freeAgency}. Each market day, players decide on offers that reached their deadline.` };
+  let draft;
+  if (s.phase !== "offseason") draft = { open: false, status: "Scouting season", detail: `The ${s.year + 1} draft is on ${dates.draft}, after the championship. Scout the class until then.`, date: dates.draft };
+  else if (draftLive(s)) draft = { open: true, status: "Live", detail: `Round ${s.franchise.draft.picks[s.franchise.draft.cursor]?.round ?? 1} is under way in the Draft room.` };
+  else if (draftDone(s)) draft = { open: false, status: "Complete", detail: `This year's draft is complete. The next one is on ${leagueDates(s.year + 1, s.schedule?.length || 18).draft}.` };
+  else draft = { open: true, status: "Ready", detail: `Draft day is ${dates.draft}. Start it from the Draft room whenever you are ready.`, date: dates.draft };
+  return { today, trade, freeAgency, draft };
+}
 
 /* --------------------------------------------------------------------- valuation */
 
@@ -128,14 +168,38 @@ export function playerTradeValue(s, p, receiver) {
   return Math.max(0, Math.round((talent * ageFactor * control * rush - hit * 6) * (p.injury ? 0.6 : 1)));
 }
 
+// Value range as your staff see it: other clubs' lesser-known players are valued at the ends of
+// their scouted range, so poor scouting means a wider, less reliable estimate.
+export function scoutedTradeValue(s, p, receiver, team) {
+  const v = scoutRange(s, p, team);
+  if (v.exact) {
+    const x = playerTradeValue(s, p, receiver);
+    return { low: x, high: x, estimate: x, exact: true, view: v };
+  }
+  const at = (ovr) => playerTradeValue(s, { ...p, ovr }, receiver);
+  return { low: at(v.ovr[0]), high: at(v.ovr[1]), estimate: at(v.estimate), exact: false, view: v };
+}
+
+// "≈ a mid 2nd-round pick" for a chart value.
+export function pickEquivalent(value) {
+  if (value < slotValue(224)) return "less than a 7th-round pick";
+  if (value > slotValue(1)) return "more than the #1 overall pick";
+  let slot = 1;
+  while (slot < 224 && slotValue(slot) > value) slot++;
+  const round = Math.ceil(slot / 32),
+    within = slot - (round - 1) * 32,
+    part = within <= 10 ? "early" : within <= 22 ? "mid" : "late";
+  return `≈ ${part === "early" ? "an" : "a"} ${part} ${round}${["st", "nd", "rd"][round - 1] || "th"}-round pick`;
+}
+
 function asset(s, team, id) {
   if (id.startsWith("pk-")) {
     const pick = ensurePickLedger(s).find((x) => x.id === id);
-    if (!pick || pick.owner !== team) throw Error("That pick is not available.");
+    if (!pick || pick.owner !== team) throw Error("That pick is no longer owned by this club. Remove it from the deal.");
     return { kind: "pick", id, pick };
   }
   const p = (team === s.team ? s.roster : roster(s, team)).find((x) => x.id === id);
-  if (!p) throw Error("A player in this proposal is no longer available.");
+  if (!p) throw Error("A player in this proposal has changed teams. Remove him from the deal.");
   return { kind: "player", id, player: p };
 }
 
@@ -163,14 +227,57 @@ function remainingBonus(s, c) {
   return remaining;
 }
 
-// AI evaluation from the partner's side. proposal = { partner, give: [ids from us], get: [ids from them] }.
+// Everything that stops a deal regardless of value, each with a suggested fix.
+// proposal = { partner, give: [ids from us], get: [ids from them] }.
+export function tradeBlockers(s, proposal) {
+  const { partner } = proposal,
+    giveIds = proposal.give || [],
+    getIds = proposal.get || [],
+    out = [],
+    role = roleBlocker(s, "roster");
+  if (role) out.push(role);
+  const window = marketWindows(s).trade;
+  if (!window.open) out.push({ reason: `Trading is closed. ${window.detail}`, fix: s.live ? "Finish or quick-sim the game first." : null });
+  if (partner === s.team || !s.franchise.clubs[partner]) {
+    out.push({ reason: "Choose another club to trade with.", fix: null });
+    return out;
+  }
+  if (!giveIds.length || !getIds.length) out.push({ reason: "A trade needs at least one player or pick from each side.", fix: !giveIds.length ? "Add something you send." : "Add something you receive." });
+  const days = cooldownRemaining(s, "Trade contact", String(partner));
+  if (days) out.push({ reason: `You completed a deal with the ${clubName(s, partner)} recently; their front office takes calls again in ${days} day${days === 1 ? "" : "s"}.`, fix: "Trade with another club, or wait." });
+  let give, get;
+  try {
+    give = giveIds.map((id) => asset(s, s.team, id));
+    get = getIds.map((id) => asset(s, partner, id));
+  } catch (err) {
+    out.push({ reason: err.message, fix: null });
+    return out;
+  }
+  for (const a of give) if (a.kind === "player" && s.franchise.contracts[a.id]?.noTrade) out.push({ reason: `${a.player.name} has a no-trade clause.`, fix: "Remove him from the deal." });
+  for (const a of get) if (a.kind === "player" && s.franchise.contracts[a.id]?.noTrade) out.push({ reason: `${a.player.name} has a no-trade clause and cannot be acquired.`, fix: "Choose a different player." });
+  const capUs = capLedger(s).room - capDelta(s, s.team, get, give),
+    capThem = capLedger(s, partner).room - capDelta(s, partner, give, get);
+  if (capUs < 0) out.push(capShortfall(s, -capUs, { exclude: giveIds }));
+  if (capThem < 0) out.push({ reason: `The ${clubName(s, partner)} would be ${moneyText(-capThem)} over the cap.`, fix: "Take more salary back from them, or send a cheaper player." });
+  const moving = (list) => list.filter((a) => a.kind === "player" && (!a.player.status || a.player.status === "active")).length,
+    full = rosterFull(s, activeCount(s) - moving(give) + moving(get));
+  if (full) out.push({ reason: full.reason, fix: `${full.fix.replace(/ first\.$/, "")}, or add more of your players to the deal.` });
+  return out;
+}
+
+// AI evaluation from the partner's side, plus every hard blocker. Value is judged with the
+// partner's full knowledge; the user sees their own scouted estimate before proposing.
 export function evaluateTrade(s, proposal, { aiOffer = false } = {}) {
   const { partner } = proposal,
-    give = (proposal.give || []).map((id) => asset(s, s.team, id)),
-    get = (proposal.get || []).map((id) => asset(s, partner, id));
-  if (!give.length || !get.length) throw Error("Each side must include at least one player or pick.");
-  if (partner === s.team || !s.franchise.clubs[partner]) throw Error("Select another team.");
-  const mode = teamMode(s, partner),
+    blockers = tradeBlockers(s, proposal),
+    give = [],
+    get = [];
+  try {
+    for (const id of proposal.give || []) give.push(asset(s, s.team, id));
+    for (const id of proposal.get || []) get.push(asset(s, partner, id));
+  } catch {}
+  const valid = !!s.franchise.clubs[partner] && partner !== s.team,
+    mode = valid ? teamMode(s, partner) : "Middle",
     receives = give.reduce((n, a) => n + assetValue(s, a, partner), 0),
     sends = get.reduce((n, a) => n + assetValue(s, a, partner), 0),
     // AI clubs want to win the trade a little; rebuilders want more for veterans.
@@ -178,16 +285,14 @@ export function evaluateTrade(s, proposal, { aiOffer = false } = {}) {
     margin = aiOffer ? 0 : 0.08 + (mode === "Rebuilding" && get.some((a) => a.kind === "player" && a.player.age >= 29) ? -0.05 : 0),
     required = Math.round(sends * (1 + margin)),
     capUs = capLedger(s).room - capDelta(s, s.team, get, give),
-    capThem = capLedger(s, partner).room - capDelta(s, partner, give, get),
-    reasons = [];
-  if (capThem < 0) reasons.push(`${clubName(s, partner)} can't absorb the cap hit.`);
-  if (capUs < 0) reasons.push("This would put you over the salary cap.");
-  if (receives < required) reasons.push(`They value what you send at ${receives} points against ${required} needed.`);
-  if (give.some((a) => a.kind === "player" && s.franchise.contracts[a.id]?.noTrade)) reasons.push("A no-trade clause blocks this deal.");
-  const accept = reasons.length === 0;
+    capThem = valid ? capLedger(s, partner).room - capDelta(s, partner, give, get) : 0,
+    short = give.length > 0 && get.length > 0 && receives < required,
+    reasons = blockers.map(blockerText);
+  if (short) reasons.push(`The ${valid ? clubName(s, partner) : "other club"} value what you send at ${receives} points but want ${required}. Add about ${required - receives} points (${pickEquivalent(required - receives).replace("≈ ", "")}).`);
+  const accept = !blockers.length && !short && give.length > 0 && get.length > 0;
   // Counter: the cheapest single pick of ours that closes the gap, if any.
   let counter = null;
-  if (!accept && receives < required && capThem >= 0 && capUs >= 0) {
+  if (short && !blockers.length) {
     const gap = required - receives,
       pick = ownedPicks(s, s.team)
         .filter((x) => !(proposal.give || []).includes(x.id))
@@ -196,26 +301,72 @@ export function evaluateTrade(s, proposal, { aiOffer = false } = {}) {
         .sort((a, b) => a.v - b.v)[0];
     if (pick) counter = { add: pick.x.id, label: pickLabel(s, pick.x), value: pick.v };
   }
-  return { accept, mode, receives, sends, required, capAfter: { you: capUs, them: capThem }, reasons, counter };
+  return { accept, mode, receives, sends, required, capAfter: { you: capUs, them: capThem }, blockers, reasons, counter };
 }
 
-export const pickLabel = (s, pick) => `${pick.year} round ${pick.round}${pick.original !== pick.owner ? ` (via ${globalThis.clubs?.[pick.original]?.[0] ?? pick.original})` : ""}`;
-const clubName = (s, t) => s.franchise.clubs[t]?.identity?.name || globalThis.clubs?.[t]?.[2] || `Team ${t + 1}`;
+// What the user believes the partner will ask for, from scouted knowledge of the players
+// requested: { low, high, estimate } in chart points, after the partner's usual margin.
+export function estimatedAsk(s, partner, getIds) {
+  const margin = 1.08;
+  let low = 0,
+    high = 0,
+    estimate = 0,
+    exact = true;
+  for (const id of getIds) {
+    if (id.startsWith("pk-")) {
+      const pick = ensurePickLedger(s).find((x) => x.id === id),
+        v = pick ? pickValue(s, pick) : 0;
+      low += v;
+      high += v;
+      estimate += v;
+      continue;
+    }
+    const p = roster(s, partner).find((x) => x.id === id);
+    if (!p) continue;
+    const v = scoutedTradeValue(s, p, partner, partner);
+    low += v.low;
+    high += v.high;
+    estimate += v.estimate;
+    exact &&= v.exact;
+  }
+  return { low: Math.round(low * margin), high: Math.round(high * margin), estimate: Math.round(estimate * margin), exact };
+}
+
+// A package of our assets the partner should accept for what we want, built from our own
+// estimate of the ask. Prefers picks and reserves; starters only when nothing else covers it.
+export function suggestPackage(s, partner, getIds) {
+  const target = estimatedAsk(s, partner, getIds).estimate,
+    picks = ownedPicks(s, s.team).map((x) => ({ id: x.id, v: pickValue(s, x), core: false })),
+    players = s.roster
+      .filter((p) => !p.injury && !s.franchise.contracts[p.id]?.noTrade && (!p.status || p.status === "active"))
+      .map((p) => ({ id: p.id, v: playerTradeValue(s, p, partner), core: !!p.starter }))
+      .filter((x) => x.v > 0),
+    pool = [...picks, ...players];
+  const build = (candidates) => {
+    const single = candidates.filter((x) => x.v >= target).sort((a, b) => a.v - b.v)[0];
+    if (single) return [single];
+    const chosen = [];
+    let total = 0;
+    for (const x of candidates.slice().sort((a, b) => b.v - a.v)) {
+      if (total >= target || chosen.length >= 4) break;
+      chosen.push(x);
+      total += x.v;
+    }
+    return total >= target ? chosen : null;
+  };
+  const pkg = build(pool.filter((x) => !x.core)) || build(pool);
+  if (!pkg) return { give: [], target, total: 0, covered: false };
+  return { give: pkg.map((x) => x.id), target, total: pkg.reduce((n, x) => n + x.v, 0), covered: true };
+}
+
+export const pickLabel = (s, pick) => `${pick.year} round ${pick.round}${pick.original !== pick.owner ? ` (via ${clubTable()?.[pick.original]?.[0] ?? pick.original})` : ""}`;
+const clubName = (s, t) => s.franchise.clubs[t]?.identity?.name || clubTable()?.[t]?.[2] || `Team ${t + 1}`;
 
 // Executes an accepted trade. Call inside state.transact so any cap/roster failure rolls back.
 export function executeTrade(s, proposal, { aiOffer = false } = {}) {
-  requireRole(s, "roster");
-  if (s.live) throw Error("Finish the live game before trade talks.");
-  if (s.phase === "playoffs") throw Error("Trades reopen with the new league year.");
-  if (s.phase === "season" && s.week >= tradeDeadline(s)) throw Error("The trade deadline has passed.");
-  if (s.franchise.draft && s.franchise.draft.year === s.year && s.franchise.draft.cursor < s.franchise.draft.picks.length) throw Error("Pick trades during the draft happen in the draft room.");
-  const { partner } = proposal;
-  for (const id of proposal.give || [])
-    for (const target of proposal.get || [])
-      if (!id.startsWith("pk-") && !target.startsWith("pk-") && isBlockbuster(s, id, partner, target)) throw Error("Ownership must approve trades involving franchise players. Request it in the boardroom.");
-  const verdict = evaluateTrade(s, proposal, { aiOffer });
+  const { partner } = proposal,
+    verdict = evaluateTrade(s, proposal, { aiOffer });
   if (!verdict.accept) throw Error(verdict.reasons[0] || "The other club declined.");
-  checkCooldown(s, "Trade contact", String(partner));
   setCooldown(s, "Trade contact", String(partner), 7);
   const move = (id, from, to) => {
     if (id.startsWith("pk-")) {

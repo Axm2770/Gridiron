@@ -39,7 +39,7 @@ import {
   basicContract,
   bonusCharge,
 } from "./state.mjs";
-import { weekly, marketDay } from "./world.mjs";
+import { weekly, marketDay, settleMarketRound } from "./world.mjs";
 import { seasonAwards } from "./history.mjs";
 export function newSchedule(games = 17) {
   let ring = Array.from({ length: 32 }, (_, i) => i),
@@ -230,6 +230,7 @@ export function finishRound(s, results) {
   processMedicalWeek(s, newsRoundKey);
   processTrainingWeek(s, newsRoundKey);
   processMarketWeek(s, newsRoundKey);
+  settleMarketRound(s, newsRoundKey);
   processScoutingWeek(s, newsRoundKey);
   ensureCareerRatings(s);
   f.career.xp += 25;

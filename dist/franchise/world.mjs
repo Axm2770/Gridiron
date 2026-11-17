@@ -22,8 +22,20 @@ import { hireStaff } from "./staff.mjs";
 import { assertCanAdvance } from "./compliance.mjs";
 import { random, clamp } from "../engine/random.mjs";
 import { offerScore, proposal } from "./contracts.mjs";
-export function marketDay(s, {calendarManaged=false}={}) {
-  assertCanAdvance(s);
+// In season the calendar moves a round at a time, so free-agent decisions and waiver claims are
+// settled with each round (two market days: every offer made that week reaches its deadline).
+// Idempotent per round key; the calendar date itself is not moved.
+export function settleMarketRound(s, roundKey) {
+  const f = s.franchise;
+  f.market.settled ??= [];
+  if (s.phase === "offseason" || f.market.settled.includes(roundKey)) return;
+  f.market.settled.push(roundKey);
+  f.market.settled = f.market.settled.slice(-60);
+  for (let i = 0; i < 2; i++) marketDay(s, { calendarManaged: true, compliance: false });
+}
+const teamName = (s, t) => s.franchise.clubs[t]?.identity?.name || (typeof clubs !== "undefined" ? clubs : globalThis.clubs)?.[t]?.[2] || `team ${t + 1}`;
+export function marketDay(s, {calendarManaged=false, compliance=true}={}) {
+  if (compliance) assertCanAdvance(s);
   let f = s.franchise;
   f.market.day++;
   f.calendar.day++;
@@ -152,8 +164,14 @@ export function marketDay(s, {calendarManaged=false}={}) {
           winning.team === s.team
             ? "Free agent signed"
             : "Free agency agreement",
-          `${p.name} accepted team ${winning.team + 1}'s offer; $${(winning.contract.base[0] / MILLION).toFixed(1)}M annual base.`,
+          `${p.name} accepted the ${teamName(s, winning.team)} offer; $${(winning.contract.base[0] / MILLION).toFixed(1)}M annual base.`,
         );
+      }
+      // Tell the user why their own bid did not land.
+      const ours = offers.find((o) => o.team === s.team);
+      if (ours && winning?.team !== s.team) {
+        const eligible = capLedger(s).room >= ours.contract.base[0] + ours.contract.bonus / ours.contract.prorate && roster(s).filter((q) => q.status === "active").length < (s.phase === "offseason" ? 90 : 53);
+        log(s, "Free agent signed elsewhere", !eligible ? `Your offer to ${p.name} lapsed: when he decided you no longer had the cap room or an active-roster spot to sign him.` : winning ? `${p.name} chose the ${teamName(s, winning.team)}. Their offer scored higher on money, guarantees, contention and fit; more guaranteed money or a starting role would have helped.` : `${p.name} turned down every offer for now.`);
       }
       f.market.offers = f.market.offers.filter((o) => o.playerId !== id);
     }
@@ -177,7 +195,7 @@ export function marketDay(s, {calendarManaged=false}={}) {
       log(
         s,
         "Waiver awarded",
-        `${w.player.name} claimed by team ${winner + 1}.`,
+        `${w.player.name} claimed by the ${teamName(s, winner)}.`,
       );
     } else {
       w.player.status = "free";

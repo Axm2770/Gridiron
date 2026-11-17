@@ -181,7 +181,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
           : m.outcome
             ? `<p class="muted">${esc(m.outcome)}</p>`
             : ""
-    }${effects && !m.response ? `<section class="response-record"><span class="eyebrow">WHAT CHANGED</span><p>${esc(effects.reason)}</p>${impactRows(effects.changes)}</section>` : ""}<div class="message-actions">${m.route ? `<button class="secondary" onclick="Office.route('${m.route}','${m.playerId || ""}')">${m.interview ? "Attend interview" : m.promiseKey ? "Meet player" : "Open " + ({ Development: "development report", Medical: "medical centre" }[m.route] || m.route)} ${icon("arrow")}</button>` : ""}${p ? `<button class="secondary" onclick="W.player('${p.id}')">Player profile</button>` : ""}<button class="link" onclick="Office.unread('${m.id}')">Mark unread</button></div></article>`;
+    }${effects && !m.response ? `<section class="response-record"><span class="eyebrow">WHAT CHANGED</span><p>${esc(effects.reason)}</p>${impactRows(effects.changes)}</section>` : ""}<div class="message-actions">${m.route ? `<button class="secondary" onclick="Office.route('${m.route}','${m.playerId || ""}')">${m.interview ? "Attend interview" : m.promiseKey ? "Meet player" : "Open " + ({ Development: "development report", Medical: "medical centre" }[m.route] || m.route)} ${icon("arrow")}</button>` : ""}${p ? `<button class="secondary" onclick="W.player('${p.id}')">Player profile</button>` : ""}${m.category === "Scouting" && m.playerId ? `<button class="secondary" onclick="Scout.open('${m.playerId}')">Open scouting card</button>` : ""}<button class="link" onclick="Office.unread('${m.id}')">Mark unread</button></div></article>`;
   }
   views.Inbox = () => {
     const counts = officeCounts(state),

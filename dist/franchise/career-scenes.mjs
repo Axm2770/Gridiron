@@ -315,32 +315,6 @@ export function installCareerScenes({
   };
   views["Hall of Fame"] = () =>
     `<section class="hall-hero"><div><span class="eyebrow">THE LEGACY COLLECTION</span><h2>Greatness never leaves the game.</h2><p>Meet the players, coaches and founders who shaped football. Follow the careers that will join them in your world.</p><span class="hall-count">${(legends || []).length} HISTORICAL ICONS <i>·</i> ${state.franchise.hall.length} CAREER CANDIDATES</span></div><div class="hall-monument" aria-hidden="true">✦<small>HALL<br>OF FAME</small></div></section><div class="hall-toolbar"><div class="hall-filters">${["All", "Players", "Coaches", "Founders", "Career"].map((k) => `<button class="${hallFilter === k ? "selected" : ""}" onclick="CI.hallFilter('${k}')">${k}</button>`).join("")}</div><input type="search" aria-label="Search Hall of Fame" placeholder="Search a legend, team or role…" value="${esc(hallQuery)}" oninput="CI.hallSearch(this.value)"></div><div class="legends-grid" id="legends-grid">${cards()}</div><p class="data-note">A curated historical collection. Historical figures use documented Hall of Fame records. Career candidates use simulated statistics and a five-season eligibility wait.</p>`;
-  views["Next generation"] = () => {
-    ensure();
-    const p = state.prospects,
-      retired = state.franchise.retired || [];
-    return `<section class="stories-hero newgen-hero"><span class="eyebrow">THE FUTURE IS ALREADY HERE</span><h2>Every legend starts somewhere.</h2><p>Fresh draft classes arrive every season. New identities, new faces, different ceilings. Build a franchise that lasts beyond today’s stars.</p><div class="f-actions"><button onclick="W.open('Scouting')">Open scouting</button><button class="secondary" onclick="W.open('Draft')">Draft room</button></div></section><div class="newgen-metrics"><div><b>${p.length}</b><span>Prospects this class</span></div><div><b>${state.roster.filter((p) => p.generated).length}</b><span>Newgens at your club</span></div><div><b>${retired.length}</b><span>League retirements archived</span></div></div><section class="panel pad"><h2>Faces of the next class</h2><p class="subtitle">Scout the class to build confidence, compare combine results and assess role fit.</p><div class="newgen-grid">${p
-      .slice()
-      .sort((a, b) => b.pot - a.pot)
-      .slice(0, 24)
-      .map(
-        (p) =>
-          `<button class="newgen-card" onclick="CI.prospect('${p.id}')">${face(p)}<span class="ovr-pill">${p.ovr}</span><h3>${esc(p.name)}</h3><p>${p.pos} · ${p.age} · ${esc(p.college || "College prospect")}</p><small>${esc(p.development || "Normal")} development · ${p.pot} POT</small></button>`,
-      )
-      .join(
-        "",
-      )}</div></section><section class="panel pad section-gap"><h2>Retirement ledger</h2>${
-      retired
-        .slice(-30)
-        .reverse()
-        .map(
-          (p) =>
-            `<div class="kv"><span>${esc(p.name)} · ${esc(p.pos)}</span><b>${p.retired} · ${p.legacy} legacy points</b></div>`,
-        )
-        .join("") ||
-      '<p class="subtitle">Retired real and generated players remain in this archive with their career statistics.</p>'
-    }</section>`;
-  };
   F.meeting = (id) => CI.open("player", id);
   pregameInterview = () => CI.open("pre");
   postInterview = () => {

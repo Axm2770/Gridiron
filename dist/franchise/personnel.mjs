@@ -17,16 +17,16 @@ import { cut } from "./contracts.mjs";
 import { random, clamp } from "../engine/random.mjs";
 export function movePlayer(s, id, destination) {
   requireRole(s, "roster");
-  if (s.live) throw Error("Roster designations are locked during a game.");
+  if (s.live) throw Error("Roster designations are locked during a game. Finish or quick-sim it first.");
   let p = s.roster.find((p) => p.id === id);
   if (!p) throw Error("Player unavailable.");
   let f = s.franchise;
   if (destination === "practice") {
-    if (p.starter) throw Error("Replace the starter first.");
+    if (p.starter) throw Error(`${p.name} is a starter. Put someone else in his depth-chart slot (Game plan → Depth chart) before moving him to the practice squad.`);
     if (
       s.roster.filter((p) => p.status === "practice").length >= f.rules.practice
     )
-      throw Error("Practice squad is full.");
+      throw Error(`The practice squad is full (${f.rules.practice}/${f.rules.practice}). Release or promote a practice-squad player first.`);
     p.status = "practice";
     p.salary = 0.4;
     f.contracts[id].base[financeYear(s) - f.contracts[id].start] =
@@ -34,13 +34,13 @@ export function movePlayer(s, id, destination) {
     p.protected = false;
   } else if (destination === "active") {
     if (active(s).filter((p) => p.status === "active").length >= 53)
-      throw Error("Cut or waive a player before filling the 53-man roster.");
+      throw Error("The active roster is full (53/53). Waive a player or move one to the practice squad first.");
     if (p.status === "ir" && (p.irReturnWeek ?? 0) > s.week)
-      throw Error("IR minimum absence has not elapsed.");
+      throw Error(`${p.name} has not served the minimum IR absence; he can return in week ${p.irReturnWeek + 1}.`);
     p.status = "active";
     p.elevations = 0;
   } else if (destination === "ir") {
-    if (!p.injury) throw Error("Only an injured player can enter IR.");
+    if (!p.injury) throw Error(`${p.name} is healthy. Only injured players can go on injured reserve.`);
     p.status = "ir";
     p.starter = false;
     p.irReturnWeek = s.week + f.rules.irWeeks;
@@ -51,7 +51,7 @@ export function movePlayer(s, id, destination) {
         "Player has used three elevations; sign him to the active roster.",
       );
     if (s.roster.filter((p) => p.status === "elevated").length >= 2)
-      throw Error("Two elevations already used.");
+      throw Error("Both game-day elevations are used this week. Return an elevated player to the practice squad, or sign this one to the active roster.");
     p.status = "elevated";
     p.elevations = (p.elevations || 0) + 1;
   } else throw Error("Invalid roster destination.");

@@ -984,68 +984,6 @@
   width: 100%;
   margin-bottom: 20px;
 }
-.newgen-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
-  margin: 24px 0;
-}
-.newgen-metrics > div {
-  padding: 24px;
-  background: #1a2736;
-  border: 1px solid #344457;
-  border-radius: 12px;
-}
-.newgen-metrics b {
-  font-size: 32px;
-  color: #c8f57e;
-}
-.newgen-metrics span {
-  display: block;
-  color: #9baebd;
-  font-size: 11px;
-  margin-top: 9px;
-}
-.newgen-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 24px;
-}
-.newgen-card {
-  position: relative;
-  background: #152230;
-  border: 1px solid #304153;
-  color: #e6edf3;
-  text-align: left;
-  padding: 15px;
-  border-radius: 12px;
-}
-.newgen-card .career-face {
-  width: 100%;
-  height: 150px;
-  background: radial-gradient(ellipse, #38516844, transparent);
-}
-.newgen-card .ovr-pill {
-  position: absolute;
-  right: 12px;
-  top: 12px;
-}
-.newgen-card h3 {
-  font-size: 13px;
-  margin: 12px 0 8px;
-}
-.newgen-card p {
-  font-size: 10px;
-  line-height: 1.5;
-  color: #a4b5c2;
-}
-.newgen-card > small {
-  font-size: 9px;
-  color: #c3d49c;
-  display: block;
-  margin-top: 12px;
-}
 .data-note a {
   color: #b6cf8f;
 }
@@ -1085,8 +1023,7 @@
   }
 }
 @media (max-width: 1100px) {
-  .legends-grid,
-  .newgen-grid {
+  .legends-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .conversation-roster {
@@ -1115,8 +1052,7 @@
   .hall-toolbar input {
     width: 100%;
   }
-  .legends-grid,
-  .newgen-grid {
+  .legends-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
@@ -1187,18 +1123,6 @@
   }
   .legacy-profile-hero h2 {
     font-size: 32px;
-  }
-  .newgen-metrics {
-    gap: 8px;
-  }
-  .newgen-metrics > div {
-    padding: 15px 12px;
-  }
-  .newgen-metrics b {
-    font-size: 25px;
-  }
-  .newgen-metrics span {
-    font-size: 9px;
   }
   .rating-equation {
     gap: 14px;
