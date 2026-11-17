@@ -28,8 +28,9 @@ async function verifyWindow(window){
    });
    if(workerResult?.error)throw Error('Simulation worker: '+workerResult.error);
    if(workerResult?.results?.[0]?.plays!==1)throw Error('Simulation worker did not execute one play');
-   const navigation=document.getElementById('nav').textContent;
-   if(!navigation.includes('Calendar'))throw Error('Calendar navigation unavailable');
+   // Check the route, not the label: the sidebar entry reads "Schedule & calendar".
+   const navigation=[...document.querySelectorAll('#nav [onclick]')].map(b=>b.getAttribute('onclick')).join(' ');
+   if(!navigation.includes("W.open('Calendar')"))throw Error('Calendar navigation unavailable');
    return {workspace:true,modules:true,database:true,indexedDB:true,moduleWorker:true,calendar:true};
  })()`);
 }

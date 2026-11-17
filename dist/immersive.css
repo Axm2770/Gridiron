@@ -1078,36 +1078,6 @@
 .touch-broadcast .stadium-hint {
   display: none;
 }
-.touch-animation-lab {
-  border-bottom: 1px solid #2e425c;
-  background: #111e32;
-}
-.touch-animation-lab > summary {
-  font-size: 8px;
-  letter-spacing: 0.3px;
-  color: #718caa;
-  padding: 7px 12px;
-  cursor: pointer;
-  list-style: none;
-}
-.touch-animation-lab[open] > summary {
-  color: #a8c7e8;
-}
-.touch-animation-lab .motion-preview {
-  padding: 8px 12px;
-  background: #142338;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-.touch-animation-lab .motion-preview span {
-  font-size: 8px;
-  color: #7792b0;
-}
-.touch-animation-lab .motion-preview button {
-  font-size: 8px;
-  padding: 5px 7px;
-}
 .touch-match-actions {
   padding: 12px !important;
   background: #182940;

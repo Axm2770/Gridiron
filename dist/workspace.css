@@ -1749,17 +1749,6 @@ dialog > label {
 .stadium-toolbar .audio-volume {
   margin-left: auto;
 }
-.motion-preview {
-  padding: 5px 12px;
-  background: #121e2f;
-}
-.motion-preview span {
-  font-size: 8px;
-}
-.motion-preview button {
-  padding: 3px 7px;
-  font-size: 8px;
-}
 .stadium-host {
   min-height: 440px;
   border-radius: 0;
@@ -2514,15 +2503,6 @@ body[data-density="compact"] .dashboard-news {
   }
   .commentary-booth p {
     font-size: 11px;
-  }
-  .motion-preview {
-    flex-wrap: wrap;
-  }
-  .motion-preview span {
-    font-size: 7px;
-  }
-  .motion-preview button {
-    font-size: 8px;
   }
   .delegation-grid {
     grid-template-columns: 1fr;

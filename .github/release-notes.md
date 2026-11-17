@@ -74,3 +74,4 @@ If the game can't replace itself (for example a Mac copy still running from the 
 - Calendar and Schedule are one screen, with head-to-head records against every opponent.
 - Around the League is now a league snapshot.
 - History, records and the Hall of Fame live in one Records & milestones screen, including a list of champions.
+- Developer-only tools (the animation preview buttons, the match seed panel and the classic overview switch) are gone.

@@ -311,7 +311,7 @@ export function hubView() {
   if (tab === "pipeline") tab = "draft";
   const views = { squad: squadTab, medical: medicalView, training: trainingView, market: marketView, draft: () => draftView({ pipeline: pipelineTab }), media: mediaTab, coach: coachTab };
   const body = (views[tab] ?? hubTab)();
-  return `<div class="gd-hub"><div class="gd-toolbar">${K.tabs(TABS, tab, "Hub2.tab('$id')", { label: "Franchise hub" })}<button class="gd-link" onclick="Hub2.classic()">Classic overview</button></div>${body}</div>`;
+  return `<div class="gd-hub"><div class="gd-toolbar">${K.tabs(TABS, tab, "Hub2.tab('$id')", { label: "Franchise hub" })}</div>${body}</div>`;
 }
 
 /* -------------------------------------------------------------- matchday */
@@ -340,8 +340,8 @@ export function installDashboard({ views, isBusy }) {
   // The sidebar's "Medical & training" route opens the new medical and training planner.
   const classicMedical = views.Medical;
   views.Medical = () => `<div class="gd-hub"><div class="gd-toolbar">${K.tabs([["medical", "Medical"], ["training", "Training"]], tab === "training" ? "training" : "medical", "Hub2.tab('$id')", { label: "Medical and training" })}<button class="gd-link" onclick="Hub2.tab('${tab === "training" ? "training" : "medical"}');W.open('Overview')">Open in Hub</button></div>${tab === "training" ? trainingView() : medicalView()}${classicMedical ? `<details class="gd-classic"><summary>Classic preparation controls</summary>${classicMedical()}</details>` : ""}</div>`;
-  const classicOverview = views.Overview;
-  views.Overview = () => (store("gridiron-classic-overview", "0") === "1" ? classicOverview() + `<p style="margin-top:12px"><button class="gd-link" onclick="Hub2.modern()">Switch to the new Hub</button></p>` : hubView());
+  // The Hub is the only club overview; an old "gridiron-classic-overview" preference is ignored.
+  views.Overview = hubView;
   // Copy/mutate/validate through state.transact; the toast only fires once the change commits.
   const mutate = (fn, message) => {
     if (isBusy()) return;
@@ -368,14 +368,6 @@ export function installDashboard({ views, isBusy }) {
     },
     feed(id) {
       feedFilter = id;
-      render();
-    },
-    classic() {
-      remember("gridiron-classic-overview", "1");
-      render();
-    },
-    modern() {
-      remember("gridiron-classic-overview", "0");
       render();
     },
     dilemma: (id, choice) => mutate((s) => resolveDilemma(s, id, choice), (r) => `Decision made: ${r.outcome}`),
