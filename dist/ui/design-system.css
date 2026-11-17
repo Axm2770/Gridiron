@@ -270,3 +270,4 @@ dialog.gd-sheet .gd-sheet-body { padding: 16px 18px; max-height: 70vh; overflow:
 .neg-blockers p { margin: 6px 0 0; font-size: 13px; }
 .neg-blockers span { color: #a6b4bf; }
 @media (max-width: 640px) { .scout-card header { grid-template-columns: 1fr auto; } .scout-card header > :first-child { display: none; } }
+.ops-asset { grid-template-columns: 18px minmax(0, 1fr) auto auto; }
