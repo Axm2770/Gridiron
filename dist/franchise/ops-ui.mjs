@@ -312,6 +312,7 @@ export function installOps({ isBusy }) {
         ui.give = [];
         ui.get = [];
         ui.response = { ok: true, title: "Trade agreed", lines: [`${r.received.map((p) => p.name).join(", ") || "Picks"} joined from the ${club(proposal.partner)}.`] };
+        render();
         return `Trade done: ${r.received.map((p) => p.name).join(", ") || "picks"} acquired`;
       });
     },

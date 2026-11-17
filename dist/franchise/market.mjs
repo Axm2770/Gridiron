@@ -183,12 +183,13 @@ export function scoutedTradeValue(s, p, receiver, team) {
 // "≈ a mid 2nd-round pick" for a chart value.
 export function pickEquivalent(value) {
   if (value < slotValue(224)) return "less than a 7th-round pick";
+  if (value > slotValue(1)) return "more than the #1 overall pick";
   let slot = 1;
   while (slot < 224 && slotValue(slot) > value) slot++;
   const round = Math.ceil(slot / 32),
     within = slot - (round - 1) * 32,
     part = within <= 10 ? "early" : within <= 22 ? "mid" : "late";
-  return `≈ a ${part} ${round}${["st", "nd", "rd"][round - 1] || "th"}-round pick`;
+  return `≈ ${part === "early" ? "an" : "a"} ${part} ${round}${["st", "nd", "rd"][round - 1] || "th"}-round pick`;
 }
 
 function asset(s, team, id) {

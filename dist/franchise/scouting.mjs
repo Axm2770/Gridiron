@@ -59,7 +59,7 @@ export function confidence(s, p, team) {
   return Math.min(100, ensureScoutDesk(s).knowledge[p.id]?.confidence ?? 30);
 }
 
-export const halfWidth = (c) => (c >= 100 ? 0 : Math.max(1, Math.ceil((100 - c) / 7)));
+export const halfWidth = (c) => (c >= 100 ? 0 : Math.max(1, Math.ceil((100 - c) / 10)));
 
 // Deterministic lean in [-1, 1] per player and key, so estimates are wrong in a consistent way.
 const lean = (id, key) => ((identitySeed(`${id}:scout:${key}`) % 2001) / 1000 - 1) * 0.6;
@@ -67,7 +67,7 @@ const lean = (id, key) => ((identitySeed(`${id}:scout:${key}`) % 2001) / 1000 - 
 function band(truth, c, id, key, widen = 1) {
   const hw = halfWidth(c) * widen,
     centre = truth + lean(id, key) * hw,
-    lo = Math.max(20, Math.min(truth, Math.round(centre - hw))),
+    lo = Math.max(Math.min(20, truth), Math.min(truth, Math.round(centre - hw))),
     hi = Math.min(99, Math.max(truth, Math.round(centre + hw)));
   return { lo, hi, estimate: Math.round(centre) };
 }
@@ -91,15 +91,50 @@ export function scoutRange(s, p, team = locate(s, p.id)?.team ?? FREE_AGENT_TEAM
   };
 }
 
+// Attributes a scout grades for each position (the rest of the model is not shown).
+const ATHLETIC = ["speed", "acceleration", "agility", "strength", "awareness", "stamina", "injury"];
+const POSITION_ATTRS = {
+  QB: ["throwPower", "throwAccuracyShort", "throwAccuracyMid", "throwAccuracyDeep", "awareness", "speed", "agility", "injury"],
+  RB: ["speed", "acceleration", "agility", "changeOfDirection", "carrying", "breakTackle", "catching", "strength", "injury"],
+  WR: ["speed", "acceleration", "agility", "changeOfDirection", "catching", "shortRouteRunning", "breakTackle", "awareness", "injury"],
+  TE: ["catching", "shortRouteRunning", "runBlock", "passBlock", "strength", "speed", "awareness", "injury"],
+  OL: ["passBlock", "runBlock", "strength", "awareness", "agility", "stamina", "injury"],
+  DL: ["tackle", "strength", "speed", "acceleration", "awareness", "agility", "stamina", "injury"],
+  LB: ["tackle", "zoneCoverage", "manCoverage", "speed", "strength", "awareness", "agility", "injury"],
+  CB: ["manCoverage", "zoneCoverage", "speed", "acceleration", "agility", "changeOfDirection", "tackle", "catching", "injury"],
+  S: ["zoneCoverage", "manCoverage", "tackle", "speed", "acceleration", "awareness", "agility", "injury"],
+  K: ["kickPower", "kickAccuracy", "awareness", "injury"],
+  P: ["kickPower", "kickAccuracy", "awareness", "injury"],
+};
+
 export function attributeRanges(s, p, team) {
   const c = confidence(s, p, team),
     attrs = ensurePlayerRatings(p).attributes || {};
-  return Object.entries(attrs)
-    .filter(([, v]) => Number.isFinite(v))
+  const keys = POSITION_ATTRS[p.pos] || ATHLETIC;
+  return keys
+    .filter((k) => Number.isFinite(attrs[k]))
+    .map((k) => [k, attrs[k]])
     .map(([k, v]) => {
       const b = band(v, c, p.id, k);
       return { key: k, value: c >= 100 ? v : null, lo: b.lo, hi: b.hi, estimate: c >= 100 ? v : b.estimate };
     });
+}
+
+// Where your board would put a prospect: rank in the class by your scouts' grade (current
+// estimate weighted with potential), so fog changes the projection, not just the range.
+export function draftProjection(s, p) {
+  const grade = (q) => {
+      const v = scoutRange(s, q, PROSPECT_TEAM);
+      return v.estimate * 0.55 + v.potEstimate * 0.45;
+    },
+    mine = grade(p),
+    rank = 1 + (s.prospects || []).filter((q) => q.id !== p.id && grade(q) > mine).length,
+    round = Math.ceil(rank / 32);
+  return {
+    rank,
+    round,
+    label: rank <= 32 ? "1st-round talent" : rank <= 96 ? "2nd–3rd round talent" : rank <= 224 ? "Day 3 talent (rounds 4–7)" : "Undrafted free agent type",
+  };
 }
 
 // Plain-language ceiling. Prospects are described in draft rounds; veterans by role.
@@ -180,8 +215,8 @@ export function deliverReports(s) {
       worst = attrs.slice(-2).map((a) => `${attrName(a.key)} ${fmtRange([a.lo, a.hi])}`).join(", ");
     postMessage(s, r.id, {
       title: `Scouting report: ${p.name}`,
-      summary: `${p.pos} · overall ${fmtRange(after.ovr)} · ${potentialLabel(after)}`,
-      body: `${r.scout} filed a formal report on ${p.name} (${p.pos}, ${p.age}). Overall ${fmtRange(before.ovr)} → ${fmtRange(after.ovr)}; potential ${fmtRange(after.pot)}. Verdict: ${potentialLabel(after)}. Strengths: ${best || "not graded"}. Concerns: ${worst || "not graded"}. Confidence ${before.confidence}% → ${after.confidence}%.${after.exact ? " Our grades now match his true ratings." : " Another report would narrow the ranges further."}`,
+      summary: `${p.pos} · overall ${fmtRange(after.ovr)} · ${after.prospect ? draftProjection(s, p).label : potentialLabel(after)}`,
+      body: `${r.scout} filed a formal report on ${p.name} (${p.pos}, ${p.age}). Overall ${fmtRange(before.ovr)} → ${fmtRange(after.ovr)}; potential ${fmtRange(after.pot)}. Verdict: ${after.prospect ? `${draftProjection(s, p).label} (#${draftProjection(s, p).rank} on our board)` : potentialLabel(after)}. Strengths: ${best || "not graded"}. Concerns: ${worst || "not graded"}. Confidence ${before.confidence}% → ${after.confidence}%.${after.exact ? " Our grades now match his true ratings." : " Another report would narrow the ranges further."}`,
       source: r.scout,
       category: "Scouting",
       playerId: p.id,

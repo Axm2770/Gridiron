@@ -4,7 +4,7 @@
 // open trade talks or open contract talks. Every unavailable action says why.
 import * as S from "./state.mjs";
 import * as K from "../ui/kit.mjs";
-import { locate, scoutRange, attributeRanges, potentialLabel, reportBlocker, requestReport, REPORT_DAYS } from "./scouting.mjs";
+import { locate, scoutRange, attributeRanges, potentialLabel, draftProjection, reportBlocker, requestReport, REPORT_DAYS } from "./scouting.mjs";
 import { scoutedTradeValue, pickEquivalent, marketWindows, depthRank, marketValue, signingFactors, tradeBlockers, teamMode } from "./market.mjs";
 import { offerBlockers } from "./contracts.mjs";
 import { positionalNeed } from "./recruiting-pipeline.mjs";
@@ -41,7 +41,6 @@ export function scoutCardHTML(s, id) {
     fit = own ? null : teamFit(s, p, view),
     windows = marketWindows(s),
     attrs = attributeRanges(s, p, team)
-      .sort((a, b) => b.estimate - a.estimate)
       .slice(0, 10),
     c = s.franchise.contracts[p.id],
     year = S.financeYear(s);
@@ -51,7 +50,8 @@ export function scoutCardHTML(s, id) {
       ? K.chip(`Report due ${view.pending.due} (${view.pending.scout})`, "warn")
       : K.chip(`Scouted ${view.confidence}%: estimates only`, "warn");
   let value;
-  if (team === -2) value = ["Draft value", potentialLabel(view), `Consensus ranges narrow as your scouts file reports.`];
+  const projection = team === -2 ? draftProjection(s, p) : null;
+  if (projection) value = ["Your board", `#${projection.rank} of ${s.prospects.length}`, `Projected round ${Math.min(7, projection.round)}${projection.round > 7 ? " or undrafted" : ""}, on your scouts' grades`];
   else if (team === -1) value = ["Market value", `${money(marketValue(p))}/yr`, `Asking ${money(Math.round(p.salary * S.MILLION))}/yr · pull to you ×${signingFactors(s, p, s.team).total}`];
   else {
     const v = scoutedTradeValue(s, p, team === s.team ? s.team : team, team);
@@ -59,7 +59,7 @@ export function scoutCardHTML(s, id) {
   }
   const stats = [
     ["Overall", view.label, view.exact ? "Exact" : `Range from ${view.confidence}% confidence`],
-    ["Potential", range(view.pot), potentialLabel(view)],
+    ["Potential", range(view.pot), projection ? projection.label : potentialLabel(view)],
     value,
   ];
   if (fit) stats.push(["Fit with you", fit.role, fit.fills]);
@@ -70,7 +70,7 @@ export function scoutCardHTML(s, id) {
     if (!view.exact) actions.push(action(`Request scouting report (${REPORT_DAYS} days)`, `Scout.request('${id}')`, rb));
   }
   if (team >= 0 && !own) {
-    const block = tradeBlockers(s, { partner: team, give: [], get: [id] }).find((b) => !/at least one/.test(b.reason));
+    const block = tradeBlockers(s, { partner: team, give: [], get: [id] }).find((b) => !/at least one|active roster would be|short of cap space/.test(b.reason));
     actions.push(action("Trade for him", `Ops.tradeFor('${id}',${team})`, block, true));
   }
   if (team === -1) {
