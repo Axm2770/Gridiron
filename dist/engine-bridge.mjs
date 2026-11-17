@@ -4,6 +4,7 @@ import { applyExecution } from "./engine/rules.mjs";
 import { commentaryFor, CommentaryDirector } from "./engine/commentary.mjs";
 import { BroadcastVoice } from "./engine/voice.mjs";
 import { random } from "./engine/random.mjs";
+import { captionAllowed, installSimOptions, simOptions } from "./presentation/sim-options.mjs";
 const grouped = (players, team) => {
   let groups = {};
   for (let p of sortForLineup(players, team)) {
@@ -161,7 +162,7 @@ matchScreen = function () {
     m = state.live;
   if (!m) return html;
   let tactical = `<div class="execution-settings"><label>Offensive personnel<select onchange="matchSetting('personnel',this.value)" ${animating ? "disabled" : ""}>${["11", "12", "21", "10", "Goal Line"].map((v) => `<option ${m.personnel === v ? "selected" : ""}>${v}</option>`).join("")}</select></label><label>Disguise shell<select onchange="matchSetting('shell',this.value)" ${animating ? "disabled" : ""}>${["2-High", "Single-High", "Zero"].map((v) => `<option ${m.shell === v ? "selected" : ""}>${v}</option>`).join("")}</select></label><label>Weather<select onchange="matchSetting('weather',this.value)" ${animating ? "disabled" : ""}>${["Clear", "Rain", "Wind"].map((v) => `<option ${m.weather === v ? "selected" : ""}>${v}</option>`).join("")}</select></label></div>`;
-  let booth = `<div class="commentary-booth"><div><b>THE BROADCAST BOOTH</b><button class="small secondary" onclick="window.broadcast.toggle()">${window.broadcast.director.enabled ? "♫ Commentary on" : "♫ Enable commentary"}</button></div><p id="broadcast-caption" aria-live="polite">${esc(m.commentary?.at(-1)?.text || "Ready for the next snap.")}</p><div class="booth-bottom"><small>Live play-by-play · situation-aware calls</small><button class="link" onclick="broadcast.settings()">Voice settings</button></div></div>`;
+  let booth = `<div class="commentary-booth"><div><b>THE BROADCAST BOOTH</b><button class="small secondary" onclick="window.broadcast.toggle()">${window.broadcast.director.enabled ? "♫ Commentary on" : "♫ Enable commentary"}</button></div><p id="broadcast-caption" aria-live="polite" ${window.SimOptions?.get().captions === "Off" ? "hidden" : ""}>${esc(m.commentary?.at(-1)?.text || "Ready for the next snap.")}</p><div class="booth-bottom"><small>Live play-by-play · situation-aware calls</small><button class="link" onclick="broadcast.settings()">Voice settings</button></div></div>`;
   let recent = m.last?.execution,
     release = recent?.events.find((e) => e.type === "PassReleased");
   let intelligence = `<details class="kernel-details"><summary>Coordinator advice ▾</summary><p>${release ? esc(release.name) + " found " + release.separation.toFixed(1) + " yards of separation at release." : "Watch how the defensive shell rotates after the snap."} ${recent?.result.kind === "sack" ? "Shorten the quarterback’s progression or use a quicker passing concept." : recent?.result.yards < 3 ? "Try a different personnel grouping or attack the opposite edge." : "Monitor fatigue and rotate personnel between snaps."}</p></details><details class="kernel-details"><summary>Developer match diagnostics ▾</summary><p>20 Hz · seed ${m.engine?.seed ?? "initialized on snap"} · play ${m.engine?.serial ?? 0} · ${recent?.events.length ?? 0} events · ${recent?.frames.length ?? 0} frames</p><label>Next play seed <input type="number" min="0" max="4294967295" id="debug-seed" value="42"></label><button class="small secondary" onclick="window.forcePlaySeed()" ${animating ? "disabled" : ""}>Use seed for next snap</button><p>Seed overrides mark this as a debug save. Replays and commentary never change the score.</p></details>`;
@@ -178,9 +179,11 @@ const voice = new BroadcastVoice({
 window.broadcast = {
   voice,
   director: new CommentaryDirector({
-    caption: (text) => {
+    caption: (text, line) => {
       let el = document.getElementById("broadcast-caption");
-      if (el) el.textContent = text;
+      if (!el) return;
+      el.hidden = simOptions().captions === "Off";
+      if (captionAllowed(line)) el.textContent = text;
     },
     speak: (text, line) => voice.speak(text, line),
   }),
@@ -252,6 +255,7 @@ window.executionFormation = (m) =>
     x: (a.x - 50) * (m.poss === 0 ? 1 : -1),
     z: a.z * (m.poss === 0 ? 1 : -1),
   }));
+installSimOptions(window);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) window.broadcast.stop();
 });
