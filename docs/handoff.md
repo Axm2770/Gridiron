@@ -36,7 +36,15 @@ Calendar advancement increments the reputation/cooldown action clock once per el
 
 The sidebar groups live in `presentation.mjs` (`NAV_GROUPS`). Retired routes (Schedule, Archives, Hall of Fame, Awards) are `ROUTE_ALIASES` that open the absorbing screen on a tab; `navigation-ui.mjs` owns those tabs (`window.Nav`), the League snapshot and the Records hub. `W.open(route, tab)` accepts an optional tab; `W.back()` follows the in-app trail (also Alt+Left and the mouse back button). `RELATED` lists the quick jumps shown under each title.
 
+## Match simulator
+
+`engine/execution.mjs` lines up real special-teams units for `Punt` and `Field goal` (`buildActors` kick branch: kicker/punter, holder or personal protector, long snapper, wings or gunners, returner) and choreographs the snap, hold or punt, protection and punt coverage without drawing random numbers, so kick outcomes are the same as before. Runs carry a `scheme` (inside zone, outside zone, power, counter; counter only with the back behind the quarterback). Blockers take assignments from the front, pull, engage and drive defenders; engaged defenders move with the block. Defenders pursue on intercept angles and the tackle is a `Contact` event followed by `Tackle` 0.28–0.45 s later from the same `tacklerIndex`; the 3D rig animates that defender. Run, pass and kick yardage stays inside the calibration ranges.
+
+Simulator options (`presentation/sim-options.mjs`, localStorage `gridiron-sim-options`): instant replays of big plays, replay speed, game speed, matchday intro, spoken commentary and caption verbosity. They are per device and never touch saves or results. `presentation/match-intro.mjs` plays the skippable pre-kickoff open once per fixture (a static card under reduced motion). The 3D canvas renders at full device resolution in the pixel theme.
+
 ## Tests added
+
+`test-match-motion.mjs` covers kick units and coverage, the four run schemes (blocks and pulls), pursuit angles, contact before every tackle, and a speed bound that catches teleporting players. `test-sim-options.mjs` covers option persistence and validation, caption verbosity, instant-replay selection and the intro card.
 
 `test-calendar.mjs` covers exact dates, migration, pausing for urgent decisions, no automatic training camp, idempotency, round/date boundaries, offseason market timing, persistence and actual calendar rendering. `test-desktop.mjs` covers local protocol serving, MIME/CSP, path and symlink rejection, sandbox settings and packaging configuration. All 23 suites passed on Linux. A browser holiday reached the exact requested return date and completed its due game with a staff activity report.
 

@@ -248,7 +248,7 @@ export class CommentaryDirector {
     if (!due.length) return;
     const spoken = due.filter((l) => l.voice !== false),
       line = spoken.at(-1) || due.at(-1);
-    this.caption(line.text);
+    this.caption(line.text, line);
     if (this.enabled && !this.replay && !seek && spoken.length) {
       const selected = spoken.at(-1);
       this.speak(selected.text, selected);

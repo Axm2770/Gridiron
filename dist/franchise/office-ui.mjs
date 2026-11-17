@@ -1,6 +1,7 @@
 import { scorePill, previewAttributes, miniBio } from "./player-ui.mjs";
 import { playerAwards } from "./player-catalog.mjs";
 import * as S from "./state.mjs";
+import { simOptionsControls } from "../presentation/sim-options.mjs";
 import {
   ensureOffice,
   syncOffice,
@@ -550,7 +551,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
   function settingsAudio() {
     const b = window.broadcast,
       v = b?.voice;
-    return `<div class="settings-section"><h3>Bring Sunday to life.</h3><p>Sound and speech start after your interaction. Voice availability depends on your browser.</p><div class="settings-row"><span><b>Stadium sound</b><small>Crowd, whistle and on-field effects.</small></span><button class="secondary" onclick="window.matchAudio.toggle()">${window.matchAudio?.on ? "Sound on · turn off" : "Enable sound"}</button></div><label class="settings-row"><span><b>Master volume</b><small>Match effects and broadcast output level.</small></span><input aria-label="Master volume" type="range" min="0" max="1" step="0.05" value="${window.matchAudio?.volume ?? 0.3}" oninput="Office.volume(this.value)"></label><div class="settings-row"><span><b>Spoken commentary</b><small>Captions remain available with speech off.</small></span><button class="secondary" onclick="broadcast.toggle()">${b?.director.enabled ? "Commentary on · turn off" : "Enable commentary"}</button></div><label class="settings-row"><span><b>Commentator voice</b><small>Choose an installed English voice.</small></span><select aria-label="Commentator voice" onchange="broadcast.voice.configure({voiceURI:this.value})"><option value="">Automatic</option>${(v?.voices() || []).map((x) => `<option value="${esc(x.voiceURI)}" ${x.voiceURI === v.preferences.voiceURI ? "selected" : ""}>${esc(x.name)} · ${esc(x.lang)}</option>`).join("")}</select></label><label class="settings-row"><span><b>Commentary pace</b><small>Relaxed, broadcast or brisk delivery.</small></span><select aria-label="Commentary pace" onchange="broadcast.voice.configure({pace:Number(this.value)})">${[
+    return `<div class="settings-section"><h3>Bring Sunday to life.</h3><p>Sound and speech start after your interaction. Voice availability depends on your browser.</p><div class="settings-row"><span><b>Stadium sound</b><small>Crowd, whistle and on-field effects.</small></span><button class="secondary" onclick="window.matchAudio.toggle()">${window.matchAudio?.on ? "Sound on · turn off" : "Enable sound"}</button></div><label class="settings-row"><span><b>Master volume</b><small>Match effects and broadcast output level.</small></span><input aria-label="Master volume" type="range" min="0" max="1" step="0.05" value="${window.matchAudio?.volume ?? 0.3}" oninput="Office.volume(this.value)"></label><h3 class="settings-subhead">Match simulator</h3><p>Saved on this device. None of these change a result.</p>${simOptionsControls({ voices: v?.voices() || [], voiceURI: v?.preferences.voiceURI })}<label class="settings-row"><span><b>Commentary pace</b><small>Relaxed, broadcast or brisk delivery.</small></span><select aria-label="Commentary pace" onchange="broadcast.voice.configure({pace:Number(this.value)})">${[
       [0.92, "Relaxed"],
       [1, "Broadcast"],
       [1.1, "Brisk"],

@@ -27,6 +27,24 @@ const slots = [
 ];
 const zOff = [0, 5, -20, 20, 11, -4, -2, 0, 2, 4, -11],
   zDef = [-5, -2, 2, 5, -10, 0, 10, -20, 20, -9, 9];
+// Special-teams units, by actor slot. Offense: kicker/punter, holder/personal protector, wings or
+// gunners, ends, a five-man line with the long snapper in the middle. Roles name the job; `from`
+// names the roster group the player is drawn from. Alignments are [depth from the line, width].
+export const RUN_SCHEMES = ["Inside zone", "Outside zone", "Power", "Counter"];
+const KICK_UNITS = {
+  "Field goal": {
+    roles: ["K", "H", "W", "W", "TE", "OL", "OL", "LS", "OL", "OL", "TE"],
+    from: { H: ["P", "QB"], W: ["TE", "WR"], LS: ["OL"] },
+    offense: [[-9.4, -1.9], [-7, 0], [-0.9, 4.6], [-0.9, -4.6], [-0.2, 3.4], [0, -2.3], [0, -1.15], [0, 0], [0, 1.15], [0, 2.3], [-0.2, -3.4]],
+    defense: [[1, -3.4], [1, -1.2], [1, 1.2], [1, 3.4], [1.1, -5.8], [3.6, 0], [1.1, 5.8], [1.4, -8], [1.4, 8], [7.5, -5], [7.5, 5]],
+  },
+  Punt: {
+    roles: ["P", "PP", "G", "G", "W", "OL", "OL", "LS", "OL", "OL", "W"],
+    from: { PP: ["RB", "LB"], G: ["WR", "CB"], W: ["TE", "LB"], LS: ["OL"] },
+    offense: [[-14.5, 0], [-5.2, 0.9], [0, -22], [0, 22], [-0.9, 3.6], [0, -2.4], [0, -1.2], [0, 0], [0, 1.2], [0, 2.4], [-0.9, -3.6]],
+    defense: [[1, -3.3], [1, -1.1], [1, 1.1], [1, 3.3], [4, -6], [4.5, 0], [4, 6], [1, -20.5], [1, 20.5], [16, 0], [40, 0]],
+  },
+};
 export function buildActors(
   spot,
   offenseGroups = {},
@@ -36,17 +54,22 @@ export function buildActors(
   front = "Nickel",
   shell = "2-High",
 ) {
-  const assigned = [new Set(), new Set()];
+  const assigned = [new Set(), new Set()],
+    unit = KICK_UNITS[formation];
   return slots.map((baseRole, i) => {
     let role = baseRole;
-    if (i === 10 && personnel === "12") role = "TE";
-    if (i === 10 && personnel === "21") role = "RB";
-    if (i === 4 && personnel === "10") role = "WR";
-    if (personnel === "Goal Line" && [2, 3].includes(i)) role = "TE";
-    if (i === 14 && front === "3–4 base") role = "LB";
-    if (i === 17 && ["Nickel", "Dime"].includes(front)) role = "CB";
-    if (i === 16 && front === "Dime") role = "CB";
-    const source = (i < 11 ? offenseGroups : defenders)[role] || [];
+    if (unit && i < 11) role = unit.roles[i];
+    else if (!unit) {
+      if (i === 10 && personnel === "12") role = "TE";
+      if (i === 10 && personnel === "21") role = "RB";
+      if (i === 4 && personnel === "10") role = "WR";
+      if (personnel === "Goal Line" && [2, 3].includes(i)) role = "TE";
+      if (i === 14 && front === "3–4 base") role = "LB";
+      if (i === 17 && ["Nickel", "Dime"].includes(front)) role = "CB";
+      if (i === 16 && front === "Dime") role = "CB";
+    }
+    const groups = i < 11 ? offenseGroups : defenders,
+      source = (unit && i < 11 ? unit.from[role] || [role] : [role]).flatMap((g) => groups[g] || []);
     const side = i < 11 ? 0 : 1;
     const sourcePlayer = source.find((p) => !assigned[side].has(p.id));
     if (sourcePlayer) assigned[side].add(sourcePlayer.id);
@@ -62,6 +85,9 @@ export function buildActors(
         LB: ["tackle", "awareness"],
         CB: ["manCoverage", "zoneCoverage"],
         S: ["zoneCoverage", "tackle"],
+        K: ["kickAccuracy", "kickPower"],
+        P: ["kickPower", "kickAccuracy"],
+        LS: ["passBlock", "strength"],
       }[role] || [];
     const grades = relevant.map((key) => skills?.[key]).filter(Number.isFinite);
     const positional = grades.length
@@ -105,6 +131,7 @@ export function buildActors(
       dx = -1;
       z = -24;
     }
+    if (unit) [dx, z] = i < 11 ? unit.offense[i] : unit.defense[i - 11];
     return {
       id: sourcePlayer?.id || `actor-${i}`,
       name: sourcePlayer?.name || `${role} ${i + 1}`,
@@ -137,6 +164,10 @@ export function buildActors(
     };
   });
 }
+const smooth01 = (u) => {
+  const x = clamp(u, 0, 1);
+  return x * x * (3 - 2 * x);
+};
 function steer(actor, target, dt, factor = 1) {
   let dx = target.x - actor.x,
     dz = target.z - actor.z,
@@ -160,6 +191,42 @@ function steer(actor, target, dt, factor = 1) {
   actor.z = clamp(actor.z + actor.vz * dt, -26.6, 26.6);
   actor.distance += Math.hypot(actor.x - x, actor.z - z);
 }
+// Pursuit angle: where the defender meets the runner if both hold their current speed. `lead`
+// (per-snap discipline) shortens the angle a little, so some defenders chase from behind.
+export function interceptPoint(actor, runner, speed, lead = 1) {
+  const rx = runner.x - actor.x,
+    rz = runner.z - actor.z,
+    a = runner.vx ** 2 + runner.vz ** 2 - speed * speed,
+    b = 2 * (rx * runner.vx + rz * runner.vz),
+    c = rx * rx + rz * rz;
+  let t = 0;
+  if (Math.abs(a) < 1e-6) t = b < 0 ? -c / b : 0;
+  else {
+    const disc = b * b - 4 * a * c;
+    if (disc >= 0) {
+      const r = Math.sqrt(disc),
+        t1 = (-b - r) / (2 * a),
+        t2 = (-b + r) / (2 * a);
+      t = Math.min(...[t1, t2].filter((v) => v > 0), Infinity);
+      if (!Number.isFinite(t)) t = 0;
+    }
+  }
+  t = clamp(t, 0, 2.5) * lead;
+  return { x: runner.x + runner.vx * t, z: runner.z + runner.vz * t };
+}
+function pursue(actor, runner, dt, factor = 1.02) {
+  const d = distance(actor, runner);
+  // Breaking down: inside three yards the tackler gathers, closing a little faster than the
+  // runner moves, and aims at the near hip instead of the far intercept point.
+  if (d < 3) {
+    const hx = runner.x + runner.vx * 0.2 - actor.x,
+      hz = runner.z + runner.vz * 0.2 - actor.z,
+      h = Math.hypot(hx, hz) || 1,
+      close = Math.min(actor.maxSpeed * 0.97, Math.hypot(runner.vx, runner.vz) + 2.2);
+    return steer(actor, { x: actor.x + (hx / h) * 10, z: actor.z + (hz / h) * 10 }, dt, close / actor.maxSpeed);
+  }
+  steer(actor, interceptPoint(actor, runner, actor.maxSpeed * factor, 0.82 + actor.lead * 0.2), dt, factor);
+}
 export function simulateExecution(input) {
   if (!Number.isFinite(input.spot) || input.spot < 1 || input.spot > 99)
     throw Error("Invalid field position");
@@ -168,7 +235,7 @@ export function simulateExecution(input) {
       input.spot,
       input.offensePlayers,
       input.defensePlayers,
-      input.formation,
+      KICK_UNITS[input.call] ? input.call : input.formation,
       input.personnel,
       input.front,
       input.shell,
@@ -184,7 +251,9 @@ export function simulateExecution(input) {
     result = null,
     caught = false,
     released = false,
-    contact = null;
+    contact = null,
+    scheme = null,
+    wrap = null;
   const emit = (type, data = {}) =>
     events.push({
       id: `${input.playId}:${events.length}`,
@@ -255,13 +324,11 @@ export function simulateExecution(input) {
           effectiveAttributes(kicker).kickPower * 0.35 +
           (kicker.ovr - kicker.ratings.base)
         : (kicker?.ovr ?? 75);
-    time = 1.6;
-    emit("Kick", {
-      name: kicker?.name || "The kicker",
-      distance:
-        input.call === "Field goal" ? 117 - spot : Math.round(34 + rng() * 20),
-    });
-    let yards = input.call === "Punt" ? Math.round(34 + rng() * 20) : 0;
+    // The outcome draws come first, in their historical order, so kicking results are unchanged
+    // by the choreography below (which uses no random numbers at all).
+    const punt = input.call === "Punt",
+      announced = punt ? Math.round(34 + rng() * 20) : 117 - spot;
+    let yards = punt ? Math.round(34 + rng() * 20) : 0;
     let good =
       input.call === "Field goal" &&
       rng() <
@@ -271,40 +338,13 @@ export function simulateExecution(input) {
           0.98,
         );
     result = {
-      kind:
-        input.call === "Punt" ? "punt" : good ? "fieldGoal" : "missedFieldGoal",
+      kind: punt ? "punt" : good ? "fieldGoal" : "missedFieldGoal",
       yards,
       spot: clamp(spot + yards, 0, 110),
       carrier: 0,
       passing: false,
     };
-    emit(
-      good ? "FieldGoalGood" : input.call === "Punt" ? "Punt" : "FieldGoalMiss",
-      result,
-    );
-    for (let t = 0; t <= 3; t += 0.1)
-      frames.push({
-        time: t,
-        actors: initial.map((a) => ({
-          x: a.x,
-          z: a.z,
-          distance: 0,
-          speed: 0,
-          yaw: Math.PI / 2,
-        })),
-        ball: {
-          x: spot + (input.call === "Punt" ? yards : 110 - spot) * (t / 3),
-          y: Math.max(
-            0.2,
-            1.3 +
-              (((input.call === "Field goal" ? 2.6 : -1.1) + 0.5 * 10.7 * 9) /
-                3) *
-                t -
-              0.5 * 10.7 * t * t,
-          ),
-          z: 0,
-        },
-      });
+    kickPlay(punt, good, punt ? yards : announced, kicker?.name || "The kicker");
     return finish();
   }
   const passGrade = clamp(
@@ -316,55 +356,200 @@ export function simulateExecution(input) {
   let throwingError =
       ((rng() - 0.5) * (deep ? 7 : 2.4) * (110 - passGrade)) / 35,
     aimBias = (rng() - 0.5) * 2;
+  // Run schemes. Inside runs are inside zone, power or counter; outside runs are outside zone.
+  // Blockers take assignments from the front they see at the snap, fit on their man and drive
+  // him; pullers travel flat behind the line before turning up through the hole.
+  if (!pass) {
+    if (RUN_SCHEMES.includes(input.scheme)) scheme = input.scheme;
+    else if (input.call === "Outside run") scheme = "Outside zone";
+    else {
+      const r = rng(),
+        iForm = input.formation === "I formation";
+      scheme = r < (iForm ? 0.35 : 0.5) ? "Inside zone" : r < (iForm ? 0.8 : 0.78) ? "Power" : "Counter";
+    }
+    // Counter needs the back behind the quarterback to sell the misdirection; an offset shotgun
+    // back runs it as power.
+    if (scheme === "Counter" && actors[1].z) scheme = "Power";
+  }
+  const side = scheme === "Outside zone" ? Math.sign(edge) : Math.sign(runLane) || 1,
+    zoneScheme = /zone/.test(scheme || ""),
+    // Outside zone aims just outside the end man; the edge draw sets how wide.
+    hole = scheme === "Outside zone" ? side * (6 + (Math.abs(edge) - 9) * 0.4) : scheme === "Inside zone" ? side * 3 : side * 4.5,
+    blocks = new Map();
+  let laneZ = null,
+    endMan;
+  if (!pass) {
+    const box = [11, 12, 13, 14, 15, 16, 17].filter((j) => Math.abs(actors[j].z) < 12),
+      line = box.filter((j) => actors[j].x < spot + 3.5),
+      backers = box.filter((j) => !line.includes(j)),
+      taken = new Set(),
+      nearest = (pool, z, within = 99) =>
+        pool
+          .filter((j) => !taken.has(j) && Math.abs(actors[j].z - z) < within)
+          .sort((p, q) => Math.abs(actors[p].z - z) - Math.abs(actors[q].z - z))[0],
+      assign = (i, target, drive, extra = {}) => {
+        blocks.set(i, { target, drive, ...extra });
+        if (target !== undefined) taken.add(target);
+      };
+    const pullers = scheme === "Power" ? [side > 0 ? 6 : 8] : scheme === "Counter" ? [side > 0 ? 6 : 8, side > 0 ? 5 : 9] : [];
+    if (pullers.length) {
+      // The first puller kicks out the end man on the line; the second wraps for the linebacker.
+      endMan = line.slice().sort((p, q) => side * actors[q].z - side * actors[p].z)[0];
+      assign(pullers[0], endMan, [0.25, side], { pull: true });
+      if (pullers[1] !== undefined) assign(pullers[1], nearest(backers, hole), [1, 0], { pull: true });
+    }
+    const fullback = actors[10].role === "RB" ? 10 : null,
+      linemen = [4, 5, 6, 7, 8, 9, 10]
+        .filter((i) => !pullers.includes(i) && i !== fullback && ["OL", "TE"].includes(actors[i].role))
+        .sort((p, q) => side * actors[q].z - side * actors[p].z);
+    for (const i of linemen) {
+      const b = actors[i],
+        aim = b.z + side * (scheme === "Outside zone" ? 2.4 : zoneScheme ? 1.4 : -1.5),
+        drive = scheme === "Outside zone" ? [0.35, side] : zoneScheme ? [0.8, side * 0.6] : [0.7, -side * 0.7],
+        target = nearest(line, aim, scheme === "Outside zone" ? 3.2 : 2.6) ?? nearest(backers, b.z + side * 2);
+      assign(i, target, drive);
+    }
+    if (fullback !== null) assign(fullback, nearest(backers, hole), [1, 0], { lead: true });
+    for (const i of [2, 3, 4, 10]) if (actors[i].role === "WR") blocks.set(i, { target: undefined, drive: [1, 0], stalk: true });
+  }
+  const engage = (b, d, plan) => {
+    d.engagedBy = b.index;
+    b.engaged = d.index;
+    d.blockedUntil =
+      time +
+      clamp(0.8 + rng() * 2.6 + (b.rating - d.rating) * 0.03, 0.35, 4) * (d.index >= 15 ? 0.7 : 1) * (plan.stalk ? 0.6 : 1);
+    emit("BlockEngaged", { blocker: b.id, rusher: d.id, blockerIndex: b.index, defenderIndex: d.index });
+  };
+  const release = (b, d) => {
+    b.engaged = undefined;
+    d.engagedBy = undefined;
+    d.freeUntil = time + 0.5;
+    b.face = d.face = undefined;
+  };
+  function runBlock(i, a) {
+    const plan = blocks.get(i),
+      held = a.engaged !== undefined ? actors[a.engaged] : null;
+    if (held && time >= held.blockedUntil) release(a, held);
+    else if (held) {
+      // Drive block: the winner moves the pair; a beaten blocker is walked back into the backfield.
+      const push = clamp(0.9 + (a.rating - held.rating) / 30, -0.6, 2.2),
+        len = Math.hypot(...plan.drive);
+      steer(a, { x: a.x + (plan.drive[0] / len) * push * 2, z: a.z + (plan.drive[1] / len) * push * 2 }, dt, Math.abs(push) / a.maxSpeed);
+      a.face = Math.atan2(held.x - a.x, held.z - a.z);
+      return;
+    }
+    let t = plan.target !== undefined ? actors[plan.target] : null;
+    if (!t || (t.engagedBy !== undefined && t.engagedBy !== i) || t.freeUntil > time) {
+      // Combo done or man taken: climb to the nearest free defender in front.
+      t = actors
+        .slice(11)
+        .filter((d) => d.engagedBy === undefined && !(d.freeUntil > time) && d.x > a.x - 0.5 && distance(d, a) < (plan.stalk ? 12 : 7))
+        .sort((p, q) => distance(p, a) - distance(q, a))[0];
+      plan.target = t?.index;
+    }
+    if (!t) {
+      steer(a, { x: a.x + 1, z: a.z + side * 0.5 }, dt, 0.4);
+      return;
+    }
+    const pulling = plan.pull && Math.abs(a.z - hole) > 1.6 && a.x < spot + 0.5;
+    const fit = pulling
+      ? { x: spot - 1.3, z: hole }
+      : { x: t.x - 0.7, z: t.z + (zoneScheme ? side : -side) * 0.35 * (plan.pull ? -1 : 1) };
+    steer(a, plan.stalk && time < 0.5 ? { x: a.x + 3, z: a.z } : fit, dt, plan.stalk ? 0.8 : pulling ? 1.15 : 0.95);
+    if (time > (plan.stalk ? 0.6 : 0.12) && distance(a, t) < (time < 0.6 ? 1.5 : 1.25) && t.engagedBy === undefined && !(t.freeUntil > time)) engage(a, t, plan);
+    else if (!pulling && !plan.stalk && time > 0.12) {
+      // Whoever shows up in the blocker's gap gets blocked, assignment or not.
+      const crash = actors.slice(11).find((d) => d.engagedBy === undefined && !(d.freeUntil > time) && distance(d, a) < 1);
+      if (crash) {
+        plan.target = crash.index;
+        engage(a, crash, plan);
+      }
+    }
+  }
+  // Engaged defenders are carried by the block, working toward the ball with their strength.
+  function heldDefender(a) {
+    const b = actors[a.engagedBy],
+      runner = actors[carrier === 0 && !caught ? 1 : carrier],
+      strength = clamp(0.22 + (a.rating - b.rating) / 90, 0.08, 0.75);
+    let ox = a.x - b.x,
+      oz = a.z - b.z;
+    const o = Math.hypot(ox, oz) || 1,
+      rx = runner.x - a.x,
+      rz = runner.z - a.z,
+      r = Math.hypot(rx, rz) || 1;
+    ox = ox / o + (rx / r) * strength * 0.35;
+    oz = oz / o + (rz / r) * strength * 0.35;
+    const n = Math.hypot(ox, oz) || 1,
+      px = a.x,
+      pz = a.z;
+    a.x += (b.x + (ox / n) * 0.9 - a.x) * 0.35;
+    a.z += (b.z + (oz / n) * 0.9 - a.z) * 0.35;
+    a.vx = (a.x - px) / dt;
+    a.vz = (a.z - pz) / dt;
+    a.distance += Math.hypot(a.x - px, a.z - pz);
+    a.face = Math.atan2(b.x - a.x, b.z - a.z);
+  }
+  const freeDefenders = () =>
+    actors.slice(11).filter((a) => time >= (a.blockedUntil || 0) && a.engagedBy === undefined && !(a.stumble > time));
+  function carrierPath(a) {
+    // Open field: run to daylight, leaning away from the nearest unblocked defender ahead.
+    const ahead = freeDefenders()
+      .filter((d) => d.x > a.x - 1 && distance(d, a) < 5)
+      .sort((p, q) => distance(p, a) - distance(q, a))[0];
+    const dodge = ahead ? Math.sign(a.z - ahead.z || side) * clamp(5 - distance(ahead, a), 0, 2) : 0;
+    if (pass || a.x > spot + 3.5) return { x: 110, z: a.z + dodge };
+    if (scheme === "Outside zone") {
+      // Press the edge; if the edge defender has leverage, plant and cut up inside him.
+      if (laneZ === null && time > 1.0) {
+        const corner = { x: spot + 1, z: hole },
+          contain = freeDefenders().find((d) => distance(d, corner) < 3 && Math.abs(d.z) > Math.abs(a.z));
+        laneZ = contain ? side * 3 : hole;
+      }
+      const z = laneZ ?? hole,
+        turned = Math.abs(a.z - z) < 2.5;
+      return { x: turned ? a.x + 6 : Math.max(spot + 1.5, a.x + 2.5), z };
+    }
+    if (laneZ === null && time > 0.85) {
+      // Inside zone reads front side, bounce and cutback; gap schemes hit the hole behind the pull.
+      if (zoneScheme) {
+        const open = (z) => Math.min(...freeDefenders().map((d) => distance(d, { x: spot + 1.5, z })), 9);
+        laneZ = [hole, side * 6.5, -side * 1.5].map((z, k) => ({ z, score: open(z) + (k ? 0 : 1.2) })).sort((p, q) => q.score - p.score)[0].z;
+      } else laneZ = hole;
+    }
+    return { x: a.x + 6, z: laneZ ?? hole };
+  }
   for (let tick = 0; tick < 180 && !result; tick++) {
     time = tick * dt;
     for (let i = 0; i < 11; i++) {
       let a = actors[i];
       if (i === carrier && caught) {
-        // Outside runs press the edge while gaining ground, then turn upfield once there.
-        const outside = !pass && input.call === "Outside run",
-          turned = outside && Math.abs(a.z - edge) < 2.5;
-        steer(
-          a,
-          {
-            x: pass ? 110 : outside && !turned ? Math.max(spot + 1.5, a.x + 2.5) : a.x + 6,
-            z: pass ? a.z : outside ? edge : runLane,
-          },
-          dt,
-          0.94,
-        );
+        // Wrapped up: the runner falls forward with the tackler on him.
+        if (wrap) steer(a, { x: a.x + 3, z: a.z }, dt, 0.3);
+        else steer(a, carrierPath(a), dt, 0.94);
         continue;
       }
       if (i === 0) {
-        steer(a, { x: spot - (deep ? 7 : 5.8), z: 0 }, dt, 0.5);
+        // On runs the quarterback carries out his fake away from the play.
+        steer(a, pass || time < 0.75 ? { x: spot - (deep ? 7 : 5.8), z: 0 } : { x: spot - 7, z: -side * 4 }, dt, pass ? 0.5 : 0.6);
+        continue;
+      }
+      if (!pass && blocks.has(i)) {
+        runBlock(i, a);
         continue;
       }
       if (i >= 5 && i <= 9) {
         let d = actors[i + 6];
-        steer(
-          a,
-          { x: spot + (pass ? 0.7 : Math.min(3, time * 1.5)), z: d.z },
-          dt,
-          0.35,
-        );
+        steer(a, { x: spot + 0.7, z: d.z }, dt, 0.35);
         continue;
       }
       if (!pass && i === 1) {
-        if (time < 0.65) steer(a, { x: actors[0].x + 1, z: 1 }, dt);
-        else
-          steer(
-            a,
-            {
-              x: 110,
-              z:
-                input.call === "Outside run"
-                  ? edge
-                  : input.formation === "I formation"
-                    ? 0
-                    : 2,
-            },
-            dt,
-          );
+        // Mesh path by scheme; the counter steps away first to freeze the linebackers.
+        const qb = actors[0],
+          mesh =
+            scheme === "Counter" && time < 0.3
+              ? { x: a.x - 0.3, z: initial[1].z - side * 1.8 }
+              : { x: qb.x + (scheme === "Outside zone" ? 0.6 : 1), z: side * (scheme === "Outside zone" ? 2.8 : scheme === "Inside zone" ? 1.2 : 0.7) };
+        steer(a, mesh, dt);
         continue;
       }
       steer(a, routeTarget(i, time), dt);
@@ -372,6 +557,43 @@ export function simulateExecution(input) {
     for (let i = 11; i < 22; i++) {
       let a = actors[i],
         targetPos;
+      if (wrap && a === wrap.a) {
+        // The tackler stays wrapped on the runner's near hip as they go down together.
+        const runner = actors[carrier],
+          px = a.x,
+          pz = a.z;
+        a.x += (runner.x - 0.55 - a.x) * 0.4;
+        a.z += (runner.z + 0.25 * side - a.z) * 0.4;
+        a.vx = (a.x - px) / dt;
+        a.vz = (a.z - pz) / dt;
+        a.face = Math.atan2(runner.x - a.x, runner.z - a.z);
+        continue;
+      }
+      if (!pass) {
+        if (a.engagedBy !== undefined) {
+          if (time >= a.blockedUntil) release(actors[a.engagedBy], a);
+          else {
+            heldDefender(a);
+            continue;
+          }
+        }
+        const runner = actors[caught ? carrier : 1],
+          handoff = 0.65 + a.react;
+        if (a.stumble > time) steer(a, { x: a.x + a.vx, z: a.z + a.vz }, dt, 0.3);
+        else if (i < 15 || (blitz && i < 17)) {
+          // Defensive line: fire off into the gap, then play the ball.
+          // The end man squeezes the down block and waits for the puller instead of charging.
+          if (i === endMan && time < 1.1) steer(a, { x: spot + 0.3, z: initial[i].z + side * 0.6 }, dt, 0.5);
+          else if (time < 0.6) steer(a, { x: spot - 0.4, z: a.z }, dt, 0.7);
+          else pursue(a, runner, dt);
+        } else if (Math.abs(initial[i].z) < 12 && i < 18) {
+          // Linebackers read and flow (counter action pulls them the wrong way first).
+          if (time < handoff + 0.2) steer(a, { x: spot + 3.5, z: a.z + (scheme === "Counter" && time < 0.9 ? -side : side) * 2.5 }, dt, 0.55);
+          else pursue(a, runner, dt);
+        } else if (time > 1.15 + a.react) pursue(a, runner, dt);
+        else steer(a, { x: Math.max(a.x, spot + 6), z: a.z * 0.9 }, dt, 0.6);
+        continue;
+      }
       if (i < 15 || (blitz && i < 17)) {
         let blocker = actors
             .slice(5, 10)
@@ -388,9 +610,12 @@ export function simulateExecution(input) {
           0.75,
         );
         targetPos = pass && !caught ? actors[0] : actors[carrier];
-        steer(a, targetPos, dt, blocked ? strength : 1);
-        if (blocked && Math.abs(a.z - blocker.z) < 2)
-          a.x = Math.max(a.x, blocker.x + 0.55);
+        if (caught && !blocked && !(a.stumble > time)) pursue(a, targetPos, dt);
+        else steer(a, targetPos, dt, blocked ? strength : a.stumble > time ? 0.3 : 1);
+        // A blocked rusher is held on the blocker's front, eased there instead of snapped.
+        if (blocked && Math.abs(a.z - blocker.z) < 2 && a.x < blocker.x + 0.55)
+          a.x += (blocker.x + 0.55 - a.x) * 0.5;
+        a.face = blocked && distance(a, blocker) < 1.6 ? Math.atan2(blocker.x - a.x, blocker.z - a.z) : undefined;
         if (blocked && tick === 20)
           emit("BlockEngaged", { blocker: blocker.id, rusher: a.id });
       } else if (caught || (!pass && time > 1.15)) {
@@ -399,13 +624,8 @@ export function simulateExecution(input) {
         if (time < (pass ? catchTime : 1.15) + a.react) {
           a.x = clamp(a.x + a.vx * dt, -9, 109);
           a.z = clamp(a.z + a.vz * dt, -26.6, 26.6);
-        } else
-          steer(
-            a,
-            { x: runner.x + runner.vx * a.lead, z: runner.z + runner.vz * a.lead },
-            dt,
-            1.02,
-          );
+        } else if (a.stumble > time) steer(a, { x: a.x + a.vx, z: a.z + a.vz }, dt, 0.3);
+        else pursue(a, runner, dt);
       } else if (bite && i <= 17 && time < bite) {
         steer(a, { x: spot + 1, z: a.z }, dt, 0.8);
       } else {
@@ -510,6 +730,7 @@ export function simulateExecution(input) {
         name: actors[0].name,
         tackler: tackler?.name,
         tacklerId: tackler?.id,
+        tacklerIndex: tackler?.index,
       });
     }
     if (flight && !caught && !result) {
@@ -587,11 +808,9 @@ export function simulateExecution(input) {
     if (caught && !result) {
       ball = { x: actors[carrier].x, y: 1.3, z: actors[carrier].z };
       let runner = actors[carrier],
-        nearest = actors
-          .slice(11)
-          .filter((a) => time >= (a.blockedUntil || 0))
+        nearest = freeDefenders()
           .map((a) => ({ a, d: distance(a, runner) }))
-          .sort((a, b) => a.d - b.d)[0];
+          .sort((a, b) => a.d - b.d)[0] || { d: Infinity };
       if (runner.x >= 100) {
         result = {
           kind: "touchdown",
@@ -610,17 +829,9 @@ export function simulateExecution(input) {
           passing: pass,
         };
         emit("OutOfBounds", { name: runner.name });
-      } else if (nearest.d < 1.2 && time > 0.9) {
-        let escape = clamp(
-          0.05 + (runner.rating - nearest.a.rating) / 200,
-          0.015,
-          0.25,
-        );
-        if (rng() < escape && time < 6) {
-          runner.z = clamp(runner.z + (rng() > 0.5 ? 1 : -1) * 0.6, -26, 26);
-          emit("BrokenTackle", { name: runner.name });
-        } else {
-          contact = time;
+      } else if (wrap) {
+        // Contact happened earlier; the play ends when the runner is brought down.
+        if (time >= wrap.until) {
           result = {
             kind: "tackle",
             yards: Math.round(runner.x - spot),
@@ -630,8 +841,35 @@ export function simulateExecution(input) {
           };
           emit("Tackle", {
             name: runner.name,
+            tackler: wrap.a.name,
+            tacklerId: wrap.a.id,
+            tacklerIndex: wrap.a.index,
+            actorId: runner.id,
+          });
+        }
+      } else if (nearest.d < 1.1 && time > 0.9) {
+        let escape = clamp(
+          // One roll per contact (it used to re-roll every tick a defender stayed close).
+          0.1 + (runner.rating - nearest.a.rating) / 150,
+          0.04,
+          0.32,
+        );
+        if (rng() < escape && time < 6) {
+          // Broken tackle: the runner spins out of it and the tackler stumbles off balance.
+          runner.vz = clamp(runner.vz + (rng() > 0.5 ? 1 : -1) * 2.6, -8, 8);
+          runner.vx *= 0.85;
+          nearest.a.stumble = time + 0.55;
+          nearest.a.vx *= 0.3;
+          nearest.a.vz *= 0.3;
+          emit("BrokenTackle", { name: runner.name, tacklerIndex: nearest.a.index });
+        } else {
+          contact = time;
+          wrap = { a: nearest.a, until: time + 0.28 + rng() * 0.17 };
+          emit("Contact", {
+            name: runner.name,
             tackler: nearest.a.name,
             tacklerId: nearest.a.id,
+            tacklerIndex: nearest.a.index,
             actorId: runner.id,
           });
         }
@@ -654,16 +892,149 @@ export function simulateExecution(input) {
     });
   }
   return finish();
+  // Special teams: snap, hold or punt, protection against the rush, then the kick and (on punts)
+  // gunners and coverage converging on the returner. Purely positional; the result is decided.
+  function kickPlay(punt, good, kickDistance, kickerName) {
+    const [kicker, holder] = actors,
+      snapT = punt ? 0.75 : 0.38,
+      kickT = punt ? 2.05 : 1.28,
+      hold = { x: holder.x + 0.7, z: holder.z + 0.15 },
+      catchAt = { x: kicker.x + 0.35, z: kicker.z },
+      kickStart = { x: kicker.x, z: kicker.z },
+      plant = punt ? { x: kicker.x + 1.9, z: kicker.z } : { x: hold.x - 0.55, z: hold.z - 0.35 },
+      wide = good ? 0 : input.seed % 2 ? 4.2 : -4.2,
+      landing = { x: Math.min(spot + kickDistance, 109.5), z: punt ? ((input.seed % 9) - 4) * 1.6 : wide },
+      flight = punt ? clamp(3.4 + (kickDistance - 34) * 0.05, 3.4, 4.6) : clamp((110 - hold.x) / 25, 0.85, 2.1),
+      launch = punt ? { x: plant.x + 0.8, y: 1.15, z: plant.z } : { x: hold.x, y: 0.15, z: hold.z },
+      peak = punt ? (10.7 * flight * flight) / 8 : Math.max(5.5, (110 - hold.x) * 0.2),
+      end = kickT + flight + (punt ? 0.7 : 0.4),
+      center = actors[7],
+      returner = actors[21];
+    const ballAt = (t) => {
+      if (t < 0.05) return { x: center.x + 0.2, y: 0.25, z: center.z };
+      if (t < snapT) {
+        const u = (t - 0.05) / (snapT - 0.05),
+          to = punt ? { x: catchAt.x, y: 1.2, z: catchAt.z } : { x: hold.x - 0.25, y: 0.5, z: hold.z };
+        return { x: center.x + (to.x - center.x) * u, y: 0.3 + (to.y - 0.3) * u + Math.sin(u * Math.PI) * 0.35, z: center.z + (to.z - center.z) * u };
+      }
+      if (t < kickT) {
+        if (!punt) return { x: hold.x, y: t < snapT + 0.25 ? 0.5 - ((t - snapT) / 0.25) * 0.35 : 0.15, z: hold.z };
+        return { x: kicker.x + 0.35, y: 1.15, z: kicker.z };
+      }
+      const u = Math.min(1, (t - kickT) / flight),
+        endY = punt ? 1.4 : good ? 4.6 : 3.6;
+      if (punt && u === 1 && landing.x > 98) return { x: landing.x, y: 0.2, z: landing.z };
+      return {
+        x: launch.x + (landing.x - launch.x) * u + (!punt && u === 1 ? (t - kickT - flight) * 6 : 0),
+        y: launch.y + (endY - launch.y) * u + 4 * peak * u * (1 - u),
+        z: launch.z + (landing.z - launch.z) * u,
+      };
+    };
+    const protectors = [2, 3, 4, 5, 6, 7, 8, 9, 10].filter((i) => !(punt && (i === 2 || i === 3))),
+      rushers = punt ? [11, 12, 13, 14, 16] : [11, 12, 13, 14, 15, 16, 17, 18, 19];
+    let kicked = false,
+      landed = false;
+    for (let tick = 0; time < end; tick++) {
+      time = tick * dt;
+      // Kicker or punter: a timed approach (two-step drop for the punter, jab-and-plant for the
+      // kicker), then the follow-through.
+      const px = kicker.x,
+        pz = kicker.z;
+      if (time < kickT) {
+        const u = punt ? smooth01((time - snapT - 0.2) / (kickT - snapT - 0.2)) : smooth01((time - 0.42) / (kickT - 0.42));
+        kicker.x = kickStart.x + (plant.x - kickStart.x) * u;
+        kicker.z = kickStart.z + (plant.z - kickStart.z) * u;
+      } else {
+        const u = Math.min(1, (time - kickT) / 0.7);
+        kicker.x = plant.x + 1.6 * Math.sin((u * Math.PI) / 2);
+      }
+      kicker.vx = (kicker.x - px) / dt;
+      kicker.vz = (kicker.z - pz) / dt;
+      kicker.distance += Math.hypot(kicker.x - px, kicker.z - pz);
+      holder.vx = holder.vz = 0;
+      if (!kicked && time >= kickT) {
+        kicked = true;
+        emit("Kick", { name: kickerName, distance: kickDistance });
+      }
+      if (!landed && time >= kickT + flight) {
+        landed = true;
+        emit(good ? "FieldGoalGood" : punt ? "Punt" : "FieldGoalMiss", result);
+      }
+      const covering = punt && time > kickT + 0.25;
+      for (const i of protectors) {
+        const a = actors[i],
+          home = initial[i];
+        if (covering) {
+          // Coverage lanes: spread across the field and break down five yards short of the catch.
+          const lane = (protectors.indexOf(i) - (protectors.length - 1) / 2) * 3.6;
+          steer(a, { x: landing.x - 5 - Math.abs(lane) * 0.3, z: landing.z + lane }, dt, 0.92);
+          continue;
+        }
+        // Protection: kick-slide a half yard, then hold ground against the nearest rusher.
+        const r = rushers.map((j) => actors[j]).sort((p, q) => distance(p, a) - distance(q, a))[0],
+          set = { x: home.x - 0.5, z: home.z + clamp((r.z - home.z) * 0.35, -0.8, 0.8) };
+        steer(a, time < snapT ? { x: home.x - 0.35, z: home.z } : set, dt, 0.5);
+        a.face = r && distance(r, a) < 1.6 ? Math.atan2(r.x - a.x, r.z - a.z) : undefined;
+      }
+      for (const j of rushers) {
+        const a = actors[j],
+          aim = punt ? plant : hold;
+        if (kicked && !punt) {
+          steer(a, { x: a.x - 0.3, z: a.z }, dt, 0.25);
+          continue;
+        }
+        if (kicked) {
+          // After the punt the rush peels back to set up a return wall.
+          steer(a, { x: landing.x - 12, z: a.z * 0.6 + landing.z * 0.4 }, dt, 0.7);
+          continue;
+        }
+        const wall = protectors.map((i) => actors[i]).find((p) => distance(p, a) < 1.15);
+        steer(a, aim, dt, time < 0.1 ? 0 : wall ? 0.12 : 0.85);
+        if (wall) {
+          a.face = Math.atan2(wall.x - a.x, wall.z - a.z);
+          // Bodies do not pass through each other: the rusher is held on the protector's front.
+          const dx = a.x - wall.x,
+            dz = a.z - wall.z,
+            d = Math.hypot(dx, dz) || 1;
+          if (d < 0.85) {
+            a.x = wall.x + (dx / d) * 0.85;
+            a.z = wall.z + (dz / d) * 0.85;
+          }
+        } else a.face = undefined;
+      }
+      if (punt) {
+        // Gunners release at the snap and race to the catch; the jammers ride their hips.
+        for (const g of [2, 3]) {
+          const a = actors[g];
+          steer(a, time < 0.15 ? a : { x: landing.x - 1.2, z: landing.z + (g === 2 ? -1.5 : 1.5) }, dt, time < kickT ? 1.1 : 1.2);
+          const jam = actors[g === 2 ? 18 : 19];
+          steer(jam, { x: a.x + 0.9, z: a.z + (g === 2 ? 0.7 : -0.7) }, dt, 1.15);
+        }
+        // Returner settles under the ball; the up man drifts back to block.
+        const settle = landing.x > 98 ? { x: 96, z: landing.z } : { x: landing.x - 0.3, z: landing.z };
+        steer(returner, time > 0.4 ? settle : returner, dt, 0.8);
+        steer(actors[20], { x: settle.x - 9, z: landing.z * 0.5 }, dt, 0.7);
+        for (const j of [15, 17]) steer(actors[j], kicked ? { x: settle.x - 14, z: actors[j].z * 0.7 } : { x: spot + 2.5, z: actors[j].z }, dt, 0.6);
+      } else for (const j of [20, 21]) steer(actors[j], { x: initial[j].x - (time > 0.6 ? 1.5 : 0), z: initial[j].z }, dt, 0.4);
+      ball = ballAt(time);
+      if (input.capture !== false && tick % 2 === 0) capture();
+    }
+    if (input.capture !== false) capture();
+  }
   function capture() {
     frames.push({
       time: Number(time.toFixed(2)),
-      actors: actors.map((a) => ({
-        x: a.x,
-        z: a.z,
-        distance: a.distance,
-        speed: Math.hypot(a.vx, a.vz),
-        yaw: Math.atan2(a.vx, a.vz) || Math.PI / 2,
-      })),
+      actors: actors.map((a) => {
+        const speed = Math.hypot(a.vx, a.vz);
+        return {
+          x: a.x,
+          z: a.z,
+          distance: a.distance,
+          speed,
+          // Engaged players face their opponent; standing players face the line of scrimmage.
+          yaw: a.face ?? (speed > 0.05 ? Math.atan2(a.vx, a.vz) : a.side ? -Math.PI / 2 : Math.PI / 2),
+        };
+      }),
       ball: { ...ball },
     });
   }
@@ -672,7 +1043,22 @@ export function simulateExecution(input) {
     result.yards = clamp(result.yards, -spot, 100 - spot);
     emit("PlayEnded", { ...result });
     if (!frames.length) capture();
-    const duration = Math.max(3, frames.at(-1).time + 0.8);
+    // Players coast to a stop after the whistle instead of freezing mid-stride.
+    const settle = frames.at(-1),
+      duration = Math.max(3, settle.time + 0.8);
+    for (const k of [0.2, 0.4, 0.6]) {
+      const f = structuredClone(settle);
+      f.time = Number((settle.time + k).toFixed(2));
+      f.actors.forEach((a, i) => {
+        const s = settle.actors[i],
+          travel = s.speed * (k - (k * k) / 1.2);
+        a.x = clamp(s.x + Math.sin(s.yaw) * travel, -9, 109);
+        a.z = clamp(s.z + Math.cos(s.yaw) * travel, -26.6, 26.6);
+        a.distance = s.distance + travel;
+        a.speed = s.speed * (1 - k / 0.6);
+      });
+      if (f.time < duration) frames.push(f);
+    }
     const last = structuredClone(frames.at(-1));
     last.time = duration;
     last.actors.forEach((a) => (a.speed = 0));
@@ -683,6 +1069,7 @@ export function simulateExecution(input) {
       tickRate: TICK_RATE,
       playId: input.playId,
       call: input.call,
+      scheme,
       actors: initial.map((a) => ({
         id: a.id,
         name: a.name,
