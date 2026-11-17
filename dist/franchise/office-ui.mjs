@@ -542,7 +542,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     ])}<div class="office-tabs stats-tabs">${["Performance", "Workload", "Dynamics"].map((v) => `<button class="${analysisTab === v ? "active" : ""}" onclick="Office.analysis('${v}')">${v}</button>`).join("")}</div>${body}<p class="fiction-note">— indicates no recorded sample. Scoring benchmarks use regular-season games; player production includes all recorded games.</p>`;
   };
   function settingsInterface() {
-    return `<div class="settings-section"><h3>Make the workspace yours.</h3><p>Display preferences apply on this device. Career decisions remain part of each save.</p><label class="settings-row"><span><b>Pixel theme</b><small>Retro pixel fonts, square panels and a pixel-art field. Off restores the classic look.</small></span><input type="checkbox" aria-label="Pixel theme" ${document.body.classList.contains("gd-pixel") ? "checked" : ""} onchange="Office.pixel(this.checked)"></label><label class="settings-row"><span><b>Table density</b><small>More space or more players on screen.</small></span><select aria-label="Interface density" onchange="Office.density(this.value)">${opts(["comfortable", "compact"], document.body.dataset.density || "comfortable")}</select></label><label class="settings-row"><span><b>Reduce scene motion</b><small>Quieter cutscenes and static interface transitions.</small></span><input type="checkbox" aria-label="Reduce scene motion" ${document.body.classList.contains("reduce-motion") ? "checked" : ""} onchange="Office.motion(this.checked)"></label><div class="settings-row"><span><b>Keyboard shortcuts</b><small>⌘K / Ctrl+K opens global player and screen search. Escape closes dialogs.</small></span><button class="secondary" onclick="W.command()">Open search</button></div></div>`;
+    return `<div class="settings-section"><h3>Make the workspace yours.</h3><p>Display preferences apply on this device. Career decisions remain part of each save.</p><label class="settings-row"><span><b>Pixel theme</b><small>Square pixel panels, hard shadows and a pixel-art field with clear, readable text. Off restores the classic look.</small></span><input type="checkbox" aria-label="Pixel theme" ${document.body.classList.contains("gd-pixel") ? "checked" : ""} onchange="Office.pixel(this.checked)"></label><label class="settings-row"><span><b>Table density</b><small>More space or more players on screen.</small></span><select aria-label="Interface density" onchange="Office.density(this.value)">${opts(["comfortable", "compact"], document.body.dataset.density || "comfortable")}</select></label><label class="settings-row"><span><b>Reduce scene motion</b><small>Quieter cutscenes and static interface transitions.</small></span><input type="checkbox" aria-label="Reduce scene motion" ${document.body.classList.contains("reduce-motion") ? "checked" : ""} onchange="Office.motion(this.checked)"></label><div class="settings-row"><span><b>Keyboard shortcuts</b><small>⌘K / Ctrl+K opens global player and screen search. Escape closes dialogs.</small></span><button class="secondary" onclick="W.command()">Open search</button></div></div>`;
   }
   function settingsAudio() {
     const b = window.broadcast,
@@ -907,8 +907,8 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     }
   };
   const openScreen = W.open;
-  W.open = function (route) {
-    openScreen(route);
+  W.open = function (route, ...rest) {
+    openScreen(route, ...rest);
     window.scrollTo({ top: 0, behavior: "instant" });
     window.Recruit?.fit();
   };
