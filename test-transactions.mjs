@@ -90,6 +90,12 @@ moves = recordTransactions(s);
 assert.equal(moves.find((m) => m.playerId === veteran.id)?.type, "expired");
 assert.match(describeTransaction(moves.find((m) => m.playerId === veteran.id), name), /contract with the .* expired/);
 
+// Moves settled with a round carry the week that was played.
+const late = s.roster.filter((p) => p.status === "active").sort((a, b) => a.ovr - b.ovr)[0];
+C.cut(s, late.id);
+const stamped = recordTransactions(s, { week: 3, phase: "season" });
+assert.equal(stamped[0].week, 3);
+
 // Queries, persistence and save compatibility.
 assert.ok(transactionsFor(s, { team: s.team }).length >= 3, "your club's moves are queryable");
 assert.equal(transactionsFor(s, { playerId: give.id })[0].type, "traded");

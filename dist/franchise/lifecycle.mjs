@@ -66,6 +66,8 @@ const ranked = (s, ids) =>
     );
 export function finishRound(s, results) {
   assertCanAdvance(s);
+  // Moves settled with this round belong to the week being played, not the next one.
+  const playedStamp = { week: s.week, phase: s.phase };
   const newsRoundKey = `${s.year}:${s.phase}:${s.week}:${s.franchise.postseason?.round || 0}`;
   capturePreseason(s, true);
   const roundInfo = {
@@ -238,7 +240,7 @@ export function finishRound(s, results) {
   processRumors(s, newsRoundKey);
   processComparisons(s);
   generateJobOffers(s);
-  recordTransactions(s);
+  recordTransactions(s, playedStamp);
 }
 export function rollSeason(s) {
   assertCanAdvance(s, { camp: true });

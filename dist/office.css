@@ -1762,3 +1762,9 @@ body[data-density="compact"] .inbox-row {
   background: #233c45;
   color: #c4ec88;
 }
+
+/* Squad: over the active-roster limit. */
+.squad-alert { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 0 0 12px; padding: 12px 14px; border: 1px solid var(--gd-warn, #ffd23f); background: var(--gd-surface, #182041); }
+.squad-alert > div { display: grid; gap: 3px; flex: 1; min-width: 240px; }
+.squad-alert b { color: var(--gd-warn, #ffd23f); }
+.squad-alert small { color: var(--gd-text-2, #b6bde0); font-size: 13px; }

@@ -123,3 +123,7 @@ body .related-links .related-link { box-shadow: none !important; }
 .tx-retired, .tx-expired { color: var(--gd-text-3, #6f7f8b); }
 .tx-player { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
 .tx-player small { color: var(--gd-text-3, #6f7f8b); }
+
+/* Player names linked automatically to the player hub (navigation-ui.mjs). */
+.player-name-link { cursor: pointer; text-decoration: underline; text-decoration-color: var(--gd-border-strong, #5566a8); text-underline-offset: 3px; }
+.player-name-link:hover, .player-name-link:focus-visible { color: var(--gd-accent, #c7f45b); text-decoration-color: currentColor; outline: none; }

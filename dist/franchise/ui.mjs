@@ -1009,7 +1009,8 @@ function addStats(results) {
     for (let record of result.stats || []) {
       let p = S.roster(state, record.team).find((p) => p.id === record.id);
       if (!p) continue;
-      let stats = (p.stats[state.year] ??= {});
+      // Players added mid-career (draft picks in older saves) may have no stats record yet.
+      let stats = ((p.stats ??= {})[state.year] ??= {});
       for (let [key, value] of Object.entries(record))
         if (!["team", "id"].includes(key))
           stats[key] = (stats[key] || 0) + value;

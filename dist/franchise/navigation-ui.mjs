@@ -62,7 +62,10 @@ export function installNavigationUI({ views, heritage, getSection, isBusy }) {
   const holidayRunning = () =>
     isBusy() || ensureCalendar(state).session?.status === "running";
   const current = (route) => {
-    if (route === "Calendar" && holidayRunning()) return "Calendar";
+    // A running simulation shows the Calendar tab and stays there when it pauses, so the
+    // paused banner (reason, fix link, Resume) is what the player sees.
+    if (route === "Calendar" && holidayRunning()) return (tabs.Calendar = "Calendar");
+    if (route === "Calendar" && tabs.Calendar === undefined && ensureCalendar(state).session?.status === "paused") return "Calendar";
     return TABS[route]?.includes(tabs[route]) ? tabs[route] : TABS[route]?.[0];
   };
   window.Nav = {
@@ -405,11 +408,43 @@ export function installNavigationUI({ views, heritage, getSection, isBusy }) {
       );
     };
   }
+  // Any standalone player name on a screen (a cell or bold label that is exactly the name)
+  // opens that player's profile, so every list links to the player hub without per-screen code.
+  function linkPlayerNames() {
+    const app = document.getElementById("app");
+    if (!app || !state?.franchise) return;
+    const byName = new Map();
+    for (let t = 0; t < 32; t++)
+      for (const p of (t === state.team ? state.roster : state.franchise.clubs[t]?.players) || [])
+        if (!byName.has(p.name)) byName.set(p.name, [p.id, t]);
+    for (const p of state.agents || []) if (!byName.has(p.name)) byName.set(p.name, [p.id, -1]);
+    app.querySelectorAll("td, b, strong").forEach((el) => {
+      if (el.dataset.playerLink || el.children.length || el.closest("button, a, [onclick], .player-name-link")) return;
+      const hit = byName.get(el.textContent.trim());
+      if (!hit) return;
+      el.dataset.playerLink = "1";
+      el.classList.add("player-name-link");
+      el.dataset.linkId = hit[0];
+      el.dataset.linkTeam = hit[1];
+      el.setAttribute("role", "link");
+      el.setAttribute("tabindex", "0");
+      el.title = "Open player profile";
+    });
+  }
+  const openLinked = (e) => {
+    const el = e.target.closest?.(".player-name-link[data-player-link]");
+    if (!el || (e.type === "keydown" && e.key !== "Enter")) return;
+    e.preventDefault();
+    W.player(el.dataset.linkId, Number(el.dataset.linkTeam));
+  };
+  document.addEventListener("click", openLinked);
+  document.addEventListener("keydown", openLinked);
   // Keep the game log current for saves loaded mid-season.
   const previousRender = render;
   render = function () {
     if (state?.franchise) M.ensureMatchups(state);
     previousRender();
+    linkPlayerNames();
   };
   return { crumbLabel };
 }

@@ -112,6 +112,11 @@ export function complianceReport(s, { game = false, camp = false } = {}) {
 }
 export function assertCanAdvance(s, options) {
   const report = complianceReport(s, options);
-  if (!report.ok) throw Error(report.issues[0].message);
+  if (!report.ok) {
+    // The route names the screen that fixes it, so callers can offer a direct link.
+    const error = Error(report.issues[0].message);
+    error.route = report.issues[0].route;
+    throw error;
+  }
   return report;
 }
