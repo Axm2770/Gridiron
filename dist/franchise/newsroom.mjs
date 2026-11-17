@@ -730,10 +730,7 @@ export function processNewsRound(s, results, roundKey) {
         : "Confidence after the latest loss",
     });
     postStory(s, "match-" + roundKey, {
-      title: won
-        ? `${s.franchise.clubs[s.team].identity?.name || "The team"} turn preparation into a win`
-        : `${s.franchise.clubs[s.team].identity?.name || "The team"} search for a response after defeat`,
-      body: `Final score: ${ours.score[i]}–${ours.score[1 - i]}. ${won ? "The coaching staff want the confidence carried into practice." : "Players and coaches turn to the film to find a response."}`,
+      ...matchStory(s, ours, i, roundKey),
       category: "Team",
       source: "Sunday Review",
     });
@@ -749,12 +746,10 @@ export function processNewsRound(s, results, roundKey) {
         playerId: leader?.id,
       });
   }
-  const rivals = results
-    .filter((r) => r.a !== s.team && r.b !== s.team && r.score)
-    .sort(
-      (a, b) =>
-        Math.abs(a.score[0] - a.score[1]) - Math.abs(b.score[0] - b.score[1]),
-    );
+  const rivals = leagueHeadliners(
+    s,
+    results.filter((r) => r.a !== s.team && r.b !== s.team && r.score),
+  );
   for (const [i, r] of rivals
     .slice(
       0,
@@ -769,11 +764,7 @@ export function processNewsRound(s, results, roundKey) {
       team: r.a,
       otherTeam: r.b,
       category: "League",
-      title:
-        Math.abs(r.score[0] - r.score[1]) <= 7
-          ? `${s.franchise.clubs[r.score[0] > r.score[1] ? r.a : r.b].identity?.name || "The winners"} hold on in a one-score finish`
-          : `${s.franchise.clubs[r.score[0] > r.score[1] ? r.a : r.b].identity?.name || "The winners"} make their mark on the standings`,
-      body: `${s.franchise.clubs[r.a].identity?.name || "Team " + (r.a + 1)} ${r.score[0]}–${r.score[1]} ${s.franchise.clubs[r.b].identity?.name || "Team " + (r.b + 1)}. Standings have been updated.`,
+      ...leagueStory(s, r, `${roundKey}-${i}`),
       source: "League desk",
       route: "League",
     });
@@ -799,6 +790,11 @@ export function processNewsRound(s, results, roundKey) {
   if (p) {
     const type = o.step % 6,
       key = "player-action-" + roundKey;
+    // Story-only features fill the weeks without a decision, so the feed is not just results.
+    if (type === 0 || type === 3 || type === 5) {
+      const feature = featureStory(s, p, type, roundKey);
+      if (feature) postStory(s, key, { ...feature, category: "Players", playerId: feature.playerId ?? p.id, source: feature.source || "Gridiron Journal" });
+    }
     if (type === 1) {
       applyMood(s, {
         playerId: p.id,
@@ -899,4 +895,156 @@ export function officeCounts(s) {
       (m) => m.status === "pending" && m.priority === "urgent",
     ).length,
   };
+}
+
+/* ------------------------------------------------------------ story variety */
+// Deterministic per round key; the office remembers recently used lines and prefers fresh ones,
+// so consecutive weeks do not repeat the same headline wording.
+
+const fillLine = (t, ctx) => t.replace(/\{(\w+)\}/g, (_, k) => ctx[k] ?? "");
+function vary(s, family, key, list, ctx) {
+  const o = ensureOffice(s);
+  o.recentLines = Array.isArray(o.recentLines) ? o.recentLines : [];
+  const ids = list.map((_, i) => `${family}:${i}`),
+    fresh = ids.filter((id) => !o.recentLines.includes(id)),
+    pool = fresh.length ? fresh : ids,
+    id = pool[hash(key + family) % pool.length];
+  o.recentLines.unshift(id);
+  o.recentLines = o.recentLines.slice(0, 60);
+  return fillLine(list[ids.indexOf(id)], ctx);
+}
+const clubName = (s, t) =>
+  s.franchise.clubs[t]?.identity?.name || globalThis.clubs?.[t]?.[2] || `Team ${t + 1}`;
+const recordOf = (s, t) => {
+  const r = s.teams?.[t];
+  return r ? `${r.w}-${r.l}${r.t ? "-" + r.t : ""}` : "";
+};
+const winPct = (s, t) => {
+  const r = s.teams?.[t];
+  return r && r.w + r.l >= 3 ? r.w / (r.w + r.l) : 0.5;
+};
+
+const MATCH_TITLES = {
+  winClose: ["{team} survive a one-score fight with the {opp}", "Nerves hold: {team} edge the {opp} {us}–{them}", "{team} find a way late against the {opp}", "{team} close it out when it matters"],
+  winBig: ["{team} overwhelm the {opp}", "No contest: {team} roll past the {opp}", "{team} dominate from the opening drive", "{team} send a message to the {opp}"],
+  winShootout: ["{team} outscore the {opp} in a shootout", "Offense rules the day as {team} beat the {opp}"],
+  win: ["{team} turn preparation into a win", "{team} handle the {opp} {us}–{them}", "A complete performance lifts the {team} to {record}", "{team} control the second half against the {opp}"],
+  lossClose: ["{team} fall just short against the {opp}", "One play away: {team} lose {us}–{them}", "Late heartbreak for the {team}", "So close for the {team} against the {opp}"],
+  lossBig: ["{opp} run away from the {team}", "A long afternoon: {team} beaten {them}–{us}", "{team} have no answers against the {opp}"],
+  loss: ["{team} search for a response after defeat", "{team} drop to {record} after loss to the {opp}", "Missed chances cost the {team} against the {opp}", "The {opp} get the better of the {team}"],
+  tie: ["{team} and {opp} cannot be separated", "Honours even: {team} and {opp} tie {us}–{them}"],
+};
+const MATCH_LINES = {
+  winClose: ["The final possession was managed with real composure.", "The defense made the last stop count.", "It was not pretty, but the staff will take the result."],
+  winBig: ["Every phase contributed and the starters rested late.", "The game plan landed from the first series.", "The depth chart got valuable snaps in the fourth quarter."],
+  win: ["The coaching staff want the confidence carried into practice.", "Third-down execution made the difference.", "Ball security and field position told the story."],
+  lossClose: ["One more stop or one more first down would have flipped it.", "The margin came down to a handful of snaps.", "The locker room knows how close that was."],
+  lossBig: ["Players and coaches turn to the film to find a response.", "Nothing worked for long enough to matter.", "The staff will reset fundamentals this week."],
+  loss: ["Players and coaches turn to the film to find a response.", "Penalties and turnovers stalled promising drives.", "The second half never found a rhythm."],
+  tie: ["Neither side could find the decisive play."],
+};
+
+export function matchStory(s, ours, i, roundKey) {
+  const us = ours.score[i],
+    them = ours.score[1 - i],
+    margin = us - them,
+    opp = i === 0 ? ours.b : ours.a,
+    ctx = { team: clubName(s, s.team), opp: clubName(s, opp), us, them, record: recordOf(s, s.team) },
+    kind =
+      margin === 0 ? "tie"
+      : margin > 0 ? (margin <= 3 ? "winClose" : margin >= 21 ? "winBig" : us + them >= 60 ? "winShootout" : "win")
+      : -margin <= 3 ? "lossClose" : -margin >= 21 ? "lossBig" : "loss",
+    lineKind = MATCH_LINES[kind] ? kind : margin > 0 ? "win" : "loss";
+  return {
+    title: vary(s, "match-" + kind, roundKey, MATCH_TITLES[kind], ctx),
+    body: `Final score: ${us}–${them}. ${vary(s, "match-line-" + lineKind, roundKey, MATCH_LINES[lineKind], ctx)}${ctx.record ? ` The ${ctx.team} are ${ctx.record}.` : ""}`,
+  };
+}
+
+// Mix the week's league headlines: the closest game, the biggest margin, the highest-scoring
+// game and the biggest upset by record, then the rest by closeness.
+export function leagueHeadliners(s, games) {
+  const gap = (r) => Math.abs(r.score[0] - r.score[1]),
+    upset = (r) => {
+      const [w, l] = r.score[0] > r.score[1] ? [r.a, r.b] : [r.b, r.a];
+      return winPct(s, l) - winPct(s, w);
+    },
+    by = (f) => [...games].sort((x, y) => f(x) - f(y))[0],
+    picks = [by(gap), by((r) => -gap(r)), by((r) => -(r.score[0] + r.score[1])), by((r) => -upset(r))];
+  return [...new Set([...picks.filter(Boolean), ...[...games].sort((x, y) => gap(x) - gap(y))])];
+}
+
+const LEAGUE_TITLES = {
+  close: ["{w} hold on in a one-score finish", "{w} edge the {l}", "Last-minute drama as {w} beat the {l}"],
+  rout: ["{w} rout the {l}", "{w} make a statement against the {l}", "{l} overwhelmed by the {w}"],
+  shootout: ["Points everywhere as {w} outlast the {l}", "{w} win a shootout with the {l}"],
+  grind: ["{w} grind past the {l} in a defensive battle", "Defense wins out: {w} beat the {l}"],
+  upset: ["Upset: {w} stun the {l}", "{w} shake up the standings against the {l}"],
+  plain: ["{w} make their mark on the standings", "{w} take care of the {l}", "{w} move to {wrec} with a win over the {l}"],
+};
+const LEAGUE_LINES = ["Standings have been updated.", "The {l} fall to {lrec}.", "The {w} improve to {wrec}.", "Playoff pictures shift across the conference."];
+
+export function leagueStory(s, r, key) {
+  const [w, l] = r.score[0] >= r.score[1] ? [r.a, r.b] : [r.b, r.a],
+    gap = Math.abs(r.score[0] - r.score[1]),
+    total = r.score[0] + r.score[1],
+    kind =
+      winPct(s, l) - winPct(s, w) >= 0.25 ? "upset"
+      : gap <= 3 ? "close"
+      : gap >= 21 ? "rout"
+      : total >= 60 ? "shootout"
+      : total <= 23 ? "grind"
+      : gap <= 7 ? "close"
+      : "plain",
+    ctx = { w: clubName(s, w), l: clubName(s, l), wrec: recordOf(s, w), lrec: recordOf(s, l) };
+  return {
+    title: vary(s, "league-" + kind, key, LEAGUE_TITLES[kind], ctx),
+    body: `${clubName(s, r.a)} ${r.score[0]}–${r.score[1]} ${clubName(s, r.b)}. ${vary(s, "league-line", key, LEAGUE_LINES, ctx)}`,
+  };
+}
+
+const FEATURES = {
+  0: [
+    ["{name} visits a children's hospital in {city}", "The {pos} spent his day off signing helmets and talking football with young patients."],
+    ["{name} hosts a youth camp", "More than a hundred local kids ran drills with the {pos}, who stayed until the last autograph."],
+    ["{name} backs a local food drive", "Teammates joined the {pos} to pack meals for families across {city}."],
+    ["A quiet act of leadership from {name}", "The {pos} paid for the practice-squad players' team dinner this week."],
+  ],
+  3: [
+    ["{name} is taking notes", "The young {pos} has been first into the film room, working alongside {mentor}."],
+    ["Mentor and pupil: {mentor} and {name}", "Teammates say {mentor} has taken the young {pos} under his wing this season."],
+    ["Veteran voice: {name} sets the tone", "Younger players say the {pos} is the one they ask when the playbook gets complicated."],
+  ],
+  5: [
+    ["Film room: what {name} does differently", "Coaches point to the {pos}'s preparation: {stat}"],
+    ["By the numbers: {name}", "A closer look at the {pos}'s season so far: {stat}"],
+    ["Inside the scheme: {name}'s role grows", "The staff have found new ways to use the {pos}. {stat}"],
+  ],
+};
+
+export function featureStory(s, p, type, roundKey) {
+  const list = FEATURES[type];
+  if (!list) return null;
+  const st = p.stats?.[s.year] || {},
+    stat =
+      st.passYards ? `${st.passYards} passing yards and counting.`
+      : st.rushYards ? `${st.rushYards} rushing yards so far.`
+      : st.recYards ? `${st.recYards} receiving yards so far.`
+      : st.tackles ? `${st.tackles} tackles and climbing.`
+      : "the production is starting to match the practice tape.",
+    young = (p.age ?? 27) <= 24,
+    mentor = s.roster
+      .filter((q) => q.id !== p.id && q.pos === p.pos && (q.age ?? 0) >= 28)
+      .sort((a, b) => (b.ovr ?? 0) - (a.ovr ?? 0))[0],
+    options = type === 3 ? (young && mentor ? list.slice(0, 2) : list.slice(2)) : list,
+    ctx = {
+      name: p.name,
+      pos: p.pos,
+      city: s.franchise.clubs[s.team]?.identity?.city || globalThis.clubs?.[s.team]?.[1] || "town",
+      mentor: mentor?.name || "a veteran",
+      stat,
+    };
+  const title = vary(s, `feature-${type}-${options.length}`, roundKey, options.map((x) => x[0]), ctx),
+    i = options.findIndex((x) => fillLine(x[0], ctx) === title);
+  return { title, body: fillLine(options[Math.max(0, i)][1], ctx), playerId: p.id };
 }

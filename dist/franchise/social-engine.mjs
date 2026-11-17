@@ -4,7 +4,8 @@
 import { random } from "../engine/random.mjs";
 import { hash, fanReaction } from "./career-systems.mjs";
 import { applyMood, ensureOffice } from "./newsroom.mjs";
-import { emitGameEvent, eventSeed } from "./event-bus.mjs";
+import { emitGameEvent, eventSeed, ensureEventLog } from "./event-bus.mjs";
+import { detectArrivals } from "./arrivals.mjs";
 
 const clamp = (n, a = 0, b = 100) => Math.max(a, Math.min(b, n));
 const pick = (rng, list) => list[Math.floor(rng() * list.length) % list.length];
@@ -30,6 +31,8 @@ export const FAN_VOICES = {
   oldtimer: { bias: -0.1, stance: "Season ticket since '98" },
   meme: { bias: 0, stance: "Shitposter" },
   capguy: { bias: -0.05, stance: "Cap sheet truther" },
+  fantasy: { bias: 0.05, stance: "Fantasy manager" },
+  bandwagon: { bias: 0.25, stance: "New here" },
 };
 
 const BEAT_NAMES = ["Dana Whitfield", "Luis Ortega", "Kendra Pike", "Sam Okafor", "Priya Natarajan", "Gus Lindqvist", "Renee Batiste", "Cole Ferraro"];
@@ -40,6 +43,8 @@ const FAN_HANDLES = {
   oldtimer: ["OldSchool{abbr}", "Since98_{team}", "Lot{n}Tailgate", "GrandpaWatches{abbr}"],
   meme: ["{team}Memes", "Ratio{abbr}", "Clip{team}Highlights", "{abbr}Brainrot"],
   capguy: ["{abbr}CapSheet", "DeadMoney{n}", "{team}Ledger", "VoidYears{n}"],
+  fantasy: ["{abbr}FlexPlay", "WaiverWire{n}", "StartSit{team}", "PPR_{abbr}{n}"],
+  bandwagon: ["{team}Newbie{n}", "JustGot{abbr}", "FirstSeason{team}", "Hopped{abbr}{n}"],
 };
 
 /* ---------------------------------------------------------------- templates */
@@ -181,6 +186,135 @@ const T = {
   },
 };
 
+// Second wave of storylines. Appended (never inserted) so existing template ids stay stable for
+// the anti-repetition memory in older saves. Result tags added by the event bus: upset,
+// upset-loss, shootout, defensive-battle, bounce-back, skid-snapped, statement.
+const MORE = {
+  insider: {
+    result: {
+      pos: [
+        "{?upset:Nobody around the league gave the {team} much of a chance against the {opp}. }{score}. [Executives I trust|Two scouts I texted] [called it the most complete game of {coach}'s tenure|said the {team} looked faster than their record].",
+        "{?bounce-back:The response after last week was the story. }{team} {score} {opp}, and [the mood in the building has changed|the outside noise just got quieter]. {?shootout:Both defenses will want that film burned.}",
+        "{?statement:That is a statement result. }[Rival front offices|Teams on the {team} schedule] are [re-running their scouting reports|paying attention to {star}] after the {score} win{?defensive-battle: in a grinder}.",
+      ],
+      neg: [
+        "{?upset-loss:Losing to the {opp} was not in anyone's plan. }{score}. [I'm told the staff meeting tonight will be long|Owners do not like surprises like that one]{?losing-streak:, and the streak is now {absStreak}}.",
+        "The {team} are {record} after {score}. [League sources say the front office is|I'm told the building is] [already working the phones|reviewing the depth chart top to bottom]. {?shootout:Defense is the concern.}{?defensive-battle:The offense is the concern.}",
+      ],
+    },
+    signing: {
+      pos: [
+        "[Agreed:|Done deal:] {player} to the {team}. {?trade:Acquired by trade from the {from}. }{?role-starter:He is expected to start right away.}{!role-starter:[Depth with upside.|Smart value add.]}",
+        "{player} ({pos}) is joining the {team}{?marquee:, one of the bigger names on the market}. [Numbers are being finalized.|Medicals went smoothly, I'm told.] He'll wear {number}.",
+      ],
+      neu: ["{player} lands with the {team}. [Low risk.|We'll see how the fit plays.] {?waivers:A waiver claim, so no long-term commitment.}"],
+    },
+    coach: {
+      pos: [
+        "[Breaking:|Hiring news:] the {team} are naming {newCoach} head coach. [The search moved quickly at the end.|Ownership got its first choice, I'm told.]",
+        "{newCoach} to the {team} is done. {?your-hire:[League people see it as a bold appointment.|Rival staffs are curious what the scheme looks like.]}{!your-hire:[Strong candidate, strong staff connections.|Expect assistants to follow.]}",
+      ],
+    },
+    milestone: { pos: ["{player} reaches a career milestone with the {team}. [Rare company.|A long road to get there.]"] },
+    holdout: { neu: ["[Sources:|Per sources,] talks between the {team} and {player} are [ongoing|on a slow simmer]. [Both sides expect a deal eventually.|Nothing imminent.]"] },
+  },
+  beat: {
+    result: {
+      pos: [
+        "[Locker room notes|Notebook]: {?upset:players kept repeating 'nobody believed us.' }{star} [handed the game ball to the scout team|thanked the o-line by name]. {?bounce-back:Different energy than last week. }{record}.",
+        "{?shootout:That was track meet football. }{?defensive-battle:That was a rock fight. }{team} {usScore}, {opp} {themScore}. [{coach} opened with 'Proud of the response.'|Coordinators were hugging in the hallway.]",
+        "{?skid-snapped:Streak over. }[Music back on in the locker room.|You could hear the celebration through the walls.] {coach}: '[We stuck together|That one belongs to the players].' {?rivalry:Bragging rights stay home.}",
+      ],
+      neg: [
+        "{?upset-loss:A stunned room. }[Long silence before anyone spoke.|{coach} needed a minute before the podium.] {score}. [I'll have injury updates later.|Film session is at 8am tomorrow.]",
+        "[Postgame:|Notes:] {coach} called the {score} loss '[unacceptable|a gut check|on all of us].' {?shootout:Defense gave up too many explosives. }{?defensive-battle:Offense never found a rhythm. }[Practice will be physical this week.|Expect lineup changes.]",
+      ],
+    },
+    signing: {
+      pos: [
+        "First look at {player} in {abbr} colors: number {number}, [all smiles|a firm handshake with every coach]. {?role-starter:He's slotting into the starting group.}{!role-starter:He'll compete for snaps.}",
+        "{player} on joining {city}: '[I wanted to be somewhere that wins|This place felt right|I'm here to work].' {?trade:He found out about the trade on the drive in.}",
+      ],
+      neu: ["{player} [arrived at the facility today|took his physical this morning]. Number {number}. [More after practice.|Quiet guy, focused.]"],
+    },
+    coach: {
+      pos: [
+        "{newCoach} met the players this morning. [Short speech, clear standards.|He shook every hand in the room.] [The veterans liked the tone.|Practice schedule changes start Monday.]",
+        "Intro presser takeaways on {newCoach}: 1) [accountability|toughness|tempo] 2) [{star} is part of the plan|competition at every position] 3) [no timeline talk|'we win now'].",
+      ],
+    },
+    milestone: { pos: ["{player} [got a standing ovation in the locker room|was given the game ball] for the milestone. [Classy moment.|Well earned.]"] },
+    injury: { neg: ["{player} [had his helmet off on the sideline|went straight to the medical tent]. {?starter:Next man up is a real question.}{!starter:Depth will be tested.}"] },
+    return: { pos: ["{player} is practicing without restrictions. [The staff are smiling.|Good sign for Sunday.]"] },
+    draft: { pos: ["{player} arrives with [a notebook already full|his college coach's number on speed dial]. [Teammates are impressed.|Day one energy.]"] },
+  },
+  analyst: {
+    result: {
+      pos: ["{?upset:Pregame win probability for the {team}: [27%|31%|34%]. }{?shootout:Both offenses above the 90th percentile in EPA/play. }{?defensive-battle:Combined success rate under 35%. }[Encouraging.|Process matched result.]"],
+      neg: ["{?upset-loss:Favored by our model and lost by {absMargin}. }{?shootout:Defensive EPA allowed was bottom-tier. }[Expected wins and actual wins are drifting.|The underlying numbers are not good enough.]"],
+    },
+    signing: {
+      pos: ["{player} adds roughly [+0.6|+0.9|+1.3] wins in our projection{?role-starter: as a starter}. {?trade:Trade cost looks reasonable.}{!trade:Contract value looks fair.}"],
+      neu: ["{player}: [replacement-level production last year|solid but unspectacular metrics]. {?role-depth:Depth signing, low impact.}{!role-depth:Fit will decide it.}"],
+    },
+    coach: { neu: ["Coaching changes historically swing [1.5|2|2.5] wins in year one. {newCoach}'s profile: rating {rating}. Watch fourth-down aggression."] },
+    draft: { neu: ["{player}'s comps in our model are [mixed|encouraging]. {?first-round:First-round hit rates at the position are around [55%|60%].}"] },
+    holdout: { neg: ["Missed practice time costs players roughly [3%|5%] in early-season efficiency. {player} watch."] },
+  },
+  hottake: {
+    result: {
+      pos: [
+        "{?upset:NOBODY gave them a chance. I DID. }The {team} [are scary|have something cooking|might be the real deal]. {star} is [cooking|unstoppable right now]. [Book it.|Mark it down.]",
+        "{?bounce-back:See? One bad week means NOTHING. }[{coach} is a genius.|This team has a spine.] {?shootout:Points, points, points! }[Fun football!|Can't look away.]",
+      ],
+      neg: [
+        "{?upset-loss:Lost to the {opp}?! THE {OPP}?! }[That's a fireable offense.|I can't defend that.] [Somebody has to answer for this.|Trade everybody.]",
+        "{?defensive-battle:{usScore} points? In this league? }[The offense is a crime scene.|Bench the starters.] {?losing-streak:{absStreak} straight! }[Disgraceful.|Unwatchable.]",
+      ],
+    },
+    signing: {
+      pos: ["{player} to the {team} is [the move of the offseason|a GAME CHANGER|exactly what they needed]. {?marquee:Contender alert.}{!marquee:Sneaky great.}"],
+      neg: ["{player}?! [That's the big move?|Wake me up when they sign someone real.] {?trade:They gave up WHAT for that?}"],
+      neu: ["{player} in {city}? [Fine.|Eh.] [Show me.|Prove it on Sunday.]"],
+    },
+    coach: {
+      pos: ["{newCoach}?! [Love it. Fresh blood.|Finally, someone with a plan.] [Year one playoffs. Calling it.|The {team} are BACK.]"],
+      neg: ["{newCoach}?! [Retread hire.|That's who they landed?|Ownership whiffed.] [Give it two years before the next search.|Same old {team}.]"],
+    },
+    milestone: { pos: ["{player} is a [future Hall of Famer|LEGEND] and I've been saying it for years."] },
+    return: { pos: ["{player} is BACK and the {team} are [dangerous again|a different team with him]."] },
+  },
+  team: {
+    signing: { pos: ["[New threads.|Officially official.|Welcome to the family.] #{number} {player} is a {team}. #{hashtag}", "[Say hello to|Please welcome] {pos} {player}! 🏈 #{hashtag}"] },
+    coach: { pos: ["[Welcome to {city},|Introducing our new head coach,] {newCoach}. [The work starts now.|Let's build.] #{hashtag}"] },
+    milestone: { pos: ["Milestone unlocked: {player}. 👏 #{hashtag}"] },
+    result: {
+      pos: ["[Back in the win column.|That's a W.] {?bounce-back:Responded. }{?upset:Believe it. }{team} {usScore}, {opp} {themScore}. #{hashtag}"],
+      neg: ["{team} {usScore}, {opp} {themScore}. [Back to work.|We'll respond.] #{hashtag}"],
+    },
+  },
+  player: {
+    signing: { pos: ["[Blessed for the opportunity.|New chapter.|{city}, let's work.] [🙏|🏈|💯] #{number}"] },
+    coach: { pos: ["[Excited to work with Coach.|New voice, same goal.|Let's get to work, Coach.] [💯|🔒]"] },
+    result: {
+      pos: ["{?bounce-back:Told y'all we'd respond. }[Brotherhood.|Locked in.|On to the next.] [🔒|💪]"],
+      neg: ["[I'll be better.|Film don't lie.|Heads up, back to work.] {?losing-streak:We're going to turn this.}"],
+    },
+  },
+  rival: {
+    result: {
+      pos: ["{?upset:Funny how predictions work. }[Thanks for the W, {city}.|Business trip complete.] [✈️|🧹]"],
+      neg: ["{?upset-loss:Not our day. }[They earned it.|We'll be ready next time.] [Respect.|💯]"],
+    },
+  },
+};
+for (const [kind, groups] of Object.entries(MORE))
+  for (const [group, polarities] of Object.entries(groups))
+    for (const [polarity, list] of Object.entries(polarities)) {
+      const bank = ((T[kind] ??= {})[group] ??= {});
+      bank[polarity] = [...(bank[polarity] || []), ...list];
+    }
+
 // Fan voices by stance toward the human club: "pos" backs the team, "neg" turns on it.
 // Result-aware conditionals keep a reply consistent with what actually happened.
 const REPLIES = {
@@ -208,13 +342,59 @@ const REPLIES = {
     pos: ["[And there's still cap room to add.|That contract is paying off.|Cheap production on the cap sheet.]"],
     neg: ["[Paying {star} for THAT?|That dead money is going to haunt us.|Imagine this with our cap sheet.]"],
   },
+  fantasy: {
+    pos: ["[Started {star}, won my week.|My lineup thanks you.|Waiver pickup of the year incoming.]", "{?shootout:Fantasy points EVERYWHERE. }[Love this offense.|{star} carried my team too.]"],
+    neg: ["[Benched {star} for this?|My fantasy season is cooked too.|Zero points from the {team} again.]"],
+  },
+  bandwagon: {
+    pos: ["[First season watching and I'm hooked.|Is it always this fun?|Just bought my first {abbr} jersey!]"],
+    neg: ["[Is it always this stressful?|Nobody warned me about this team.|Okay maybe I picked the wrong year.]"],
+  },
+};
+
+// Event-specific fan banks: an injury thread should not read like a game thread. Voices missing
+// here fall back to the generic, result-aware bank above.
+const GROUP_REPLIES = {
+  signing: {
+    loyalist: { pos: ["[Welcome to the family, {first}!|Number {number} jersey ordered.|Get this man a parking spot.]"], neg: ["[Trust the front office... I guess.|Not who I wanted, but welcome.]"] },
+    doomer: { pos: ["[Fine. Prove it.|He'll be hurt by week 4. Hope I'm wrong.]"], neg: ["[That's it? That's the move?|Another band-aid signing.]"] },
+    statnerd: { pos: ["[Graded out well last year by success rate.|Underrated per-snap numbers.]"], neg: ["[Production fell off a cliff last season.|Paying for name, not numbers.]"] },
+    capguy: { pos: ["[Reasonable cap hit if the guarantees are light.|Room left to add more.]"], neg: ["[Check the guaranteed money before celebrating.|That deal will age badly.]"] },
+    meme: { pos: ["[#{number} era begins 🔥|He looks good in {abbr} colors ngl]"], neg: ["[signing szn copium 💀|ok and?]"] },
+    fantasy: { pos: ["[Instantly a flex play.|Adding him in every league.]"], neg: ["[Fantasy irrelevant here.|Crowded room, no upside.]"] },
+  },
+  coach: {
+    loyalist: { pos: ["[New coach, same faith. Let's go!|Welcome to {city}, Coach!]"], neg: ["[Give him time. We've been patient before.]"] },
+    doomer: { pos: ["[Seen four coaches in this building. We'll see.|Honeymoon starts now, ends in October.]"], neg: ["[Here we go, rebuild number five.|Wake me in three years.]"] },
+    oldtimer: { pos: ["[Hope he runs the ball.|Discipline first. That's all I ask.]"], neg: ["[Coaches today don't know toughness.|Back in my day we hired football men.]"] },
+    statnerd: { pos: ["[Hoping for more fourth-down aggression.|Analytics-friendly hire, I like it.]"], neg: ["[His past teams were bottom-10 in early-down efficiency.]"] },
+    bandwagon: { pos: ["[New coach, new me. I'm in!|Picked the right season to start watching!]"], neg: ["[Is a new coach good? Asking for me.]"] },
+  },
+  injury: {
+    loyalist: { pos: ["[Heal up, {first}. We need you.|Next man up, let's go.]"], neg: ["[This one hurts. Get well soon.|Of course it's him. Brutal.]"] },
+    doomer: { pos: ["[Depth will be fine. Probably.]"], neg: ["[Season over. Called it.|Every year, the injury bug.|Training staff needs answers.]"] },
+    statnerd: { pos: ["[Replacement level at the spot isn't terrible.]"], neg: ["[That's a big drop to the backup by grade.|Biggest WAR hit on the roster.]"] },
+    fantasy: { pos: ["[Picking up the backup immediately.]"], neg: ["[My fantasy team just died.|Who's the handcuff?]"] },
+    oldtimer: { pos: ["[Tough guys play through it. He'll be back.]"], neg: ["[Players got softer, injuries got worse.]"] },
+  },
+  return: {
+    loyalist: { pos: ["[He's BACK!|Missed you, {first}!]"], neg: ["[Ease him back in, please.]"] },
+    statnerd: { pos: ["[Big efficiency boost with him on the field.]"], neg: ["[Rust is real. Expect a slow first week.]"] },
+    fantasy: { pos: ["[Reactivating him in every league.]"], neg: ["[Not trusting him in my lineup yet.]"] },
+  },
+  draft: {
+    loyalist: { pos: ["[Welcome, rookie!|Future captain right there.]"], neg: ["[Not my pick, but I'll root for him.]"] },
+    doomer: { pos: ["[Rookies never pan out here, but sure.]"], neg: ["[Another reach. Classic.|Bust alert.]"] },
+    statnerd: { pos: ["[Great testing numbers.|Production profile checks out.]"], neg: ["[Athletic scores are a concern.|Small sample in college.]"] },
+    meme: { pos: ["[rookie card going crazy 📈|day one starter fr]"], neg: ["[who?? 💀|draft grade: F]"] },
+  },
 };
 const stanceFor = (voice, base, rng) => (FAN_VOICES[voice].bias + base * 0.9 + (rng() - 0.5) * 0.6 >= 0 ? "pos" : "neg");
 
 const QUOTES = {
-  pos: ["We played complementary football.", "Credit to the guys — they bought in.", "We're not satisfied, but it's a good step."],
-  neg: ["It starts with me. I have to coach better.", "We'll look at the film and get it fixed.", "Not acceptable. Everything's on the table."],
-  neu: ["We're focused on the next opponent.", "I'm not going to get into that.", "Every week is its own season."],
+  pos: ["We played complementary football.", "Credit to the guys — they bought in.", "We're not satisfied, but it's a good step.", "That's what our standard looks like.", "The guys made the plays when it mattered.", "I loved how we finished."],
+  neg: ["It starts with me. I have to coach better.", "We'll look at the film and get it fixed.", "Not acceptable. Everything's on the table.", "We beat ourselves today.", "Nobody in that room is happy, and they shouldn't be.", "We have to coach it better and play it better."],
+  neu: ["We're focused on the next opponent.", "I'm not going to get into that.", "Every week is its own season.", "We'll evaluate everything on the film.", "That's a conversation for inside the building.", "One week at a time. That's not a cliché here."],
 };
 
 /* ------------------------------------------------------------------ grammar */
@@ -249,7 +429,8 @@ const KIND_GROUP = {
   PlayoffElimination: "elimination",
   PressConference: "presser",
   LockerRoomDilemma: "dilemma",
-  Milestone: "result",
+  Milestone: "milestone",
+  CoachingMove: "coach",
 };
 
 // Base public sentiment for an event in [-1, 1]: positive is good news for the human club.
@@ -270,7 +451,18 @@ export function eventSentiment(e) {
       PressConference: e.tone === "pos" ? 0.3 : e.tone === "neg" ? -0.3 : 0,
       LockerRoomDilemma: e.sentiment ?? -0.2,
       Milestone: 0.6,
+      CoachingMove: e.user ? 0.5 : 0.25,
     }[e.kind] ?? 0;
+  if (e.kind === "Signing") {
+    if (t.has("marquee")) v += 0.25;
+    if (e.role === "depth") v -= 0.15;
+    if (t.has("waivers")) v -= 0.1;
+  }
+  if (e.kind === "GameResult") {
+    if (t.has("upset")) v += 0.2;
+    if (t.has("upset-loss")) v -= 0.2;
+    if (t.has("bounce-back") || t.has("skid-snapped")) v += 0.1;
+  }
   if (e.kind === "DraftPick") {
     if (t.has("first-round")) v += 0.2;
     if (t.has("surprise-pick") && t.has("unscouted")) v -= 0.45;
@@ -336,8 +528,14 @@ function context(s, e, rng) {
     oppStar = opp != null ? topPlayer(s, opp) : null,
     team = teamName(s, t);
   return {
-    tags: e.tags || [],
+    tags: [...(e.tags || []), ...(e.role ? ["role-" + e.role] : [])],
     team,
+    OPP: (opp != null ? teamName(s, opp) : "opponent").toUpperCase(),
+    absMargin: Math.abs(e.margin ?? 0),
+    number: e.number ?? "",
+    from: Number.isInteger(e.from) ? teamName(s, e.from) : "their old club",
+    newCoach: e.coachName || s.coach?.name || "the new coach",
+    rating: e.rating ?? "–",
     TEAM: team.toUpperCase(),
     city: teamCity(s, t),
     abbr: teamAbbr(s, t),
@@ -370,9 +568,16 @@ function author(s, kind, e, rng) {
   const a = ARCHETYPES[kind],
     t = s.team,
     ctx = { abbr: teamAbbr(s, t), team: teamName(s, t).replace(/\W/g, ""), n: 10 + (hash(t + kind) % 89) };
-  if (kind === "insider") return { name: "Mara Quinlan", handle: "MQuinlanReports", ...a };
-  if (kind === "analyst") return { name: "Expected Points Ghost", handle: "EPAghost", ...a };
-  if (kind === "hottake") return { name: "Tre Vance", handle: "TreTakesNoPrisoners", ...a };
+  // Each national voice has a regular and an occasional fill-in, chosen per event.
+  const desk = {
+    insider: [["Mara Quinlan", "MQuinlanReports"], ["Theo Banks", "TheoBanksNFL"]],
+    analyst: [["Expected Points Ghost", "EPAghost"], ["Leverage Index", "LeverageIdx"]],
+    hottake: [["Tre Vance", "TreTakesNoPrisoners"], ["Big Lou Marchetti", "BigLouUnfiltered"]],
+  }[kind];
+  if (desk) {
+    const [name, handle] = desk[rng() < 0.7 ? 0 : 1];
+    return { name, handle, ...a };
+  }
   if (kind === "beat") {
     const name = BEAT_NAMES[hash("beat" + t) % BEAT_NAMES.length];
     return { name, handle: `${ctx.abbr}Beat_${name.split(" ")[1]}`, outlet: `${teamCity(s, t)} Ledger`, ...a };
@@ -407,12 +612,12 @@ export function castFor(e, base) {
     tags = new Set(e.tags || []),
     cast = ["beat"];
   const big = Math.abs(base) >= 0.6 || tags.has("rivalry") || tags.has("playoffs");
-  if (big || ["trade", "holdout", "title", "elimination", "injury"].includes(group)) cast.push("insider");
-  if (Math.abs(base) >= 0.4 || ["trade", "holdout", "bust", "presser", "dilemma", "draft"].includes(group)) cast.push("hottake");
-  if (["result", "title", "injury", "return", "draft", "signing", "preview", "elimination"].includes(group)) cast.push("team");
-  if (group === "result" || group === "injury" || group === "return" || group === "title") cast.push("analyst");
+  if (big || ["trade", "holdout", "title", "elimination", "injury", "coach", "milestone"].includes(group) || (group === "signing" && tags.has("marquee"))) cast.push("insider");
+  if (Math.abs(base) >= 0.4 || ["trade", "holdout", "bust", "presser", "dilemma", "draft", "coach"].includes(group)) cast.push("hottake");
+  if (["result", "title", "injury", "return", "draft", "signing", "preview", "elimination", "coach", "milestone"].includes(group)) cast.push("team");
+  if (["result", "injury", "return", "title", "signing", "coach"].includes(group)) cast.push("analyst");
   if (group === "result" && Number.isInteger(e.opponent)) cast.push("rival");
-  if (["result", "return", "injury"].includes(group)) cast.push("player");
+  if (["result", "return", "injury", "signing", "coach"].includes(group)) cast.push("player");
   cast.push("fan");
   if (big) cast.push("fan");
   return cast;
@@ -429,7 +634,7 @@ function chooseTemplate(engine, kind, group, polarity, rng) {
     fresh = ids.filter((id) => !engine.recent.includes(id)),
     id = pick(rng, fresh.length ? fresh : ids);
   engine.recent.unshift(id);
-  engine.recent = engine.recent.slice(0, 40);
+  engine.recent = engine.recent.slice(0, 80);
   return { id, text: list[ids.indexOf(id)] };
 }
 
@@ -443,12 +648,12 @@ export function composePost(s, e, kind, engine, rng) {
   const perspective = kind === "rival" ? -base : base,
     sentiment = Math.max(-1, Math.min(1, perspective * (0.6 + a.volatility * 0.4) + a.bias * 0.5 + (rng() - 0.5) * 0.3)),
     group = e.preview ? "preview" : KIND_GROUP[e.kind] || "result",
-    ctx = context(s, e, rng);
+    ctx = { ...context(s, e, rng), group };
   let polarity = kind === "fan" ? null : polarityOf(kind === "rival" ? perspective : sentiment);
   let text;
   if (kind === "fan") {
     const stance = stanceFor(a.voice, base, rng);
-    text = expandTemplate(pick(rng, REPLIES[a.voice][stance]), ctx, rng);
+    text = expandTemplate(fanLine(engine, a.voice, stance, group, rng), ctx, rng);
     polarity = stance;
   } else {
     const tpl = chooseTemplate(engine, kind, group, polarity, rng);
@@ -469,7 +674,7 @@ export function composePost(s, e, kind, engine, rng) {
     team: a.team ?? s.team,
     year: e.year,
     week: e.week,
-    topic: { result: "Reactions", injury: "Injuries", return: "Injuries", draft: "Draft", bust: "Draft", trade: "Rumors", holdout: "Rumors", title: "Reactions", elimination: "Reactions", presser: "Reactions", dilemma: "Players" }[group] || "Reactions",
+    topic: { result: "Reactions", injury: "Injuries", return: "Injuries", draft: "Draft", bust: "Draft", trade: "Rumors", holdout: "Rumors", title: "Reactions", elimination: "Reactions", presser: "Reactions", dilemma: "Players", signing: "Signings", coach: "Coaching", milestone: "Players" }[group] || "Reactions",
     tone: sentiment > 0.5 ? "Hyped" : sentiment > 0.15 ? "Optimistic" : sentiment < -0.5 ? "Furious" : sentiment < -0.15 ? "Concerned" : "Debate",
     body: text,
     sentiment: Math.round(sentiment * 100) / 100,
@@ -484,18 +689,31 @@ export function composePost(s, e, kind, engine, rng) {
           reputation: { recognition: a.player.reputation?.recognition ?? a.player.ovr ?? 60, label: "Player account", audience: a.reach },
         }
       : {}),
-    comments: replies(s, ctx, sentiment, base, a, rng),
+    comments: replies(s, ctx, sentiment, base, a, rng, engine),
     feedOrder: { insider: 0, hottake: 1, team: 2, beat: 3, rival: 4, player: 5, analyst: 6, fan: 7 }[kind] ?? 8,
   };
 }
 
-function replies(s, ctx, sentiment, base, parent, rng) {
+// Fan line for a voice: the event-specific bank when one exists, preferring lines this save has
+// not used recently so the same reply does not open every thread.
+function fanLine(engine, voice, stance, group, rng) {
+  const list = GROUP_REPLIES[group]?.[voice]?.[stance] || REPLIES[voice][stance],
+    ids = list.map((_, i) => `${voice}:${stance}:${GROUP_REPLIES[group]?.[voice] ? group : "any"}:${i}`);
+  engine.recentReplies = Array.isArray(engine.recentReplies) ? engine.recentReplies : [];
+  const fresh = ids.filter((id) => !engine.recentReplies.includes(id)),
+    id = pick(rng, fresh.length ? fresh : ids);
+  engine.recentReplies.unshift(id);
+  engine.recentReplies = engine.recentReplies.slice(0, 30);
+  return list[ids.indexOf(id)];
+}
+
+function replies(s, ctx, sentiment, base, parent, rng, engine = { recentReplies: [] }) {
   const count = 2 + Math.floor(rng() * 3),
     out = [],
     voices = Object.keys(REPLIES);
   for (let i = 0; i < count; i++) {
     const voice = voices[Math.floor(rng() * voices.length)],
-      text = expandTemplate(pick(rng, REPLIES[voice][stanceFor(voice, base, rng)]), ctx, rng);
+      text = expandTemplate(fanLine(engine, voice, stanceFor(voice, base, rng), ctx.group, rng), ctx, rng);
     if (out.some((r) => r.text === text)) continue;
     const handle = expandTemplate(pick(rng, FAN_HANDLES[voice]), { abbr: ctx.abbr, team: ctx.team.replace(/\W/g, ""), n: 10 + Math.floor(rng() * 89), tags: [] }, rng);
     out.push({ name: handle, stance: FAN_VOICES[voice].stance, replyTo: out.length && rng() < 0.45 ? out.at(-1).name : undefined, text });
@@ -514,8 +732,16 @@ export function processSocialRound(s, events = []) {
   // exist for cinematic triggers, so the feed skips them to avoid duplicate reactions.
   // Medical news is capped at the two most significant spells per round (starters, then length)
   // so a bad injury week reads as a story rather than a flood.
-  const fresh = [...events, ...storyEvents(s, engine), ...previewEvents(s)].filter(
-    (e) => e && !engine.seen.includes(e.id) && !["ClutchFinish", "Blowout"].includes(e.kind) && (e.kind !== "RivalryGame" || e.preview),
+  // Arrivals (signings, trade arrivals, a new head coach) are detected here too, so settlement
+  // and live UI paths both react. A trade arrival already reacted to as a Trade is not repeated.
+  const traded = new Set(ensureEventLog(s).events.filter((e) => e.kind === "Trade" && e.playerId).map((e) => e.playerId));
+  const fresh = [...events, ...detectArrivals(s), ...storyEvents(s, engine), ...previewEvents(s)].filter(
+    (e) =>
+      e &&
+      !engine.seen.includes(e.id) &&
+      !["ClutchFinish", "Blowout"].includes(e.kind) &&
+      (e.kind !== "RivalryGame" || e.preview) &&
+      !(e.kind === "Signing" && e.via === "trade" && traded.has(e.playerId)),
   );
   const medical = new Set(
     fresh
@@ -590,6 +816,12 @@ function storyEvents(s, engine) {
   const out = [];
   for (const a of o.stories.slice(0, 20)) {
     if (a.team !== s.team || engine.seen.includes(`story:${a.id}`)) continue;
+    // Signings come from arrival detection, which knows the player, number and route; the old
+    // "signs|joins" title match also caught scout and physio hires.
+    if (a.card) {
+      engine.seen.push(`story:${a.id}`);
+      continue;
+    }
     // Rumor stories ("trade buzz", reports) already get insider posts from world-events.
     const t = a.title || "",
       rumor = /buzz|rumou?r|report|around the league|speculat/i.test(t),
@@ -599,11 +831,9 @@ function storyEvents(s, engine) {
           ? "Trade"
           : /holdout/i.test(t)
             ? "Holdout"
-            : /\b(signs|signed|agrees|joins)\b/i.test(t)
-              ? "Signing"
-              : /\b(drafts|drafted|selects|selected)\b/i.test(t)
-                ? "DraftPick"
-                : null;
+            : /\b(drafts|drafted|selects|selected)\b/i.test(t)
+              ? "DraftPick"
+              : null;
     engine.seen.push(`story:${a.id}`);
     if (!kind) continue;
     const e = emitGameEvent(s, `story:${a.id}`, { kind, headline: t, playerId: a.playerId, playerName: s.roster?.find((p) => p.id === a.playerId)?.name });

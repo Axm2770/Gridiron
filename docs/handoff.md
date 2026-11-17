@@ -18,6 +18,7 @@ The current game includes the earlier franchise expansion, news/inbox/social vie
 | Execution / officiating / rendering | `dist/engine/`, `dist/stadium.js`, `dist/match.js` |
 | Native app | `desktop/main.cjs`, `desktop/protocol.cjs`, `scripts/package-desktop.mjs` |
 | Event log / social engine / depth systems / Hub UI | `event-bus.mjs`, `social-engine.mjs`, `depth-systems.mjs`, `dashboard-ui.mjs`, `dist/ui/` — see `docs/overhaul-architecture.md` |
+| Arrivals, pixel-art cutscenes and news cards | `arrivals.mjs` diffs rosters and head coaches against `franchise.arrivals` (keyed to the career's coach profile) and emits own-club `Signing` / `CoachingMove` events plus newsroom `card` stories; `presentation/pixel-art.mjs` draws the sprites, cards and 2D scenes; styles in `dist/ui/pixel-art.css` |
 
 Paths in the table without a directory are under `dist/franchise/`. Consult exports directly rather than assuming an unseen API. Older implementation notes in README describe historical releases; this file and the calendar guide describe the current date-based holiday path.
 
