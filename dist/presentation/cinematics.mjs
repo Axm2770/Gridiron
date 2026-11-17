@@ -1,16 +1,23 @@
 // In-engine cinematics for narrative moments (title celebration, draft night, press podium,
 // playoff exit, walk-off win, locker-room confrontation). Built from the same rigged
 // characters as the conversation scenes, played full-screen with letterbox, titles and skip.
-// Read-only over state and the narrative event log.
+// Signing and head-coach arrivals play as 2D pixel-art scenes (pixel-art.mjs); with the pixel
+// theme on, the 3D scenes render at low resolution and scale up crisply.
+// Read-only over state and the narrative event log, apart from arrival detection.
 import * as THREE from "../vendor/three.module.js";
 import { createCharacter, appearanceFor } from "../franchise/character-stage.mjs";
 import { eventsSince } from "../franchise/event-bus.mjs";
 import { TEAM_COLORS } from "./team-colors.mjs";
+import { playPixelScene, pixelSceneActive, installPixelScenes } from "./pixel-art.mjs";
+import { detectArrivals } from "../franchise/arrivals.mjs";
+import { processSocialRound } from "../franchise/social-engine.mjs";
 
 export const SCENES = {
   Championship: { priority: 100, major: true, duration: 9 },
+  CoachingMove: { priority: 90, major: true, duration: 8, pixel: true },
   DraftPick: { priority: 80, major: true, duration: 7 },
   PlayoffElimination: { priority: 70, major: true, duration: 7 },
+  Signing: { priority: 65, major: false, duration: 8, pixel: true },
   ClutchFinish: { priority: 60, major: false, duration: 6.5 },
   LockerRoomDilemma: { priority: 50, major: false, duration: 6 },
   PressConference: { priority: 40, major: false, duration: 5 },
@@ -423,8 +430,10 @@ function sampleShot(shots, u) {
 let active = null;
 
 export function playCinematic(event) {
+  if (active || pixelSceneActive()) return false;
+  if (SCENES[event.kind]?.pixel) return playPixelScene(event, { duration: SCENES[event.kind].duration });
   const build = BUILDERS[event.kind];
-  if (!build || active) return false;
+  if (!build) return false;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches,
     def = SCENES[event.kind],
     cut = build(event);
@@ -450,7 +459,9 @@ export function playCinematic(event) {
     root.remove();
     return false;
   }
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  const pixel = document.body.classList.contains("gd-pixel");
+  root.classList.toggle("gd-cine-px", pixel);
+  renderer.setPixelRatio(pixel ? 0.3 : Math.min(devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -533,10 +544,21 @@ export function playCinematic(event) {
 }
 
 export function installCinematics({ isBusy }) {
+  installPixelScenes();
   let cursor = Number(state.franchise?.eventLog?.serial ?? 0);
   const pending = [];
   const previous = render;
   render = function () {
+    // Signings and coaching changes made outside round settlement (offers, trades, calendar
+    // days) are picked up before drawing, so their news cards show on this render; settlement
+    // runs the same detection through the social engine.
+    if (state.franchise && !isBusy())
+      try {
+        const arrivals = detectArrivals(state);
+        if (arrivals.length) processSocialRound(state, arrivals);
+      } catch (error) {
+        console.warn("Arrivals:", error);
+      }
     previous();
     if (!state.franchise) return;
     const fresh = eventsSince(state, cursor);
@@ -544,9 +566,15 @@ export function installCinematics({ isBusy }) {
     pending.push(...fresh.filter((e) => e.team === state.team));
     // Wait until the match animation and any modal are done before rolling a cinematic.
     const busy = isBusy() || (typeof animating !== "undefined" && animating) || document.getElementById("modal")?.open;
-    if (!pending.length || busy || active) return;
+    if (!pending.length || busy || active || pixelSceneActive()) return;
     const pick = pickCinematic(pending.splice(0));
     if (pick) setTimeout(() => playCinematic(pick), 250);
   };
-  window.Cinematics = { play: playCinematic, preview: (kind) => playCinematic({ id: "preview-" + kind, kind, team: state.team, score: [31, 24], playerName: "Top Prospect", round: 1, quote: "We earned this together.", headline: "A word with the team" }) };
+  const sample = (kind) => {
+    const p = star() || {};
+    if (kind === "Signing") return { playerId: p.id, playerName: p.name || "Top Free Agent", pos: p.pos || "WR", ovr: p.ovr, number: p.jersey || 12, face: p.face, via: "free-agency" };
+    if (kind === "CoachingMove") return { coachName: state.coach?.name, coachId: "coach-" + state.team, user: true };
+    return {};
+  };
+  window.Cinematics = { play: playCinematic, preview: (kind) => playCinematic({ id: "preview-" + kind, kind, team: state.team, score: [31, 24], playerName: "Top Prospect", round: 1, quote: "We earned this together.", headline: "A word with the team", ...sample(kind) }) };
 }

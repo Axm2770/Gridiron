@@ -6,6 +6,7 @@ import {
 } from "./career-systems.mjs";
 import { consumeBoardPermit, isBlockbuster } from "./boardroom.mjs";
 import { signingFactors } from "./market.mjs";
+import { roleBlocker, rosterFull, capShortfall, blockerText } from "./blockers.mjs";
 import {
   MILLION,
   capLedger,
@@ -168,20 +169,36 @@ export function restructure(s, id, amount) {
     `Converted $${(n / MILLION).toFixed(1)}M to a prorated bonus; future cap charges increase.`,
   );
 }
+// Why a free-agent offer can't be made right now, each with a fix. With terms, the cap check uses
+// that offer's first-year charge; without, the player's asking salary.
+export function offerBlockers(s, id, terms = null) {
+  const out = [],
+    role = roleBlocker(s, "finance");
+  if (role) out.push(role);
+  if (s.live) out.push({ reason: "A live game is in progress.", fix: "Finish or quick-sim the game before contract business." });
+  const p = s.agents.find((p) => p.id === id);
+  if (!p) {
+    out.push({ reason: "He has already signed elsewhere or left the market.", fix: null });
+    return out;
+  }
+  const full = rosterFull(s, roster(s).filter((p) => p.status === "active").length + 1);
+  if (full) out.push(full);
+  let charge = Math.round(Math.max(0.8, p.salary) * MILLION);
+  if (terms)
+    try {
+      charge = capHit(proposal(s, p, terms), financeYear(s));
+    } catch {}
+  const room = capLedger(s).room;
+  if (room < charge) out.push(capShortfall(s, charge - room));
+  return out;
+}
 export function offer(s, id, terms) {
   requireRole(s, "finance");
-  if (
-    roster(s).filter((p) => p.status === "active").length >=
-    (s.phase === "offseason" ? 90 : 53)
-  )
-    throw Error(
-      "Create an active-roster opening before submitting a free-agent offer.",
-    );
   let p = s.agents.find((p) => p.id === id);
   if (!p) throw Error("Free agent unavailable.");
+  const blocked = offerBlockers(s, id, terms);
+  if (blocked.length) throw Error(blockerText(blocked[0]));
   let c = proposal(s, p, terms);
-  if (capLedger(s).room < capHit(c, financeYear(s)))
-    throw Error("Insufficient cap room for the first-year charge.");
   s.franchise.market.offers = s.franchise.market.offers.filter(
     (o) => !(o.playerId === id && o.team === s.team),
   );

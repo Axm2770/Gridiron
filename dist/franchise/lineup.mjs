@@ -90,7 +90,7 @@ export function changeLineup(s, unit, slot, id) {
       (role === "DC" && !ownUnit)
     )
   )
-    throw Error("This unit is delegated to another member of staff.");
+    throw Error(`The ${unit.toLowerCase()} depth chart is delegated to another coach in your ${role} role. Switch your career role in Career dossier to change it.`);
   if (s.live?.finished)
     throw Error(
       "The game has finished. Review the result before changing personnel.",
@@ -98,13 +98,17 @@ export function changeLineup(s, unit, slot, id) {
   const actors = lineupActors(s, unit),
     out = actors[slot],
     incoming = s.roster.find((p) => p.id === id);
-  if (
-    !out ||
-    !incoming ||
-    !availableForLineup(incoming) ||
-    incoming.pos !== out.role
-  )
-    throw Error("Choose an available player at the same position.");
+  if (!out || !incoming) throw Error("Choose an available player at the same position.");
+  if (incoming.pos !== out.role)
+    throw Error(`${incoming.name} plays ${incoming.pos}; this slot needs a ${out.role}. Change his position in Training → Individual plans first.`);
+  if (!availableForLineup(incoming))
+    throw Error(
+      incoming.injury
+        ? `${incoming.name} is injured (${incoming.injury} week${incoming.injury === 1 ? "" : "s"}) and not available. Choose a healthy player.`
+        : incoming.holdout
+          ? `${incoming.name} is holding out and not available. Resolve his contract in Contracts first.`
+          : `${incoming.name} is on the ${incoming.status === "ir" ? "injured reserve" : incoming.status} list and not available. Move him to the active roster first.`,
+    );
   if (actors.some((a) => a.id === id))
     throw Error("This player already occupies another slot in this unit.");
   const position = sortForLineup(s.roster, s.team).filter(

@@ -91,22 +91,48 @@ function comparison(s, mine, other, pos) {
         ),
       ),
     );
+  // Rotate the host, framing and poll each week so the debate does not read like a form letter.
+  const v = hash(a.p.id + b.p.id + s.year + ":" + s.week),
+    big = repA >= repB ? a.p.name : b.p.name,
+    host = [
+      ["Fourth Down Film", "fourthdownfilm"],
+      ["Route Detail", "routedetail"],
+      ["Cap Room Corner", "caproomcorner"],
+    ][v % 3],
+    body = [
+      `Two ${pos}s, different arguments. ${a.p.name} or ${b.p.name} for one season? ${big} has the bigger name; I want to compare production, workload and fit before picking.`,
+      `Settle it: ${a.p.name} vs ${b.p.name}. Same position, very different paths. Who are you taking if the season starts tomorrow?`,
+      `Hot topic in the comments all week: is ${a.p.name} actually better than ${b.p.name}? Bring numbers, not vibes.`,
+      `${big} gets the headlines. But put the ${pos} tape side by side and the gap is smaller than people think. Thoughts?`,
+      `Draft-room exercise: you can sign ${a.p.name} or ${b.p.name} today, same contract. Who do you choose and why?`,
+    ][(v >>> 3) % 5],
+    question = ["Who would you build this season around?", `Better ${pos} right now?`, "One season, one pick. Who is it?", "Who has the higher ceiling from here?"][(v >>> 6) % 4],
+    reputationTake = [
+      `${big} is the more established name. That brings a benefit of the doubt, but the name on the jersey cannot be the whole argument.`,
+      `Reputation follows ${big} into every room. Earned, sure, but this season's film should count for more.`,
+      `People vote for the name they know. That is why ${big} wins these polls. Not saying that makes it wrong.`,
+    ][(v >>> 9) % 3],
+    rosterTake = [
+      `I would ask what the team already has around them. ${a.p.name} is ${a.p.age}; ${b.p.name} is ${b.p.age}. Age and supporting cast can change the choice. I would build the role before making the move.`,
+      `Ages matter here: ${a.p.age} against ${b.p.age}. One of these is a three-year plan, the other is a this-year plan.`,
+      `Scheme fit decides it for me. Put either one in the wrong system and the numbers drop. ${a.p.age} vs ${b.p.age} in age, too.`,
+    ][(v >>> 12) % 3];
   return {
     id: `comparison-${s.year}-${s.week}-${pos}`,
     feedOrder: 2 + ["QB", "RB", "WR", "DL"].indexOf(pos) * 5,
-    name: "Fourth Down Film",
-    handle: "fourthdownfilm",
+    name: host[0],
+    handle: host[1],
     team: s.team,
     year: s.year,
     week: s.week,
     topic: "Comparisons",
     tone: "Debate",
-    body: `Two ${pos}s, different arguments. ${a.p.name} or ${b.p.name} for one season? ${repA >= repB ? a.p.name : b.p.name} has the bigger name; I want to compare production, workload and fit before picking.`,
+    body,
     pair,
     metric,
     likes: Math.round((a.reputation + b.reputation) ** 2 * 0.18),
     poll: {
-      question: "Who would you build this season around?",
+      question,
       options: [a.p.name, b.p.name],
       shares: [share, 100 - share],
       votes: Math.round((a.reputation + b.reputation) * 38),
@@ -130,12 +156,12 @@ function comparison(s, mine, other, pos) {
         name: "Cap Room Corner",
         replyTo: "Route Detail",
         stance: "Roster building",
-        text: `I would ask what the team already has around them. ${a.p.name} is ${a.p.age}; ${b.p.name} is ${b.p.age}. Age and supporting cast can change the choice. I would build the role before making the move.`,
+        text: rosterTake,
       },
       {
         name: "Noah on Sundays",
         stance: "Reputation",
-        text: `${repA >= repB ? a.p.name : b.p.name} is the more established name. That brings a benefit of the doubt, but the name on the jersey cannot be the whole argument.`,
+        text: reputationTake,
       },
     ],
   };

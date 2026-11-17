@@ -22,6 +22,7 @@ import {
 import { effectiveAttributes } from "./ratings.mjs";
 import { faceSVG } from "./newgens.mjs";
 import { icon, searchKey } from "./presentation.mjs";
+import { storyArt } from "../presentation/pixel-art.mjs";
 const fmtBio = (n) => Number(n).toLocaleString("en-US");
 const num = (n, d = 1) =>
   Number.isFinite(n)
@@ -182,7 +183,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
           : m.outcome
             ? `<p class="muted">${esc(m.outcome)}</p>`
             : ""
-    }${effects && !m.response ? `<section class="response-record"><span class="eyebrow">WHAT CHANGED</span><p>${esc(effects.reason)}</p>${impactRows(effects.changes)}</section>` : ""}<div class="message-actions">${m.route ? `<button class="secondary" onclick="Office.route('${m.route}','${m.playerId || ""}')">${m.interview ? "Attend interview" : m.promiseKey ? "Meet player" : "Open " + ({ Development: "development report", Medical: "medical centre" }[m.route] || m.route)} ${icon("arrow")}</button>` : ""}${p ? `<button class="secondary" onclick="W.player('${p.id}')">Player profile</button>` : ""}<button class="link" onclick="Office.unread('${m.id}')">Mark unread</button></div></article>`;
+    }${effects && !m.response ? `<section class="response-record"><span class="eyebrow">WHAT CHANGED</span><p>${esc(effects.reason)}</p>${impactRows(effects.changes)}</section>` : ""}<div class="message-actions">${m.route ? `<button class="secondary" onclick="Office.route('${m.route}','${m.playerId || ""}')">${m.interview ? "Attend interview" : m.promiseKey ? "Meet player" : "Open " + ({ Development: "development report", Medical: "medical centre" }[m.route] || m.route)} ${icon("arrow")}</button>` : ""}${p ? `<button class="secondary" onclick="W.player('${p.id}')">Player profile</button>` : ""}${m.category === "Scouting" && m.playerId ? `<button class="secondary" onclick="Scout.open('${m.playerId}')">Open scouting card</button>` : ""}<button class="link" onclick="Office.unread('${m.id}')">Mark unread</button></div></article>`;
   }
   views.Inbox = () => {
     const counts = officeCounts(state),
@@ -224,12 +225,14 @@ export function installOfficeUI({ views, isBusy, getSection }) {
             "Sunday Review": 0,
             "Team communications": 1,
             "Gridiron Journal": 1,
+            "Transactions wire": 1,
             "League desk": 2,
           }[a.source] ?? 3) -
             ({
               "Sunday Review": 0,
               "Team communications": 1,
               "Gridiron Journal": 1,
+              "Transactions wire": 1,
               "League desk": 2,
             }[b.source] ?? 3),
       );
@@ -241,7 +244,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
         .slice(news.page * 9, news.page * 9 + 9)
         .map(
           (a, i) =>
-            `<article class="story-card story-topic-${a.category.toLowerCase()} ${i === 0 ? "lead-story" : ""}"><div class="story-top"><span>${esc(a.source)}</span><button class="icon-button" aria-label="${a.bookmarked ? "Unsave" : "Save"} story" onclick="Office.storyBookmark('${a.id}')">${a.bookmarked ? "★" : "☆"}</button></div><div class="story-category">${badge(a.category)}<span>${a.year} · Week ${a.week + 1}</span></div><h2>${esc(a.title)}</h2><p>${esc(a.body)}</p><div class="story-bottom"><span>${logo(a.team)}${esc(clubs[a.team][2])}</span>${a.messageId ? `<button class="link" onclick="Office.fromStory('${a.messageId}')">Open brief ${icon("arrow")}</button>` : a.route ? `<button class="link" onclick="W.open('${a.route}')">Explore ${icon("arrow")}</button>` : a.playerId ? `<button class="link" onclick="W.player('${a.playerId}',${a.team})">Player ${icon("arrow")}</button>` : ""}</div></article>`,
+            `<article class="story-card story-topic-${a.category.toLowerCase()} ${i === 0 ? "lead-story" : ""}"><div class="story-top"><span>${esc(a.source)}</span><button class="icon-button" aria-label="${a.bookmarked ? "Unsave" : "Save"} story" onclick="Office.storyBookmark('${a.id}')">${a.bookmarked ? "★" : "☆"}</button></div><div class="story-category">${badge(a.category)}<span>${a.year} · Week ${a.week + 1}</span></div>${storyArt(a)}<h2>${esc(a.title)}</h2><p>${esc(a.body)}</p><div class="story-bottom"><span>${logo(a.team)}${esc(clubs[a.team][2])}</span>${a.messageId ? `<button class="link" onclick="Office.fromStory('${a.messageId}')">Open brief ${icon("arrow")}</button>` : a.route ? `<button class="link" onclick="W.open('${a.route}')">Explore ${icon("arrow")}</button>` : a.playerId ? `<button class="link" onclick="W.player('${a.playerId}',${a.team})">Player ${icon("arrow")}</button>` : ""}</div></article>`,
         )
         .join("") ||
       '<div class="office-empty"><h2>No stories in this view.</h2><p>Change your filters or follow more franchises.</p></div>'
@@ -543,7 +546,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     ])}<div class="office-tabs stats-tabs">${["Performance", "Workload", "Dynamics"].map((v) => `<button class="${analysisTab === v ? "active" : ""}" onclick="Office.analysis('${v}')">${v}</button>`).join("")}</div>${body}<p class="fiction-note">— indicates no recorded sample. Scoring benchmarks use regular-season games; player production includes all recorded games.</p>`;
   };
   function settingsInterface() {
-    return `<div class="settings-section"><h3>Make the workspace yours.</h3><p>Display preferences apply on this device. Career decisions remain part of each save.</p><label class="settings-row"><span><b>Pixel theme</b><small>Retro pixel fonts, square panels and a pixel-art field. Off restores the classic look.</small></span><input type="checkbox" aria-label="Pixel theme" ${document.body.classList.contains("gd-pixel") ? "checked" : ""} onchange="Office.pixel(this.checked)"></label><label class="settings-row"><span><b>Table density</b><small>More space or more players on screen.</small></span><select aria-label="Interface density" onchange="Office.density(this.value)">${opts(["comfortable", "compact"], document.body.dataset.density || "comfortable")}</select></label><label class="settings-row"><span><b>Reduce scene motion</b><small>Quieter cutscenes and static interface transitions.</small></span><input type="checkbox" aria-label="Reduce scene motion" ${document.body.classList.contains("reduce-motion") ? "checked" : ""} onchange="Office.motion(this.checked)"></label><div class="settings-row"><span><b>Keyboard shortcuts</b><small>⌘K / Ctrl+K opens global player and screen search. Escape closes dialogs.</small></span><button class="secondary" onclick="W.command()">Open search</button></div></div>`;
+    return `<div class="settings-section"><h3>Make the workspace yours.</h3><p>Display preferences apply on this device. Career decisions remain part of each save.</p><label class="settings-row"><span><b>Pixel theme</b><small>Square pixel panels, hard shadows and a pixel-art field with clear, readable text. Off restores the classic look.</small></span><input type="checkbox" aria-label="Pixel theme" ${document.body.classList.contains("gd-pixel") ? "checked" : ""} onchange="Office.pixel(this.checked)"></label><label class="settings-row"><span><b>Table density</b><small>More space or more players on screen.</small></span><select aria-label="Interface density" onchange="Office.density(this.value)">${opts(["comfortable", "compact"], document.body.dataset.density || "comfortable")}</select></label><label class="settings-row"><span><b>Reduce scene motion</b><small>Quieter cutscenes and static interface transitions.</small></span><input type="checkbox" aria-label="Reduce scene motion" ${document.body.classList.contains("reduce-motion") ? "checked" : ""} onchange="Office.motion(this.checked)"></label><div class="settings-row"><span><b>Keyboard shortcuts</b><small>⌘K / Ctrl+K opens global player and screen search. Escape closes dialogs.</small></span><button class="secondary" onclick="W.command()">Open search</button></div></div>`;
   }
   function settingsAudio() {
     const b = window.broadcast,
@@ -562,7 +565,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       )}</select></label><div class="settings-row"><span><b>Voice check</b><small>Preview the selected voice.</small></span><button class="secondary" onclick="broadcast.preview()">Preview voice</button></div></div>`;
   }
   function settingsNews() {
-    return `<div class="settings-section"><h3>The right information, at the right time.</h3><p>Urgent club messages always reach your inbox. Following controls the news feed.</p><label class="settings-row"><span><b>Pause delegated simulations for urgent decisions</b><small>Stops after the current round when a new urgent choice is waiting.</small></span><input type="checkbox" aria-label="Pause on urgent inbox decisions" ${office().preferences.pauseOnUrgent ? "checked" : ""} onchange="Office.preference('pauseOnUrgent',this.checked)"></label><label class="settings-row"><span><b>League news volume</b><small>Number of wider-league results delivered each round.</small></span><select aria-label="League news volume" onchange="Office.preference('newsFrequency',this.value)">${opts(["Minimal", "Normal", "Extensive"], office().preferences.newsFrequency)}</select></label><h3>Follow franchises</h3><p>Choose Following in News to read only these teams.</p><div class="follow-team-grid">${clubs.map((c, i) => `<label><input type="checkbox" aria-label="Follow ${esc(cname(i))}" ${office().followedTeams.includes(i) ? "checked" : ""} onchange="Office.followTeam(${i},this.checked)">${logo(i)}<span>${esc(c[2])}</span></label>`).join("")}</div></div>`;
+    return `<div class="settings-section"><h3>The right information, at the right time.</h3><p>Urgent club messages always reach your inbox. Following controls the news feed.</p><label class="settings-row"><span><b>Pause simulations for urgent decisions</b><small>Stops after the current round when a new urgent choice is waiting.</small></span><input type="checkbox" aria-label="Pause on urgent inbox decisions" ${office().preferences.pauseOnUrgent ? "checked" : ""} onchange="Office.preference('pauseOnUrgent',this.checked)"></label><label class="settings-row"><span><b>League news volume</b><small>Number of wider-league results delivered each round.</small></span><select aria-label="League news volume" onchange="Office.preference('newsFrequency',this.value)">${opts(["Minimal", "Normal", "Extensive"], office().preferences.newsFrequency)}</select></label><h3>Follow franchises</h3><p>Choose Following in News to read only these teams.</p><div class="follow-team-grid">${clubs.map((c, i) => `<label><input type="checkbox" aria-label="Follow ${esc(cname(i))}" ${office().followedTeams.includes(i) ? "checked" : ""} onchange="Office.followTeam(${i},this.checked)">${logo(i)}<span>${esc(c[2])}</span></label>`).join("")}</div></div>`;
   }
   views.Settings = () =>
     `<div class="settings-workspace"><nav class="settings-nav" aria-label="Settings sections">${["Interface", "Match & audio", "News & workflow", "Data & tools"].map((v) => `<button class="${v === settingsTab ? "active" : ""}" onclick="Office.settings('${v}')">${icon(v === "Interface" ? "filter" : v === "Match & audio" ? "mic" : v === "News & workflow" ? "bell" : "database")}<span>${v}</span>${icon("chevron")}</button>`).join("")}</nav><section class="panel settings-content">${
@@ -908,8 +911,8 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     }
   };
   const openScreen = W.open;
-  W.open = function (route) {
-    openScreen(route);
+  W.open = function (route, ...rest) {
+    openScreen(route, ...rest);
     window.scrollTo({ top: 0, behavior: "instant" });
     window.Recruit?.fit();
   };
