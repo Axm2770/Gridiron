@@ -92,6 +92,8 @@ export const ROUTE_ALIASES = {
   Archives: ["Records", "Champions"],
   "Hall of Fame": ["Records", "Hall of Fame"],
   Awards: ["Records", "Awards"],
+  // Next Generation was folded into the Draft room; old inbox links and bookmarks land there.
+  "Next generation": ["Draft"],
 };
 // Quick jumps shown under each screen title.
 export const RELATED = {
