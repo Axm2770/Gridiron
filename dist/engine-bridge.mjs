@@ -165,7 +165,7 @@ matchScreen = function () {
   let booth = `<div class="commentary-booth"><div><b>THE BROADCAST BOOTH</b><button class="small secondary" onclick="window.broadcast.toggle()">${window.broadcast.director.enabled ? "♫ Commentary on" : "♫ Enable commentary"}</button></div><p id="broadcast-caption" aria-live="polite" ${window.SimOptions?.get().captions === "Off" ? "hidden" : ""}>${esc(m.commentary?.at(-1)?.text || "Ready for the next snap.")}</p><div class="booth-bottom"><small>Live play-by-play · situation-aware calls</small><button class="link" onclick="broadcast.settings()">Voice settings</button></div></div>`;
   let recent = m.last?.execution,
     release = recent?.events.find((e) => e.type === "PassReleased");
-  let intelligence = `<details class="kernel-details"><summary>Coordinator advice ▾</summary><p>${release ? esc(release.name) + " found " + release.separation.toFixed(1) + " yards of separation at release." : "Watch how the defensive shell rotates after the snap."} ${recent?.result.kind === "sack" ? "Shorten the quarterback’s progression or use a quicker passing concept." : recent?.result.yards < 3 ? "Try a different personnel grouping or attack the opposite edge." : "Monitor fatigue and rotate personnel between snaps."}</p></details><details class="kernel-details"><summary>Developer match diagnostics ▾</summary><p>20 Hz · seed ${m.engine?.seed ?? "initialized on snap"} · play ${m.engine?.serial ?? 0} · ${recent?.events.length ?? 0} events · ${recent?.frames.length ?? 0} frames</p><label>Next play seed <input type="number" min="0" max="4294967295" id="debug-seed" value="42"></label><button class="small secondary" onclick="window.forcePlaySeed()" ${animating ? "disabled" : ""}>Use seed for next snap</button><p>Seed overrides mark this as a debug save. Replays and commentary never change the score.</p></details>`;
+  let intelligence = `<details class="kernel-details"><summary>Coordinator advice ▾</summary><p>${release ? esc(release.name) + " found " + release.separation.toFixed(1) + " yards of separation at release." : "Watch how the defensive shell rotates after the snap."} ${recent?.result.kind === "sack" ? "Shorten the quarterback’s progression or use a quicker passing concept." : recent?.result.yards < 3 ? "Try a different personnel grouping or attack the opposite edge." : "Monitor fatigue and rotate personnel between snaps."}</p></details>`;
   html = html.replace(
     '<div class="advisor">',
     tactical + booth + intelligence + '<div class="advisor">',
@@ -259,20 +259,6 @@ installSimOptions(window);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) window.broadcast.stop();
 });
-
-window.forcePlaySeed = function () {
-  if (animating || !state.live) return;
-  let value = Number(document.getElementById("debug-seed").value);
-  if (!Number.isInteger(value) || value < 0 || value > 4294967295) {
-    toast("Enter an integer seed from 0 to 4294967295.");
-    return;
-  }
-  state.live.engine ??= { version: 1, seed: 42, serial: 0 };
-  state.live.engine.nextSeed = value;
-  state.debugSave = true;
-  save();
-  toast("Next snap will use seed " + value);
-};
 
 window.executionActors = function (m) {
   const team = m.poss === 0 ? m.a : m.b,

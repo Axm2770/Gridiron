@@ -232,10 +232,7 @@ export function installTouchlineUI({ isBusy }) {
       off = onOffense(m),
       time = periodLabel(m),
       disabled = locked() || m.finished || m.halftime;
-    const visual = liveField(m).replace(
-      /(<div class="motion-preview">[\s\S]*?<\/div>)/,
-      '<details class="touch-animation-lab"><summary>Animation lab · preview only</summary>$1</details>',
-    );
+    const visual = liveField(m);
     const targets = [
       ["play", "Next play"],
       ["five", "Next 5 plays"],
