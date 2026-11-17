@@ -17,6 +17,7 @@ import { installPlayerUI } from "./player-ui.mjs";
 import { installOfficeUI } from "./office-ui.mjs";
 import { officeCounts, ensureOffice } from "./newsroom.mjs";
 import { installCareerManager } from "./career-manager.mjs";
+import { installNavigationUI } from "./navigation-ui.mjs";
 import { installDevelopmentUI } from "./development-ui.mjs";
 import { installCareerScenes } from "./career-scenes.mjs";
 import { configureRatings, ensureCareerRatings } from "./ratings.mjs";
@@ -1456,6 +1457,12 @@ import("./presentation.mjs")
     installCalendarUI({views,initialize,isBusy:()=>busy,setBusy:value=>busy=value,settleRound});
     installFrontOfficeUI({ views, isBusy: () => busy });
     await installCareerManager({ views, isBusy: () => busy, initialize });
+    installNavigationUI({
+      views,
+      heritage,
+      getSection: () => section,
+      isBusy: () => busy,
+    });
     // Hub dashboard and presentation load last; a failure leaves the classic workspace intact.
     try {
       const [{ installDashboard }, { installThemeMotion }, { installBroadcastHUD }, { installCinematics }] = await Promise.all([
