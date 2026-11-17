@@ -172,7 +172,11 @@ assert.throws(() => P.movePlayer(s, starter.id, "practice"), /is a starter\. Put
 // The draft window states its date; Next Generation is gone from the navigation.
 s = fresh();
 assert.match(marketWindows(s).draft.detail, /draft is on \d{4}-04-\d\d/);
-assert(!fs.readFileSync("dist/franchise/presentation.mjs", "utf8").includes("Next generation"));
+// Only the retired-route table may still name it, and it must send old links to the Draft room.
+const presentationSource = fs.readFileSync("dist/franchise/presentation.mjs", "utf8"),
+  aliases = presentationSource.match(/export const ROUTE_ALIASES = \{[\s\S]*?\n\};/)?.[0] ?? "";
+assert(!presentationSource.replace(aliases, "").includes("Next generation"));
+assert.match(aliases, /"Next generation": \["Draft"\]/);
 assert(!fs.readFileSync("dist/franchise/career-scenes.mjs", "utf8").includes('views["Next generation"]'));
 
 console.log("PASS: valid trades, star trades without boardroom gating, explained cooldown/deadline/cap/roster/no-trade/role blockers, refusal gaps and counters, suggested packages, scouted ranges and estimates, dated Inbox reports that narrow ranges, scout capacity, prospect projections, free-agent blockers and in-season settlement, roster-move reasons, windows and Next Generation removal.");
