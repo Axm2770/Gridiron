@@ -111,26 +111,8 @@ export function installPlayerUI({ isBusy }) {
       closeTimer = setTimeout(hide, 180);
     });
   }
-  function profileHTML(e) {
-    const p = e.p,
-      c = state.franchise.contracts[p.id],
-      own = e.team === state.team;
-    const data =
-      e.pool === "Draft"
-        ? "Scouted estimates · " + e.talent.confidence + "% confidence"
-        : "Current assessment";
-    let content = "";
-    if (profileTab === "Attributes")
-      content = e.talent.known
-        ? `<div class="compact-attribute-grid">${Object.entries(e.attributes)
-            .map(
-              ([k, v]) =>
-                `<div><span>${esc(k.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase()))}</span>${scorePill("attribute", v)}</div>`,
-            )
-            .join("")}</div>`
-        : '<div class="scout-unknown"><h3>Further scouting required.</h3><p>Individual attributes remain masked until a full report is complete. Use the scouting actions to improve confidence.</p></div>';
-    else if (profileTab === "Production") {
-      const columns = [
+  function profileStats(e) {
+    const columns = [
         ["Passing yards", e.stats.passYards],
         ["Pass TD", e.stats.passTD],
         ["Attempts", e.stats.attempts],
@@ -144,7 +126,58 @@ export function installPlayerUI({ isBusy }) {
         ["Sacks", e.stats.sacks],
         ["Recorded snaps", e.stats.snaps],
       ];
-      content = `<p class="profile-tab-note">${state.year} season production. — indicates no recorded sample.</p><div class="compact-production">${columns.map(([k, v]) => `<div><span>${k}</span><b>${fmt(v)}</b></div>`).join("")}</div>`;
+      return `<p class="profile-tab-note">${state.year} season production. — indicates no recorded sample.</p><div class="compact-production">${columns.map(([k, v]) => `<div><span>${k}</span><b>${fmt(v)}</b></div>`).join("")}</div>`;
+  }
+  function profileHTML(e) {
+    const p = e.p,
+      c = state.franchise.contracts[p.id],
+      own = e.team === state.team;
+    const data =
+      e.pool === "Draft"
+        ? "Scouted estimates · " + e.talent.confidence + "% confidence"
+        : "Current assessment";
+    let content = "";
+    if (profileTab === "Scouting")
+      content = `<p class="profile-tab-note">${esc(data)}${e.talent.confidence != null ? ` · ${e.talent.confidence}% report confidence` : ""}.</p>${
+        e.talent.known
+          ? `<div class="compact-attribute-grid">${Object.entries(e.attributes)
+              .map(
+                ([k, v]) =>
+                  `<div><span>${esc(k.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase()))}</span>${scorePill("attribute", v)}</div>`,
+              )
+              .join("")}</div>`
+          : '<div class="scout-unknown"><h3>Further scouting required.</h3><p>Individual attributes remain masked until a full report is complete. Use the scouting actions to improve confidence.</p></div>'
+      }`;
+    else if (profileTab === "Contract") {
+      const year = S.financeYear(state),
+        money = (n) => "$" + (n / S.MILLION).toFixed(2) + "M";
+      content =
+        c && !c.ended
+          ? `<p class="profile-tab-note">Signed ${c.start} · ${c.years} years${c.voidYears ? ` + ${c.voidYears} void` : ""} · ${esc(clubs[c.team]?.[2] || e.teamLabel)}</p><div class="compact-production">${Array.from(
+              { length: c.years + (c.voidYears || 0) },
+              (_, i) => c.start + i,
+            )
+              .map(
+                (y) =>
+                  `<div class="${y === year ? "current" : ""}"><span>${y}${y === year ? " · this season" : ""}</span><b>${money(S.capHit(c, y))}</b></div>`,
+              )
+              .join(
+                "",
+              )}</div><dl class="profile-contract-facts"><div><dt>Signing bonus</dt><dd>${money(c.bonus || 0)}</dd></div><div><dt>Guarantees</dt><dd>${money((c.guarantees || []).reduce((n, v) => n + (v || 0), 0))}</dd></div><div><dt>No-trade clause</dt><dd>${c.noTrade ? "Yes" : "No"}</dd></div><div><dt>Contract through</dt><dd>${c.start + c.years - 1}</dd></div></dl>`
+          : `<p class="profile-tab-note">${e.team === -1 ? "Free agent" : e.pool === "Draft" ? "Draft prospect" : "No active contract"}${Number.isFinite(e.cap) ? ` · asking base $${fmt(e.cap, 2)}M` : ""}.</p>`;
+    } else if (profileTab === "Stats") {
+      const seasons = Object.entries(p.stats || {})
+        .filter(([y, v]) => /^\d{4}$/.test(y) && v && typeof v === "object")
+        .sort(([a], [b]) => b - a);
+      const career = seasons.length
+        ? `<h3 class="profile-subhead">By season</h3><div class="scroll"><table class="profile-season-table"><thead><tr><th>Season</th><th>Pass yds</th><th>Pass TD</th><th>Rush yds</th><th>Rush TD</th><th>Rec</th><th>Rec yds</th><th>Tackles</th><th>Sacks</th></tr></thead><tbody>${seasons
+            .map(
+              ([y, v]) =>
+                `<tr><td>${y}</td>${["passYards", "passTD", "rushYards", "rushTD", "receptions", "recYards", "tackles", "sacks"].map((k) => `<td>${fmt(v[k])}</td>`).join("")}</tr>`,
+            )
+            .join("")}</tbody></table></div>`
+        : "";
+      content = `${profileStats(e)}${career}`;
     } else
       content = `${facts(e)}${readiness(e)}${e.pool !== "Draft" ? `<p class="preview-reputation">${Math.round(reputationView(state, e.p).recognition)} reputation · ${reputationView(state, e.p).label}</p>` : ""}<div class="compact-profile-grid"><section><h3>Player information</h3><dl><div><dt>Team / pool</dt><dd>${esc(e.teamLabel)}</dd></div><div><dt>Positions</dt><dd>${esc(p.realPosition || p.pos)}${p.realPosition && p.realPosition !== p.pos ? " · " + p.pos : ""}</dd></div><div><dt>College</dt><dd>${esc(p.college || "—")}</dd></div><div><dt>Roster / role</dt><dd>${e.pool === "Draft" ? "Draft prospect" : esc(p.status || "Free agent")}${p.starter ? " · Starter" : ""}</dd></div><div><dt>Cap / asking base</dt><dd>${Number.isFinite(e.cap) ? "$" + fmt(e.cap, 2) + "M" : "—"}</dd></div><div><dt>Contract through</dt><dd>${e.expiry || "—"}</dd></div></dl></section><section><h3>Honors & development</h3><div class="compact-honors">${
         e.awards
@@ -155,7 +188,7 @@ export function installPlayerUI({ isBusy }) {
           )
           .join("") || "<p>No honors recorded.</p>"
       }</div><dl><div><dt>Training</dt><dd>${scorePill("training", e.stats.training)}</dd></div><div><dt>Reputation</dt><dd>${Math.round(reputationView(state, p).recognition)} · ${reputationView(state, p).label}</dd></div><div><dt>Current esteem</dt><dd>${reputationView(state, p).esteem} / 99</dd></div><div><dt>Coach trust</dt><dd>${scorePill("morale", p.coachTrust ?? 60, fmt(p.coachTrust ?? 60) + "%")}</dd></div></dl></section></div>`;
-    return `<div class="compact-player-profile"><div class="compact-profile-top"><div class="compact-profile-player">${playerFace(p)}<div><span class="eyebrow">${esc(e.teamLabel)} · #${esc(p.jersey || "—")}</span><h2>${esc(p.name)}</h2><p>${positionBadge(p)} ${esc(p.archetype || "")}<small>${data}</small></p></div></div><div class="compact-rating-pair">${scorePill("rating", e.talent.rating, e.talent.ratingLabel)}<small>OVR</small>${scorePill("potential", e.talent.potential, e.talent.potentialLabel)}<small>POT</small></div><button class="icon-button" onclick="closeModal()" aria-label="Close player profile">×</button></div><div class="compact-profile-tabs">${["Overview", "Attributes", "Production"].map((t) => `<button class="${profileTab === t ? "active" : ""}" onclick="PlayerUI.tab('${t}')">${t}</button>`).join("")}</div><div class="compact-profile-body">${content}</div><div class="compact-profile-actions">${own ? `<button onclick="closeModal();Dev.player('${p.id}')">Development & medical</button><button class="secondary" onclick="closeModal();CI.open('player','${p.id}')">Speak with player</button><button class="secondary" onclick="closeModal();F.contract('${p.id}')">Contract</button><button class="secondary" onclick="W.depth('${p.id}')">${p.starter ? "Move to reserve" : "Promote"}</button><details class="action-menu"><summary>More ⌄</summary><div><button onclick="Office.compareToggle('${p.id}',${e.team});closeModal()">Compare player</button><button onclick="Office.morale('${p.id}')">Morale history</button><button onclick="W.move('${p.id}','practice')">Practice squad</button><button onclick="W.move('${p.id}','active')">Active roster</button>${p.injury ? `<button onclick="W.move('${p.id}','ir')">Injured reserve</button>` : ""}<button onclick="closeModal();F.release('${p.id}')">Waive player</button></div></details>` : e.team === -1 ? `<button ${S.allowed(state, "finance") ? "" : "disabled"} onclick="closeModal();F.offer('${p.id}')">Make contract offer</button>` : e.team === -2 ? `<button onclick="Recruit.report('${p.id}')">Scouting report</button>` : `<button onclick="closeModal();W.open('Market')">Trade centre</button>`}<button class="secondary" onclick="Recruit.toggleShortlist('${p.id}')">${state.franchise.office?.scouting?.shortlist?.includes(p.id) ? "★ Shortlisted" : "☆ Shortlist"}</button></div></div>`;
+    return `<div class="compact-player-profile"><div class="compact-profile-top"><div class="compact-profile-player">${playerFace(p)}<div><span class="eyebrow">${esc(e.teamLabel)} · #${esc(p.jersey || "—")}</span><h2>${esc(p.name)}</h2><p>${positionBadge(p)} ${esc(p.archetype || "")}<small>${data}</small></p></div></div><div class="compact-rating-pair">${scorePill("rating", e.talent.rating, e.talent.ratingLabel)}<small>OVR</small>${scorePill("potential", e.talent.potential, e.talent.potentialLabel)}<small>POT</small></div><button class="icon-button" onclick="closeModal()" aria-label="Close player profile">×</button></div><div class="compact-profile-tabs">${["Overview", "Stats", "Contract", "Scouting"].map((t) => `<button class="${profileTab === t ? "active" : ""}" onclick="PlayerUI.tab('${t}')">${t}</button>`).join("")}</div><div class="compact-profile-body">${content}</div><div class="profile-jumps"><span>Open in</span>${own ? `<button class="link" onclick="closeModal();W.open('Roster')">Squad</button><button class="link" onclick="closeModal();W.open('Development')">Development</button><button class="link" onclick="closeModal();W.open('Contracts')">Contracts</button>` : `<button class="link" onclick="closeModal();W.open('Market')">Market</button>`}<button class="link" onclick="closeModal();W.open('Statistics')">Statistics</button><button class="link" onclick="closeModal();W.open('Scouting')">Scouting</button></div><div class="compact-profile-actions">${own ? `<button onclick="closeModal();Dev.player('${p.id}')">Development & medical</button><button class="secondary" onclick="closeModal();CI.open('player','${p.id}')">Speak with player</button><button class="secondary" onclick="closeModal();F.contract('${p.id}')">Contract</button><button class="secondary" onclick="W.depth('${p.id}')">${p.starter ? "Move to reserve" : "Promote"}</button><details class="action-menu"><summary>More ⌄</summary><div><button onclick="Office.compareToggle('${p.id}',${e.team});closeModal()">Compare player</button><button onclick="Office.morale('${p.id}')">Morale history</button><button onclick="W.move('${p.id}','practice')">Practice squad</button><button onclick="W.move('${p.id}','active')">Active roster</button>${p.injury ? `<button onclick="W.move('${p.id}','ir')">Injured reserve</button>` : ""}<button onclick="closeModal();F.release('${p.id}')">Waive player</button></div></details>` : e.team === -1 ? `<button ${S.allowed(state, "finance") ? "" : "disabled"} onclick="closeModal();F.offer('${p.id}')">Make contract offer</button>` : e.team === -2 ? `<button onclick="Recruit.report('${p.id}')">Scouting report</button>` : `<button onclick="closeModal();W.open('Market')">Trade centre</button>`}<button class="secondary" onclick="Recruit.toggleShortlist('${p.id}')">${state.franchise.office?.scouting?.shortlist?.includes(p.id) ? "★ Shortlisted" : "☆ Shortlist"}</button></div></div>`;
   }
   function open(id, team) {
     const e = find(id, team);

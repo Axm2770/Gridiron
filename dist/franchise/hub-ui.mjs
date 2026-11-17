@@ -18,6 +18,7 @@ import {
 } from "./player-ui.mjs";
 import { heightLabel, paginate } from "./player-catalog.mjs";
 import { icon } from "./presentation.mjs";
+import { marketView as opsMarketView, installOps, windowStrip } from "./ops-ui.mjs";
 const fmt = (n, d = 0) =>
   Number.isFinite(n)
     ? n.toLocaleString("en-US", { maximumFractionDigits: d })
@@ -161,120 +162,17 @@ export function installHubUI({ views, isBusy, tradeView }) {
       )}</aside></div><div class="hub-bottom-note"><p>Ranges preserve scouting uncertainty. Team needs compare available depth and visible ability; they are guidance, not a guarantee.</p>${state.phase === "offseason" ? action("Begin next season", "F.newSeason()") : ""}</div>`
     );
   }
-  views.Draft = draftView;
-  function marketView() {
-    const f = state.franchise,
-      cap = S.capLedger(state),
-      offers = f.market.offers,
-      mine = offers.filter(
-        (o) =>
-          o.team === state.team &&
-          state.agents.some((p) => p.id === o.playerId),
-      ),
-      pending = mine.reduce(
-        (n, o) => n + S.capHit(o.contract, S.financeYear(state)),
-        0,
-      );
-    let rows = state.agents.filter(
-      (p) =>
-        (market.position === "All" || p.pos === market.position) &&
-        p.ovr >= Number(market.minimum || 0) &&
-        (p.name + " " + p.pos)
-          .toLowerCase()
-          .includes(market.query.toLowerCase()) &&
-        (market.tab !== "Bidding" || mine.some((o) => o.playerId === p.id)),
-    );
-    rows.sort((a, b) =>
-      market.sort === "value"
-        ? a.salary - b.salary
-        : market.sort === "age"
-          ? a.age - b.age
-          : market.sort === "bidders"
-            ? offers.filter((o) => o.playerId === b.id).length -
-              offers.filter((o) => o.playerId === a.id).length
-            : b.ovr - a.ovr,
-    );
-    const p = paginate(rows, market.page, 25);
-    market.page = p.page;
-    return (
-      hero(
-        "RECRUITMENT / PLAYER MARKET",
-        "Make your next move.",
-        `${esc(f.market.phase)} period · Market day ${f.market.day}. Players weigh money, fit, contention and your coaching staff.`,
-        `${chip(f.market.phase, "green")}${action("Advance market day", "F.action('marketDay')")}`,
-        "market-hero",
-      ) +
-      stats([
-        [
-          "AVAILABLE CAP",
-          cash(cap.room),
-          "Live ledger · pending offers are separate",
-          cap.room < 0 ? "negative" : "positive",
-        ],
-        [
-          "PENDING FIRST-YEAR CAP",
-          cash(pending),
-          `${mine.length} of your active offers`,
-        ],
-        ["FREE AGENTS", state.agents.length, "Live player pool"],
-        [
-          "ACTIVE ROSTER",
-          `${S.active(state).filter((p) => p.status === "active").length} / 53`,
-          "Create room before submitting an offer",
-        ],
-      ]) +
-      tabs(
-        ["Available", "Bidding", "Trade center"],
-        market.tab,
-        "Hub.marketTab",
-      ) +
-      (market.tab === "Trade center"
-        ? `<div class="hub-trade-banner">${icon("chart")}<div><b>Find a deal that works for both sides.</b><p>Roster value, cap consequences, deadlines and no-trade clauses remain enforced.</p></div></div>${tradeView()}`
-        : panel(
-            market.tab === "Bidding" ? "Your negotiations" : "Available talent",
-            `<div class="hub-toolbar">${search("market", "Search free agents", market.query)}<select aria-label="Market position" onchange="Hub.filter('market','position',this.value)">${options(["All", ...new Set(S.POS)], market.position)}</select><select aria-label="Market sorting" onchange="Hub.filter('market','sort',this.value)">${options(
-              [
-                ["rating", "Highest ability"],
-                ["value", "Lowest asking base"],
-                ["age", "Youngest first"],
-                ["bidders", "Most competition"],
-              ],
-              market.sort,
-            )}</select><select aria-label="Minimum free agent rating" onchange="Hub.filter('market','minimum',this.value)">${options(
-              [
-                [0, "Any ability"],
-                [70, "70+ OVR"],
-                [80, "80+ OVR"],
-                [90, "90+ OVR"],
-              ],
-              market.minimum,
-            )}</select></div><div class="hub-table-scroll"><table><thead><tr><th>PLAYER</th><th>AGE / ABILITY</th><th>ASKING BASE</th><th>MARKET INTEREST</th><th>YOUR OFFER / ACTION</th></tr></thead><tbody>${
-              p.rows
-                .map((player) => {
-                  const os = offers.filter((o) => o.playerId === player.id),
-                    your = os.find((o) => o.team === state.team);
-                  return `<tr><td>${name(player, -1)}</td><td>${player.age} years<small>${scorePill("rating", player.ovr)} OVR · ${scorePill("potential", player.pot)} POT</small></td><td><strong>${cash(player.salary * S.MILLION)}</strong><small>Annual base · before bonuses</small></td><td>${
-                    os.length
-                      ? `<div class="hub-bidders">${os
-                          .slice(0, 4)
-                          .map(
-                            (o) =>
-                              `<span title="${esc(clubs[o.team][2])} · annual base ${cash(o.contract.base[0])}">${logo(o.team)}</span>`,
-                          )
-                          .join(
-                            "",
-                          )}${os.length > 4 ? "+" + (os.length - 4) : ""}</div>${chip(os.length + " bidder" + (os.length === 1 ? "" : "s"), os.length > 2 ? "amber" : "blue")}`
-                      : chip("Open market")
-                  }<small>${os.length ? "Earliest decision: day " + Math.min(...os.map((o) => o.close)) : "No offers yet"}</small></td><td>${your ? `<b>${cash(your.contract.base[0])} / yr</b><small>${your.contract.years} yr · ${cash(your.contract.bonus + your.contract.guarantees.reduce((a, b) => a + b, 0))} guaranteed</small>${chip("Decision day " + your.close, "blue")}` : ""}${action(your ? "Improve offer" : "Negotiate", `F.offer(${arg(player.id)})`, "finance", !!your)}</td></tr>`;
-                })
-                .join("") ||
-              `<tr><td colspan="5">${market.tab === "Bidding" ? "No active offers match. Open Available to start a negotiation." : "No free agents match your filters."}</td></tr>`
-            }</tbody></table></div>${pager("market", p)}`,
-          )) +
-      `<p class="hub-note">${f.market.phase === "Tampering" ? "Agreements cannot become binding until the open period. " : ""}Pending offers do not reserve cap. Final signings are validated against the current cap and roster limits.</p>`
-    );
-  }
-  views.Market = marketView;
+  views.Draft = () => windowStrip(["draft", "trade"]) + draftView();
+  // One market workspace for the sidebar and the Hub tab: windows, trade builder, offers, free agents.
+  if (!window.Ops) installOps({ isBusy });
+  views.Market = () =>
+    hero(
+      "RECRUITMENT / PLAYER MARKET",
+      "Trades and free agency.",
+      "Build a trade, answer offers, or bid on free agents. Open any player's scouting report to see value, fit and what is blocking a move.",
+      chip(state.franchise.market.phase, "green"),
+      "market-hero",
+    ) + opsMarketView();
   views.Club = () => {
     const c = state.franchise.clubs[state.team],
       st = c.stadium,

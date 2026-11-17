@@ -1,4 +1,4 @@
-// Pixel theme (on by default): body.gd-pixel switches every screen to pixel fonts, hard edges and
+// Pixel theme (on by default): body.gd-pixel switches every screen to hard pixel edges, a readable sans-serif and
 // a retro palette (ui/pixel.css), and the 3D stadium to a low-resolution render scaled up crisply.
 // Players can switch back to the classic look in Settings → Interface; the choice is per device.
 const KEY = "gridiron-pixel";

@@ -5,7 +5,6 @@ import {
   dialogueConsequences,
   fanReaction,
 } from "./career-systems.mjs";
-import { consumeBoardPermit } from "./boardroom.mjs";
 import { voteCommittee, processRumors } from "./world-events.mjs";
 import {
   roster,
@@ -23,8 +22,20 @@ import { hireStaff } from "./staff.mjs";
 import { assertCanAdvance } from "./compliance.mjs";
 import { random, clamp } from "../engine/random.mjs";
 import { offerScore, proposal } from "./contracts.mjs";
-export function marketDay(s, {calendarManaged=false}={}) {
-  assertCanAdvance(s);
+// In season the calendar moves a round at a time, so free-agent decisions and waiver claims are
+// settled with each round (two market days: every offer made that week reaches its deadline).
+// Idempotent per round key; the calendar date itself is not moved.
+export function settleMarketRound(s, roundKey) {
+  const f = s.franchise;
+  f.market.settled ??= [];
+  if (s.phase === "offseason" || f.market.settled.includes(roundKey)) return;
+  f.market.settled.push(roundKey);
+  f.market.settled = f.market.settled.slice(-60);
+  for (let i = 0; i < 2; i++) marketDay(s, { calendarManaged: true, compliance: false });
+}
+const teamName = (s, t) => s.franchise.clubs[t]?.identity?.name || (typeof clubs !== "undefined" ? clubs : globalThis.clubs)?.[t]?.[2] || `team ${t + 1}`;
+export function marketDay(s, {calendarManaged=false, compliance=true}={}) {
+  if (compliance) assertCanAdvance(s);
   let f = s.franchise;
   f.market.day++;
   f.calendar.day++;
@@ -153,8 +164,14 @@ export function marketDay(s, {calendarManaged=false}={}) {
           winning.team === s.team
             ? "Free agent signed"
             : "Free agency agreement",
-          `${p.name} accepted team ${winning.team + 1}'s offer; $${(winning.contract.base[0] / MILLION).toFixed(1)}M annual base.`,
+          `${p.name} accepted the ${teamName(s, winning.team)} offer; $${(winning.contract.base[0] / MILLION).toFixed(1)}M annual base.`,
         );
+      }
+      // Tell the user why their own bid did not land.
+      const ours = offers.find((o) => o.team === s.team);
+      if (ours && winning?.team !== s.team) {
+        const eligible = capLedger(s).room >= ours.contract.base[0] + ours.contract.bonus / ours.contract.prorate && roster(s).filter((q) => q.status === "active").length < (s.phase === "offseason" ? 90 : 53);
+        log(s, "Free agent signed elsewhere", !eligible ? `Your offer to ${p.name} lapsed: when he decided you no longer had the cap room or an active-roster spot to sign him.` : winning ? `${p.name} chose the ${teamName(s, winning.team)}. Their offer scored higher on money, guarantees, contention and fit; more guaranteed money or a starting role would have helped.` : `${p.name} turned down every offer for now.`);
       }
       f.market.offers = f.market.offers.filter((o) => o.playerId !== id);
     }
@@ -178,7 +195,7 @@ export function marketDay(s, {calendarManaged=false}={}) {
       log(
         s,
         "Waiver awarded",
-        `${w.player.name} claimed by team ${winner + 1}.`,
+        `${w.player.name} claimed by the ${teamName(s, winner)}.`,
       );
     } else {
       w.player.status = "free";
@@ -244,30 +261,24 @@ export function stadiumProject(s, area, funding) {
     c.fanApproval -= 5;
   }
   if (c.cash < cost) throw Error("Not enough ownership cash.");
-  const permit = consumeBoardPermit(s, "Stadium", { area, funding });
-  if (permit.scope === "Compromise") cost = Math.round(cost * 0.8);
   c.cash -= cost;
   stadium.projects.push({
     name: `${area} upgrade`,
     area,
     gain:
       area === "condition"
-        ? permit.scope === "Compromise"
-          ? 16
-          : 20
+        ? 20
         : area === "capacity"
-          ? permit.scope === "Compromise"
-            ? 6400
-            : 8000
+          ? 8000
           : 1,
-    remaining: permit.scope === "Compromise" ? 5 : 3,
+    remaining: 3,
     cost,
     funding,
   });
   log(
     s,
     "Facility project approved",
-    `Construction begins with ${funding.toLowerCase()} funding${permit.scope === "Compromise" ? " and a reduced scope / extended delivery period" : ""}.`,
+    `Construction begins with ${funding.toLowerCase()} funding.`,
   );
 }
 export function relocate(s, city, name) {
@@ -281,9 +292,8 @@ export function relocate(s, city, name) {
     throw Error("Enter a city and team name.");
   if (c.cash < 400 * MILLION)
     throw Error("Relocation requires $400M in available cash.");
-  const permit = consumeBoardPermit(s, "Relocation", { city, name });
-  c.cash -= (permit.scope === "Compromise" ? 350 : 400) * MILLION;
-  c.stadium.capacity = permit.scope === "Compromise" ? 55000 : 65000;
+  c.cash -= 400 * MILLION;
+  c.stadium.capacity = 65000;
   c.stadium.city = city.trim().slice(0, 40);
   c.stadium.name = city.trim() + " Stadium";
   c.stadium.condition = 95;
