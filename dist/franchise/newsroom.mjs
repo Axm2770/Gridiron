@@ -356,7 +356,7 @@ export function respondMessage(s, id, choice, { delegated = false } = {}) {
       "Finish the current game before responding to office decisions.",
     );
   if (!delegated && !S.allowed(s, "media"))
-    throw Error("Your role delegates player communication to the head coach.");
+    throw Error("Player communication is not yours to make in your role; the head coach handles it.");
   const option = decisionOptions(m).find((c) => c.id === choice);
   if (!option) throw Error("Choose an available response.");
   const p = own(s, m.playerId);
@@ -540,7 +540,7 @@ export function syncOffice(s) {
   }
   o.eventKeys ??= [];
   for (const e of [...(s.franchise.events || [])].reverse().slice(-65)) {
-    if (e.title === "Weekly review") continue;
+    if (e.title === "Weekly review" || e.kind === "league-move") continue;
     const key =
       "event-" + hash(`${e.id}:${e.year}:${e.week}:${e.title}:${e.body}`);
     if (o.eventKeys.includes(key)) continue;

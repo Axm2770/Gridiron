@@ -7,9 +7,16 @@ import { ensureOffice } from "./newsroom.mjs";
 import { ensureCalendar } from "./calendar-core.mjs";
 import { fixtures } from "./front-office.mjs";
 import { icon, ROUTE_ALIASES, crumbLabel } from "./presentation.mjs";
+import {
+  recordTransactions,
+  transactionsFor,
+  describeTransaction,
+  TRANSACTION_TYPES,
+} from "./transactions.mjs";
 const TABS = {
   Calendar: ["Fixtures", "Head-to-head", "Calendar"],
   Records: ["Champions", "Record book", "Hall of Fame", "Awards"],
+  "League desk": ["Snapshot", "Transactions"],
 };
 const number = (n) =>
   Number.isFinite(n) ? Number(n).toLocaleString("en-US") : "—";
@@ -190,7 +197,73 @@ export function installNavigationUI({ views, heritage, getSection, isBusy }) {
       `<p class="subtitle">League leaders appear after the first regular-season round.</p>`
     );
   }
+  // ---------- Transactions ----------
+  const teamName = (t) => clubs[t]?.[2] || `Team ${t + 1}`;
+  const when = (e) =>
+    `${e.year} · ${e.phase === "season" ? `Week ${(e.week ?? 0) + 1}` : e.phase === "playoffs" ? "Playoffs" : "Offseason"}`;
+  const contractText = (e) =>
+    e.contract
+      ? `${e.contract.years} yr${e.contract.years === 1 ? "" : "s"} · $${(e.contract.capHit / 1e8).toFixed(2)}M cap hit · through ${e.contract.through}`
+      : "";
+  const txRow = (e, team = null) => {
+    const club = e.to ?? e.from;
+    return `<tr class="${e.from === state.team || e.to === state.team ? "me" : ""}"><td><small>${when(e)}</small></td><td><span class="tx-type tx-${e.type}">${TRANSACTION_TYPES[e.type]}</span></td><td>${club !== null ? logo(club) : ""}</td><td><button class="link" onclick="W.player('${esc(e.playerId)}',${e.to ?? e.from ?? state.team})"><b>${esc(e.name)}</b></button> <small>${esc(e.pos || "")}${Number.isFinite(e.ovr) ? " · " + e.ovr + " OVR" : ""}</small><div class="tx-line">${esc(describeTransaction(e, teamName, team))}</div></td><td><small>${esc(contractText(e))}</small></td></tr>`;
+  };
+  const txFilter = { team: "mine", type: "all", year: "all" };
+  window.Nav.txFilter = (key, value) => {
+    txFilter[key] = value;
+    render();
+  };
+  function transactionsView() {
+    recordTransactions(state);
+    const team =
+        txFilter.team === "mine" ? state.team : txFilter.team === "all" ? null : Number(txFilter.team),
+      all = transactionsFor(state, {
+        team,
+        type: txFilter.type === "all" ? null : txFilter.type,
+        year: txFilter.year === "all" ? null : Number(txFilter.year),
+      }),
+      years = [...new Set(transactionsFor(state).map((e) => e.year))].sort((a, b) => b - a),
+      shown = all.slice(0, 200),
+      option = (v, label, cur) => `<option value="${v}" ${String(cur) === String(v) ? "selected" : ""}>${esc(label)}</option>`;
+    const filters = `<div class="tx-filters"><label class="nav-select">Club <select aria-label="Club" onchange="Nav.txFilter('team',this.value)">${option("mine", "My club", txFilter.team)}${option("all", "Whole league", txFilter.team)}${clubs
+      .map((c, i) => (i === state.team ? "" : option(i, c[1] + " " + c[2], txFilter.team)))
+      .join("")}</select></label><label class="nav-select">Type <select aria-label="Transaction type" onchange="Nav.txFilter('type',this.value)">${option("all", "All moves", txFilter.type)}${Object.entries(TRANSACTION_TYPES)
+      .map(([k, v]) => option(k, v, txFilter.type))
+      .join("")}</select></label><label class="nav-select">Season <select aria-label="Season" onchange="Nav.txFilter('year',this.value)">${option("all", "All seasons", txFilter.year)}${years
+      .map((y) => option(y, y, txFilter.year))
+      .join("")}</select></label></div>`;
+    const body = shown.length
+      ? `<div class="scroll f-table"><table class="tx-table"><thead><tr><th>When</th><th>Move</th><th></th><th>Player</th><th>Contract</th></tr></thead><tbody>${shown
+          .map((e) => txRow(e, team))
+          .join("")}</tbody></table></div>${all.length > shown.length ? `<p class="subtitle">Showing the latest 200 of ${all.length} moves. Narrow the filters to see older ones.</p>` : ""}`
+      : `<p class="subtitle">No moves match these filters yet. Signings, trades, waiver claims, draft picks, releases and retirements are recorded here from the moment this save first opens this screen or plays a week.</p>`;
+    return panel(
+      "Transactions",
+      filters + body,
+      `<small>${all.length} move${all.length === 1 ? "" : "s"}</small>`,
+    );
+  }
+  window.Nav.playerMoves = (id) => {
+    const rows = transactionsFor(state, { playerId: id });
+    return rows.length
+      ? `<h3 class="profile-subhead">Transaction history</h3><ul class="tx-player">${rows
+          .map((e) => `<li><small>${when(e)}</small> ${esc(describeTransaction(e, teamName))}${e.contract ? ` <small>· ${esc(contractText(e))}</small>` : ""}</li>`)
+          .join("")}</ul>`
+      : "";
+  };
   function transactions() {
+    recordTransactions(state);
+    const recent = transactionsFor(state)
+      .filter((e) => e.type !== "retired")
+      .slice(0, 8);
+    if (recent.length)
+      return `<div class="nav-moves">${recent
+        .map(
+          (e) =>
+            `<article><span class="eyebrow">${when(e)} · ${TRANSACTION_TYPES[e.type]}</span><b>${esc(describeTransaction(e, teamName))}</b>${e.contract ? `<p>${esc(contractText(e))}</p>` : ""}</article>`,
+        )
+        .join("")}</div><button class="link" onclick="W.open('League desk','Transactions')">All transactions ${icon("arrow")}</button>`;
     const moves = ensureOffice(state)
       .stories.filter((a) =>
         /\b(sign|signs|signed|signing|trade|traded|release|released|waive|waived|extension|extends|acquire|acquired|draft|drafted|claims?|cut)\b/i.test(
@@ -207,7 +280,7 @@ export function installNavigationUI({ views, heritage, getSection, isBusy }) {
           .join("")}</div><button class="link" onclick="W.open('News')">All league news ${icon("arrow")}</button>`
       : `<p class="subtitle">Signings, trades and releases around the league appear here.</p>`;
   }
-  views["League desk"] = () =>
+  const snapshotView = () =>
     `<div class="nav-snapshot"><div class="nav-snapshot-main">${panel(
       `Standings · ${state.year}`,
       standings(),
@@ -221,6 +294,10 @@ export function installNavigationUI({ views, heritage, getSection, isBusy }) {
         ? `<details class="nav-more"><summary>Developing stories, supporter pulse and league meeting <span>⌄</span></summary>${original.league()}</details>`
         : ""
     }`;
+  views["League desk"] = () => {
+    const tab = current("League desk");
+    return tabBar("League desk", tab) + (tab === "Transactions" ? transactionsView() : snapshotView());
+  };
   // ---------- Records & milestones ----------
   function championsView() {
     const list = M.championshipList(state, clubs),

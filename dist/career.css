@@ -666,7 +666,7 @@
   color: #d6bd80;
 }
 .hall-hero h2 {
-  font-family: Georgia, serif;
+  font-family: var(--gd-display);
   font-weight: 500;
   font-size: 43px;
   letter-spacing: -1px;
@@ -696,7 +696,7 @@
 }
 .hall-monument small {
   display: block;
-  font-family: Georgia, serif;
+  font-family: var(--gd-display);
   font-size: 23px;
   line-height: 1.25;
   letter-spacing: 3px;
@@ -787,7 +787,7 @@
 }
 .legend-card h3 {
   font:
-    22px Georgia,
+    22px var(--gd-display),
     serif;
   margin: 10px 0 8px;
 }
@@ -844,7 +844,7 @@
 }
 .legacy-profile-hero h2 {
   font:
-    40px Georgia,
+    40px var(--gd-display),
     serif;
   margin-top: 12px;
 }

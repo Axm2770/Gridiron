@@ -85,6 +85,7 @@ const secondary = [
   ["Media room", "Media room", "mic"],
   ["Hall of Fame", "Hall of Fame", "history"],
   ["Awards", "Awards watch", "history"],
+  ["Transactions", "Transactions", "database"],
 ];
 // Retired routes open the screen that absorbed them, on the matching tab.
 export const ROUTE_ALIASES = {
@@ -94,6 +95,8 @@ export const ROUTE_ALIASES = {
   Awards: ["Records", "Awards"],
   // Next Generation was folded into the Draft room; old inbox links and bookmarks land there.
   "Next generation": ["Draft"],
+  // The league-wide move log lives on the League snapshot.
+  Transactions: ["League desk", "Transactions"],
 };
 // Quick jumps shown under each screen title.
 export const RELATED = {
@@ -106,8 +109,8 @@ export const RELATED = {
   Conversations: ["Locker room", "Inbox"],
   Scouting: ["Draft", "Market"],
   Draft: ["Scouting", "Market", "Roster"],
-  Market: ["Contracts", "Scouting", "Roster"],
-  Contracts: ["Market", "Roster", "Boardroom"],
+  Market: ["Contracts", "Scouting", "Roster", "Transactions"],
+  Contracts: ["Market", "Roster", "Boardroom", "Transactions"],
   Club: ["Staff", "Boardroom", "Contracts"],
   Staff: ["Club", "Career"],
   Boardroom: ["Club", "Contracts", "Career"],

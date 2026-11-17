@@ -79,8 +79,11 @@ assert.throws(
   () => S.transact(s, (x) => C.offer(x, x.agents[0].id, tooHigh)),
   /cap/,
 );
+// Head coaches run the whole football operation; coordinators cannot make roster moves.
 s.franchise.role = "HC";
-assert.throws(() => C.cut(s, s.roster[0].id), /delegates/);
+assert.ok(S.transact(s, (x) => C.cut(x, x.roster[0].id)), "a head coach can release a player");
+s.franchise.role = "OC";
+assert.throws(() => C.cut(s, s.roster[0].id), /not yours to make/);
 s.franchise.role = "Owner";
 let released = S.transact(s, (x) => C.cut(x, p.id, true));
 assert(!released.roster.some((q) => q.id === p.id));

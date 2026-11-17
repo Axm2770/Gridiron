@@ -98,10 +98,10 @@ assert.throws(
   /Invalid/,
 );
 let rejected = structuredClone(s);
-rejected.franchise.role = "HC";
+rejected.franchise.role = "OC";
 assert.throws(
   () => evaluateNegotiation(rejected, p.id, terms),
-  /role|delegat|permi/i,
+  /role|not yours|permi/i,
 );
 const committed = S.transact(s, (d) => submitNegotiation(d, p.id));
 assert.equal(committed.franchise.market.offers.length, 1);

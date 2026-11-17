@@ -18,6 +18,7 @@ import { assertCanAdvance } from "./compliance.mjs";
 import { processNewsRound } from "./newsroom.mjs";
 import { deriveRoundEvents } from "./event-bus.mjs";
 import { processSocialRound } from "./social-engine.mjs";
+import { recordTransactions } from "./transactions.mjs";
 import { processDepthRound } from "./depth-systems.mjs";
 import { processPipelineRound } from "./recruiting-pipeline.mjs";
 import { processMedicalWeek } from "./medical.mjs";
@@ -237,11 +238,14 @@ export function finishRound(s, results) {
   processRumors(s, newsRoundKey);
   processComparisons(s);
   generateJobOffers(s);
+  recordTransactions(s);
 }
 export function rollSeason(s) {
   assertCanAdvance(s, { camp: true });
   if (s.phase !== "offseason")
     throw Error("Training camp opens after the championship.");
+  // Offseason moves are stamped with the season they happened in, before the year turns over.
+  recordTransactions(s);
   let f = s.franchise,
     year = s.year + 1,
     existingAgentIds = new Set(s.agents.map((p) => p.id));

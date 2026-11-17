@@ -320,6 +320,15 @@ export function applyRealRosters(s, data) {
     );
   }
   // Free agents and future draft classes remain fictional; their identity is never presented as factual.
+  // The prototype generator rates fictional free agents 62–91, which put 90-rated starters on the
+  // street in week one. In-season free agents are depth and veteran fill-ins: 56–72 overall.
+  for (const p of s.agents || []) {
+    if (!/^fa-\d+-\d+$/.test(p.id)) continue;
+    const n = Number(p.id.split("-").pop());
+    p.ovr = 56 + ((n * 7 + 3) % 17);
+    p.pot = Math.min(99, p.ovr + ((n * 5) % 6));
+    p.salary = Math.max(0.8, Math.round((p.ovr - 55) * (p.pos === "QB" ? 0.65 : 0.22) * 10) / 10);
+  }
   f.rosterSnapshot = {
     season: data.season,
     capturedAt: data.capturedAt,

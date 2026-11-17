@@ -9,10 +9,13 @@ export const MILLION = 100000000;
 export const ROLES = {
   Owner: ["finance", "roster", "coach", "stadium", "league", "media", "scout"],
   GM: ["finance", "roster", "scout", "media"],
-  HC: ["coach", "media"],
+  // The head coach runs the whole football operation (no delegation): tactics, training, the
+  // roster, contracts and the draft. Stadium projects and league votes stay with the owner.
+  HC: ["coach", "media", "roster", "finance", "scout"],
   OC: ["offense", "media"],
   DC: ["defense", "media"],
 };
+export const ROLE_TITLES = { Owner: "owner", GM: "general manager", HC: "head coach", OC: "offensive coordinator", DC: "defensive coordinator" };
 export const POS = [
   "QB",
   "RB",
@@ -266,7 +269,7 @@ export function allowed(s, area) {
 export function requireRole(s, area) {
   if (!allowed(s, area))
     throw Error(
-      `${s.franchise.role} delegates ${area} decisions. Change career role or ask the responsible staff member.`,
+      `As ${ROLE_TITLES[s.franchise.role] || s.franchise.role}, ${area} decisions are not yours to make. Change your career role in Coach career to take them on.`,
     );
 }
 export function bonusCharge(amount, term, index) {

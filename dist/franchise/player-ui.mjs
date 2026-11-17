@@ -165,6 +165,7 @@ export function installPlayerUI({ isBusy }) {
                 "",
               )}</div><dl class="profile-contract-facts"><div><dt>Signing bonus</dt><dd>${money(c.bonus || 0)}</dd></div><div><dt>Guarantees</dt><dd>${money((c.guarantees || []).reduce((n, v) => n + (v || 0), 0))}</dd></div><div><dt>No-trade clause</dt><dd>${c.noTrade ? "Yes" : "No"}</dd></div><div><dt>Contract through</dt><dd>${c.start + c.years - 1}</dd></div></dl>`
           : `<p class="profile-tab-note">${e.team === -1 ? "Free agent" : e.pool === "Draft" ? "Draft prospect" : "No active contract"}${Number.isFinite(e.cap) ? ` · asking base $${fmt(e.cap, 2)}M` : ""}.</p>`;
+      content += window.Nav?.playerMoves?.(p.id) || "";
     } else if (profileTab === "Stats") {
       const seasons = Object.entries(p.stats || {})
         .filter(([y, v]) => /^\d{4}$/.test(y) && v && typeof v === "object")
