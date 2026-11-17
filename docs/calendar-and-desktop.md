@@ -2,13 +2,11 @@
 
 ## Calendar workflow
 
-Open **Calendar & holiday**. Select a day in the month grid or enter a return date, enable staff handling, and choose **Simulate to date**. Shortcuts advance one day, one week or four weeks. Scheduled games due on the target date finish before the holiday returns. The simulation never skips a pending fixture to reach the target.
+Open **Calendar & holiday**. Select a day in the month grid or enter a return date, and choose **Simulate to date**. Shortcuts advance one day, one week or four weeks. Scheduled games due on the target date finish before the holiday returns. The simulation never skips a pending fixture to reach the target.
 
 **Stop simulation** pauses at a safe day/game boundary; **Resume** retains the target. Closing and reopening a career pauses an unfinished holiday. A 730-day limit bounds a single request. A partially played live match must finish before a new calendar holiday can begin.
 
-**Staff responsibilities** controls inbox decisions, press conferences, meetings, rumor responses, roster registration, offseason progression and presentation of existing board proposals. An available assistant head coach is first in line, followed by head coach, coordinators and senior staff. The user-controlled coach is excluded. A preferred deputy can override the usual order. With no eligible staff, delegation cannot start.
-
-Staff use the same underlying actions as manual play: correspondence replies change morale, conversations record responses, press conferences affect club confidence, and roster actions incur actual contractual consequences. The holiday report records who acted and when. No automatic action spends an approved ownership proposal's final financial commitment; that remains in the board record. Strict cap/roster failures pause rather than overriding registration. Disable delegation to pause for urgent correspondence instead.
+There is no staff delegation. The calendar pauses whenever an urgent inbox decision, press conference, conversation or roster problem needs you, and the offseason stops before training camp until you complete the draft and start the new season yourself. Older saves may still contain `franchise.delegation`; it is ignored.
 
 The generated calendar models offseason windows, draft, camp and postseason timing; it is not the published NFL fixture calendar. It supports the game's own regular/postseason schedules and passed league-rule changes.
 
