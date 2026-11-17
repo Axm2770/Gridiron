@@ -34,3 +34,43 @@ Game-content updates still download only the files that changed and only need a 
 **One last manual download:** 0.23.0 and earlier can't install this kind of update yet, so download this version once from this page. From here on, updates arrive in-game.
 
 If the game can't replace itself (for example a Mac copy still running from the Downloads folder, or a folder you don't have write access to), it links to this page instead. On macOS, move **Gridiron Director.app** into Applications to get in-game updates.
+
+## Match day
+
+- The 3D match view is sharp again.
+- Field goals and punts line up with real kick units.
+- Runs use real schemes with blocking.
+- Defenders chase and make contact before tackling, instead of jumping onto the ball carrier.
+- A skippable intro opens every matchday.
+- **Sim options** let you turn instant replays on or off and set replay speed, game speed and commentary.
+
+## Cutscenes and news
+
+- Cutscenes and the news feed have a pixel-art style.
+- New signings hold up their jersey in a signing scene, and a new head coach gets an arrival scene.
+- The newsroom and fan debates have far more variety.
+
+## Trades, free agency, scouting and the draft
+
+- Trades work.
+- Anything you can't do now tells you why, and suggests a fix where there is one.
+- Free agency, trade and draft windows show their dates.
+- Lesser-known players show predicted rating ranges until you scout them. Scouting reports arrive in your inbox and narrow the ranges.
+- Scouting reports link straight to trade and contract offers.
+- Next Generation has been folded into the Draft room.
+
+## A simpler front office
+
+- Delegation is gone; you make the calls.
+- The Boardroom is simpler and every part of it works.
+- Tactics is easier to read and adds an opponent analysis.
+- The Locker room puts player morale front and centre.
+
+## Easier to read and navigate
+
+- Menus use a clear font, keeping the pixel frames.
+- The sidebar is shorter, with working Back and breadcrumbs.
+- Players open in one hub with their stats, contract and scouting.
+- Calendar and Schedule are one screen, with head-to-head records against every opponent.
+- Around the League is now a league snapshot.
+- History, records and the Hall of Fame live in one Records & milestones screen, including a list of champions.
