@@ -164,11 +164,11 @@ assert.equal(Staff.searchCompliance(hired, "OC").completed, 1);
 for (const role of ["OC", "DC"]) {
   const r = fresh();
   r.franchise.role = role;
-  assert.throws(() => Staff.openStaffSearch(r, "OC"), /delegates/);
+  assert.throws(() => Staff.openStaffSearch(r, "OC"), /above your role/);
 }
 s = fresh();
 s.franchise.role = "HC";
-assert.throws(() => Staff.openStaffSearch(s, "HC"), /delegates/);
+assert.throws(() => Staff.openStaffSearch(s, "HC"), /above your role/);
 Staff.openStaffSearch(s, "QB");
 assert.equal(Staff.searchCompliance(s, "QB").required, 1);
 s.live = {};

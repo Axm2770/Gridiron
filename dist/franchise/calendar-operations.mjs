@@ -12,7 +12,7 @@ export function advanceCalendarDay(s,date){const c=ensureCalendar(s);if(date!==a
  if(s.phase==='offseason'){
   const dates=leagueDates(s.year,s.schedule.length);s.franchise.calendar.stage=date<dates.tampering?'League meeting':date<dates.freeAgency?'Legal tampering':date<dates.draft?'Free agency':date<dates.camp?'Offseason preparation':'Training camp';
   if(date>=dates.tampering&&!c.offseasonDays['market:'+date]){W.marketDay(s,{calendarManaged:true});c.offseasonDays['market:'+date]=true;}
-  if(date>=dates.camp)throw Error('Training camp opens when you finish the draft and start the new season from the offseason screen.');
+  if(date>=dates.camp)throw Error('Training camp is next. Choose Begin next season in the Draft room (Continue → Offseason hub) to start it.');
  }
  processRumors(s,'calendar:'+date);c.events=c.events.slice(0,180);return c;
 }

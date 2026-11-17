@@ -101,7 +101,7 @@ export function canManageStaff(s, role) {
 }
 function requireManager(s, role) {
   if (!canManageStaff(s, role))
-    throw Error("Ownership delegates this appointment to the front office.");
+    throw Error("This appointment is made above your role. Change your career role in Coach career to make it.");
   if (s.live)
     throw Error("Finish the current game before changing the coaching staff.");
 }

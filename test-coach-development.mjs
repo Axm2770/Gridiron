@@ -203,7 +203,7 @@ assert.throws(
       focus: "Balanced",
       load: "Normal",
     }),
-  /delegates/,
+  /not yours to make/,
 );
 const ceiling = specimen();
 ceiling.pot = 70;

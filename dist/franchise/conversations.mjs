@@ -246,7 +246,7 @@ export function chooseResponse(s, index) {
       !s.franchise.debug &&
       !["Owner", "HC", "OC", "DC"].includes(s.franchise.role)
     )
-      throw Error("Your role delegates tactical briefings.");
+      throw Error("Tactical briefings are not yours to make in your role.");
     const keys = ["protectQB", "feedRB", "rookies"];
     s.franchise.directives[keys[first]] = true;
     delta = 0;

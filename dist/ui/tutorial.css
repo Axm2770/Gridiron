@@ -1,0 +1,53 @@
+/* Guided tours, Help & tutorials centre and glossary tooltips. Built on design-system tokens so
+   the pixel theme (ui/pixel.css) restyles them with everything else. */
+.tour-layer { position: fixed; inset: 0; z-index: 9000; pointer-events: none; }
+.tour-layer.tour-centered { background: rgba(4, 8, 12, 0.62); }
+.tour-spotlight {
+  position: fixed; border-radius: var(--gd-radius-sm, 9px); pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(4, 8, 12, 0.62), 0 0 0 3px var(--gd-accent, #c7f45b);
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+.tour-card {
+  position: fixed; pointer-events: auto; max-width: calc(100vw - 32px);
+  background: var(--gd-surface-strong, #1c2732); color: var(--gd-text, #eef3f6);
+  border: 1px solid var(--gd-border-strong, rgba(255, 255, 255, 0.16)); border-radius: var(--gd-radius, 14px);
+  box-shadow: var(--gd-shadow); padding: 16px 18px 14px;
+}
+.tour-centered .tour-card { left: 50%; top: 50%; width: min(420px, calc(100vw - 32px)); transform: translate(-50%, -50%); }
+.tour-card h2 { font: 700 19px/1.2 var(--gd-display, sans-serif); margin: 6px 0 8px; }
+.tour-card p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; color: var(--gd-text-2, #a6b4bf); }
+.tour-card .tour-hint { color: var(--gd-accent, #c7f45b); font-weight: 700; font-size: 13px; }
+.tour-meta { display: flex; justify-content: space-between; font: 700 11px var(--gd-body, sans-serif); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gd-text-3, #6f7f8b); }
+.tour-progress { height: 4px; background: var(--gd-border, rgba(255, 255, 255, 0.08)); margin: 4px 0 12px; }
+.tour-progress i { display: block; height: 100%; background: var(--gd-accent, #c7f45b); }
+.tour-actions { display: flex; align-items: center; gap: 8px; }
+.tour-actions > span { flex: 1; }
+
+#modal:has(.help-centre), #modal:has(.help-welcome) { width: min(680px, calc(100vw - 32px)); max-width: none; }
+.help-centre, .help-welcome { width: 100%; min-width: 0; }
+.help-tour > button { flex: none; }
+.help-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.help-head h2 { margin: 4px 0 12px; }
+.help-tabs { margin-bottom: 14px; }
+.help-intro { color: var(--gd-text-2, #a6b4bf); margin: 0 0 10px; }
+.help-tours { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 52vh; overflow: auto; }
+.help-tour { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--gd-border, rgba(255, 255, 255, 0.08)); border-radius: var(--gd-radius-sm, 9px); }
+.help-tour > div { display: grid; gap: 3px; min-width: 0; }
+.help-tour small { color: var(--gd-text-2, #a6b4bf); font-size: 13px; }
+.help-tour-meta { font-size: 12px; color: var(--gd-text-3, #6f7f8b); }
+.help-tour.done .help-tour-meta { color: var(--gd-good, #5be3a1); }
+.help-screen h3 { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; margin: 14px 0 6px; color: var(--gd-text-2, #a6b4bf); }
+.help-screen h3:first-child { margin-top: 0; color: var(--gd-text, #eef3f6); font-size: 16px; letter-spacing: 0; text-transform: none; }
+.help-screen ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.help-glossary { display: grid; gap: 10px; max-height: 52vh; overflow: auto; margin: 0; }
+.help-glossary dt { font-weight: 700; }
+.help-glossary dd { margin: 2px 0 0; color: var(--gd-text-2, #a6b4bf); font-size: 13px; }
+.help-tips { display: flex; align-items: center; gap: 6px; margin-right: auto; font-size: 13px; color: var(--gd-text-2, #a6b4bf); }
+
+.glossary-term { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+.glossary-term:focus-visible { outline: 2px solid var(--gd-accent, #c7f45b); outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .help-tour { flex-direction: column; align-items: stretch; }
+  .tour-card { left: 16px !important; right: 16px; width: auto !important; top: auto !important; bottom: 16px; }
+}

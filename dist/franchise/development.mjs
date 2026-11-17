@@ -70,7 +70,7 @@ export function setDevelopmentPlan(s, id, plan) {
     !s.franchise.debug
   )
     throw Error(
-      "Your role delegates individual training to the coaching staff.",
+      "Individual training plans are not yours to make in your role; the coaching staff sets them.",
     );
   const p = s.roster.find((p) => p.id === id);
   if (!p) throw Error("Player is no longer at this club.");

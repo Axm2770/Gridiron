@@ -91,8 +91,11 @@ s = fresh();
 ensurePickLedger(s);
 s.franchise.contracts[s.roster[3].id].noTrade = true;
 assert(tradeBlockers(s, { partner: partner(s), give: [s.roster[3].id], get: [ownedPicks(s, partner(s))[0].id] }).some((b) => /no-trade clause/.test(b.reason) && /Remove him/.test(b.fix)));
+// Head coaches make trades themselves; a coordinator is told who does and how to take it on.
 s.franchise.role = "HC";
-assert(tradeBlockers(s, { partner: partner(s), give: [ownedPicks(s, s.team)[0].id], get: [ownedPicks(s, partner(s))[0].id] }).some((b) => /HC role delegates trades/.test(b.reason) && /Career dossier/.test(b.fix)));
+assert(!tradeBlockers(s, { partner: partner(s), give: [ownedPicks(s, s.team)[0].id], get: [ownedPicks(s, partner(s))[0].id] }).some((b) => /front office/.test(b.reason)));
+s.franchise.role = "OC";
+assert(tradeBlockers(s, { partner: partner(s), give: [ownedPicks(s, s.team)[0].id], get: [ownedPicks(s, partner(s))[0].id] }).some((b) => /offensive coordinator, trades and roster moves are handled by the front office/.test(b.reason) && /Coach career/.test(b.fix)));
 
 // The suggested package covers our own estimate of what they want.
 s = fresh();

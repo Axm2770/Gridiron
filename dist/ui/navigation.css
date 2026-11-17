@@ -111,3 +111,15 @@ body .related-links .related-link { box-shadow: none !important; }
 }
 #app .nav-leader-row { border-bottom: 1px solid var(--gd-border, #2e3a6e) !important; padding: 6px 4px !important; }
 #app .nav-leader-row:hover b { color: var(--gd-accent, #c7f45b); }
+
+/* Transactions log (League snapshot → Transactions, player profile → Contract). */
+.tx-filters { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 12px; }
+.tx-table td { vertical-align: top; }
+.tx-line { font-size: 12px; color: var(--gd-text-2, #a6b4bf); margin-top: 2px; }
+.tx-type { display: inline-block; padding: 2px 6px; font: 700 11px var(--gd-body, sans-serif); letter-spacing: 0.04em; white-space: nowrap; border: 1px solid currentColor; }
+.tx-signed, .tx-claimed, .tx-drafted { color: var(--gd-good, #5be3a1); }
+.tx-traded { color: var(--gd-accent, #c7f45b); }
+.tx-released, .tx-waived { color: var(--gd-warn, #ffc85c); }
+.tx-retired, .tx-expired { color: var(--gd-text-3, #6f7f8b); }
+.tx-player { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+.tx-player small { color: var(--gd-text-3, #6f7f8b); }

@@ -29,9 +29,32 @@ body.gd-pixel {
   --gd-shadow: 4px 4px 0 var(--px-ink);
   --px-font-display: "Press Start 2P", ui-monospace, monospace;
   --px-font-body: "Pixelify Sans", ui-monospace, monospace;
-  --gd-display: "DM Sans", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  /* Display type (page titles, panel titles, headline numbers) uses the readable pixel face;
+     body text, tables and small labels stay in the clean sans-serif. */
+  --gd-display: "Pixelify Sans", "DM Sans", "Segoe UI", system-ui, sans-serif;
   --gd-body: "DM Sans", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  /* Legacy screens (style.css, workspace.css) read these older names; point them at the same
+     tokens so every screen shares one palette. */
   --lime: var(--gd-accent);
+  --bg: var(--gd-bg);
+  --panel: var(--gd-surface);
+  --line: var(--gd-border);
+  --muted: var(--gd-text-2);
+  --text: var(--gd-text);
+  --navy: var(--gd-bg-2);
+  --green: var(--gd-good);
+  --amber: var(--gd-warn);
+  --coral: var(--gd-bad);
+  --mint: var(--gd-good);
+  --emerald: var(--gd-accent);
+  --office-ink: var(--gd-text);
+  --office-muted: var(--gd-text-2);
+  --office-line: var(--gd-border);
+  --office-panel: var(--gd-surface);
+  --office-soft: var(--gd-surface-strong);
+  --office-lime: var(--gd-accent);
+  --office-amber: var(--gd-warn);
+  --office-red: var(--gd-bad);
   background: var(--gd-bg) !important;
 }
 
@@ -40,13 +63,14 @@ body.gd-pixel {
 body.gd-pixel, body.gd-pixel :is(button, input, select, textarea, table, td, th, small, b, strong, span, p, div, label, li, a) {
   font-family: var(--gd-body) !important;
 }
-body.gd-pixel :is(h1, .gd-wordmark, .brand, .score-team strong, .score-time, .mini-result, .gd-stat b, .gd-stat strong, .endzone span) {
+body.gd-pixel :is(h1, h2, .gd-wordmark, .brand, .score-team strong, .score-time, .mini-result, .gd-stat b, .gd-stat strong, .exp-stats b, .endzone span, .tour-card h2) {
   font-family: var(--gd-display) !important;
-  letter-spacing: 0.01em !important;
-  font-weight: 800 !important;
+  letter-spacing: 0.02em !important;
+  font-weight: 700 !important;
 }
-body.gd-pixel h1 { font-size: clamp(22px, 2.4vw, 32px) !important; line-height: 1.2 !important; text-transform: uppercase; }
-body.gd-pixel :is(h2, h3) { font-weight: 700 !important; letter-spacing: 0.01em; }
+body.gd-pixel h1 { font-size: clamp(24px, 2.6vw, 34px) !important; line-height: 1.15 !important; text-transform: uppercase; }
+body.gd-pixel h2 { line-height: 1.25; }
+body.gd-pixel h3 { font-weight: 700 !important; letter-spacing: 0.01em; }
 /* Small labels never drop below 11px and keep enough weight to read on the dark palette. */
 body.gd-pixel :is(#breadcrumb, .eyebrow, [class*="eyebrow"], .gd-chip, .tag, .role-badge, th) {
   font-size: max(11px, 1em) !important;

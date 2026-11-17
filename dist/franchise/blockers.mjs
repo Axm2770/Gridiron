@@ -1,7 +1,7 @@
 // Plain explanations for refused actions. Each helper returns { reason, fix } (fix may be null
 // when nothing the user can do changes the answer). Domain modules throw blockerText(...) so the
 // same wording appears in toasts, disabled buttons and tests.
-import { MILLION, capHit, bonusCharge, financeYear, allowed, roster } from "./state.mjs";
+import { MILLION, capHit, bonusCharge, financeYear, allowed, roster, ROLE_TITLES } from "./state.mjs";
 
 export const moneyText = (cents) => `$${(Math.abs(cents) / MILLION).toFixed(1)}M`;
 export const blockerText = (b) => (b ? (b.fix ? `${b.reason} ${b.fix}` : b.reason) : "");
@@ -10,7 +10,7 @@ const AREA_WORDS = { roster: "trades and roster moves", finance: "contracts", sc
 
 export function roleBlocker(s, area) {
   if (allowed(s, area)) return null;
-  return { reason: `Your ${s.franchise.role} role delegates ${AREA_WORDS[area] || area} to your general manager.`, fix: "Switch your career role to Owner or GM in Career dossier to do it yourself." };
+  return { reason: `As ${ROLE_TITLES[s.franchise.role] || s.franchise.role}, ${AREA_WORDS[area] || area} are handled by the front office.`, fix: "Switch your career role to Head coach, GM or Owner in Coach career to do it yourself." };
 }
 
 export function rosterLimit(s) {

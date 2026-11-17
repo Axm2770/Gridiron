@@ -165,6 +165,8 @@ export function marketDay(s, {calendarManaged=false, compliance=true}={}) {
             ? "Free agent signed"
             : "Free agency agreement",
           `${p.name} accepted the ${teamName(s, winning.team)} offer; $${(winning.contract.base[0] / MILLION).toFixed(1)}M annual base.`,
+          // Other clubs' signings go to League snapshot → Transactions, not your inbox.
+          winning.team === s.team ? "club" : "league-move",
         );
       }
       // Tell the user why their own bid did not land.

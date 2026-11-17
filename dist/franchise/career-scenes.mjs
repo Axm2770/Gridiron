@@ -141,7 +141,7 @@ export function installCareerScenes({
         type === "staff" &&
         !["coach", "offense", "defense"].some((a) => S.allowed(state, a))
       ) {
-        toast("Your role delegates tactical briefings to the coaching staff.");
+        toast("Tactical briefings are the coaching staff’s call in your role. Change your career role in Coach career to lead them.");
         return;
       }
       if (!S.allowed(state, "media")) {

@@ -847,7 +847,7 @@ toggleStarter = function (id) {
       (role === "DC" && !offense)
     )
   ) {
-    toast("Your career role delegates this depth-chart decision.");
+    toast("In your career role, this depth-chart decision belongs to the coaching staff.");
     return;
   }
   previous.toggleStarter(id);
@@ -893,7 +893,7 @@ matchSetting = function (k, v) {
 };
 F.depth = function () {
   if (!(can("coach") || can("roster"))) {
-    toast("Your career role delegates the depth chart.");
+    toast("In your career role, the depth chart belongs to the coaching staff.");
     return;
   }
   depthChart();
@@ -1476,6 +1476,12 @@ import("./presentation.mjs")
       installBroadcastHUD();
       installCinematics({ isBusy: () => busy });
       installThemeMotion({ getSection: () => section });
+      try {
+        const { installTutorials } = await import("../ui/tutorial.mjs");
+        installTutorials({ getSection: () => section, isBusy: () => busy });
+      } catch (error) {
+        console.error("Tutorials:", error);
+      }
       render();
     } catch (error) {
       console.error("Hub dashboard:", error);
