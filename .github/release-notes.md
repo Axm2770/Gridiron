@@ -25,53 +25,32 @@ Careers are saved locally on your computer, and each install keeps its own saves
 
 Every file in this release was built by GitHub Actions from this tag, passed the full regression suite, and was launch-tested (the app opened, loaded the career workspace and ran a simulation) before and after zipping.
 
-## Updates without re-downloading
+## Updating
 
-The game now updates itself completely in-game, including releases that change the desktop app itself. When a new version is out, a bar appears in the corner. Choose **Download now**, then **Restart now** (or **When I quit**), and the game installs the new version and reopens. Your careers are untouched. Downloads are checked against the release's published checksums before anything is installed, and if an install fails the previous version is put back.
+If you have 0.24.1, the game offers this update in-game: choose **Download now**, then **Restart now**. Your careers are untouched. On 0.23.0 or earlier, download this version once from this page.
 
-Game-content updates still download only the files that changed and only need a reload.
+## Fixed
 
-**One last manual download:** 0.23.0 and earlier can't install this kind of update yet, so download this version once from this page. From here on, updates arrive in-game.
+- **The second season works.** In 0.24.1 the first game of a career's second season failed to finish, because players drafted by computer-controlled clubs had no stats record. Rookies now start with everything they need to play.
+- **Head coaches run the whole football operation.** New careers start as head coach, and that role couldn't open the draft, sign, release or trade. Head coaches now make every football decision; stadium projects and league votes stay with the owner.
+- New careers no longer start with 90-rated free agents that computer clubs snap up in week one.
+- Other clubs' free-agent signings no longer fill your inbox.
 
-If the game can't replace itself (for example a Mac copy still running from the Downloads folder, or a folder you don't have write access to), it links to this page instead. On macOS, move **Gridiron Director.app** into Applications to get in-game updates.
+## New
 
-## Match day
+- **Transactions.** League snapshot → Transactions lists every signing, trade, waiver claim, draft pick, release, expired contract and retirement in the league, with contracts. Filter by club, type or season. Each player's profile shows his own history on the Contract tab.
+- **Tutorials.** Seven short guided tours point at the real screens: getting started, your squad, contracts and the salary cap, free agency and trades, scouting and the draft, the season, and staff. New players are offered the first one; replay any of them from the **?** button.
+- **Help on every screen.** The **?** button opens Help & tutorials: tours with your progress, help for the screen you're on, and a glossary. Terms such as Cap room, Dead money and OVR are underlined and explain themselves when you hover over them.
 
-- The 3D match view is sharp again.
-- Field goals and punts line up with real kick units.
-- Runs use real schemes with blocking.
-- Defenders chase and make contact before tackling, instead of jumping onto the ball carrier.
-- A skippable intro opens every matchday.
-- **Sim options** let you turn instant replays on or off and set replay speed, game speed and commentary.
+## Easier to get around
 
-## Cutscenes and news
+- When calendar simulation stops for a decision, the decision and its answers appear right there. Answering carries on simulating.
+- Anything that stops the simulation links to the screen that fixes it, for example **Fix in Squad** when your roster is over the limit.
+- Squad warns when you're over the active-roster limit and offers **Trim to 53 automatically**.
+- Player names on every screen open the player's profile.
+- Matchday, Tactics, Settings and the other remaining screens now have the **?** button and Jump to links.
 
-- Cutscenes and the news feed have a pixel-art style.
-- New signings hold up their jersey in a signing scene, and a new head coach gets an arrival scene.
-- The newsroom and fan debates have far more variety.
+## Look
 
-## Trades, free agency, scouting and the draft
-
-- Trades work.
-- Anything you can't do now tells you why, and suggests a fix where there is one.
-- Free agency, trade and draft windows show their dates.
-- Lesser-known players show predicted rating ranges until you scout them. Scouting reports arrive in your inbox and narrow the ranges.
-- Scouting reports link straight to trade and contract offers.
-- Next Generation has been folded into the Draft room.
-
-## A simpler front office
-
-- Delegation is gone; you make the calls.
-- The Boardroom is simpler and every part of it works.
-- Tactics is easier to read and adds an opponent analysis.
-- The Locker room puts player morale front and centre.
-
-## Easier to read and navigate
-
-- Menus use a clear font, keeping the pixel frames.
-- The sidebar is shorter, with working Back and breadcrumbs.
-- Players open in one hub with their stats, contract and scouting.
-- Calendar and Schedule are one screen, with head-to-head records against every opponent.
-- Around the League is now a league snapshot.
-- History, records and the Hall of Fame live in one Records & milestones screen, including a list of champions.
-- Developer-only tools (the animation preview buttons, the match seed panel and the classic overview switch) are gone.
+- Page and panel titles use the readable pixel font; body text and tables stay in the clean font.
+- Older screens now share the same colours as the rest of the game.
