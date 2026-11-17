@@ -5,7 +5,6 @@ import {
   dialogueConsequences,
   fanReaction,
 } from "./career-systems.mjs";
-import { consumeBoardPermit } from "./boardroom.mjs";
 import { voteCommittee, processRumors } from "./world-events.mjs";
 import {
   roster,
@@ -244,30 +243,24 @@ export function stadiumProject(s, area, funding) {
     c.fanApproval -= 5;
   }
   if (c.cash < cost) throw Error("Not enough ownership cash.");
-  const permit = consumeBoardPermit(s, "Stadium", { area, funding });
-  if (permit.scope === "Compromise") cost = Math.round(cost * 0.8);
   c.cash -= cost;
   stadium.projects.push({
     name: `${area} upgrade`,
     area,
     gain:
       area === "condition"
-        ? permit.scope === "Compromise"
-          ? 16
-          : 20
+        ? 20
         : area === "capacity"
-          ? permit.scope === "Compromise"
-            ? 6400
-            : 8000
+          ? 8000
           : 1,
-    remaining: permit.scope === "Compromise" ? 5 : 3,
+    remaining: 3,
     cost,
     funding,
   });
   log(
     s,
     "Facility project approved",
-    `Construction begins with ${funding.toLowerCase()} funding${permit.scope === "Compromise" ? " and a reduced scope / extended delivery period" : ""}.`,
+    `Construction begins with ${funding.toLowerCase()} funding.`,
   );
 }
 export function relocate(s, city, name) {
@@ -281,9 +274,8 @@ export function relocate(s, city, name) {
     throw Error("Enter a city and team name.");
   if (c.cash < 400 * MILLION)
     throw Error("Relocation requires $400M in available cash.");
-  const permit = consumeBoardPermit(s, "Relocation", { city, name });
-  c.cash -= (permit.scope === "Compromise" ? 350 : 400) * MILLION;
-  c.stadium.capacity = permit.scope === "Compromise" ? 55000 : 65000;
+  c.cash -= 400 * MILLION;
+  c.stadium.capacity = 65000;
   c.stadium.city = city.trim().slice(0, 40);
   c.stadium.name = city.trim() + " Stadium";
   c.stadium.condition = 95;

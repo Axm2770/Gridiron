@@ -1,13 +1,10 @@
 import * as S from "./state.mjs";
-import * as B from "./boardroom.mjs";
 import * as K from "./career-systems.mjs";
 import * as R from "./records.mjs";
 import * as A from "./awards.mjs";
 import * as E from "./world-events.mjs";
 import * as Jobs from "./career-jobs.mjs";
 import * as C from "./contracts.mjs";
-import * as W from "./world.mjs";
-import * as Staff from "./staff.mjs";
 import { CharacterStage, appearanceFor } from "./character-stage.mjs";
 import { playerFace, previewAttributes } from "./player-ui.mjs";
 import { icon } from "./presentation.mjs";
@@ -231,135 +228,6 @@ export function installExpansionUI({ views, isBusy, heritage }) {
     )}</div>`;
   }
 
-  function proposalLabel(r) {
-    const p = r.payload;
-    return r.kind === "Stadium"
-      ? ({
-          training: "Training facilities",
-          medical: "Medical center",
-          condition: "Stadium restoration",
-          capacity: "Stadium expansion",
-        }[p.area] || p.area) +
-          " · " +
-          p.funding +
-          " funding"
-      : r.kind === "Relocation"
-        ? p.city + " " + p.name
-        : r.kind === "Budget"
-          ? money(Number(p.amount) * S.MILLION) + " annual staff budget"
-          : r.kind === "Uniform"
-            ? "Primary and alternate identity"
-            : r.kind === "Trade"
-              ? "Player exchange"
-              : "Senior staff appointment";
-  }
-  function proposalTerms(r) {
-    if (r.outcome !== "Compromise")
-      return "Authority to execute the submitted proposal within 30 football calendar days.";
-    return r.kind === "Stadium"
-      ? "Reduced investment and capacity/condition gains; five calendar advances for delivery."
-      : r.kind === "Relocation"
-        ? "A $350M move to a 55,000-seat ground."
-        : r.kind === "Staff change"
-          ? r.payload.replacement
-            ? "A cost-neutral replacement only."
-            : "At least two senior coaches must remain in place."
-          : r.kind === "Trade"
-            ? "Ownership requires a $2M player transition reserve."
-            : r.kind === "Budget"
-              ? "Half the requested annual budget increase."
-              : "An alternate uniform package; the primary identity is retained.";
-  }
-  function boardScene(id) {
-    const r = state.franchise.boardroom?.requests.find((r) => r.id === id);
-    if (!r) {
-      toast("This meeting is no longer available.");
-      return;
-    }
-    const owner = state.franchise.clubs[state.team].owner,
-      active = r.status === "meeting",
-      permit = B.hasBoardPermit(state, r.kind, r.payload);
-    scene({
-      eyebrow: "Ownership / " + r.kind,
-      title: proposalLabel(r),
-      speaker: owner.name + " · " + owner.trait,
-      subject: { id: "owner-" + state.team },
-      board: true,
-      shot: r.step ? 1 : 0,
-      line: active
-        ? r.step === 0
-          ? "Tell us why this commitment serves the club, and how you will deliver it."
-          : "We have heard the case. What terms are you willing to work under?"
-        : r.line || "This proposal is on the ownership record.",
-      body: `${stats([
-        ["Requested commitment", money(r.cost)],
-        ["Board confidence", number(owner.patience) + "%"],
-      ])}${active ? `<div class="exp-response-list">${B.BOARD_CHOICES[r.step].map((c, i) => `<button onclick="Expansion.answerBoard(${arg(id)},${r.step},${i})"><b>${esc(c.label)}</b><span>${esc(c.text)}</span>${icon("chevron")}</button>`).join("")}</div><button class="exp-text-button" onclick="Expansion.withdraw(${arg(id)})">Withdraw proposal</button>` : `${tag(r.outcome || r.status, r.outcome === "Approved" ? "green" : r.outcome === "Rejected" ? "red" : "amber")}<p class="exp-terms">${esc(proposalTerms(r))}</p>${permit ? `<button onclick="Expansion.execute(${arg(id)})" ${disabled()}>Execute agreed terms →</button>` : tag(r.status === "executed" ? "Commitment executed" : r.status === "withdrawn" ? "Proposal withdrawn" : "No active authority")}<button class="secondary" onclick="closeModal()">Return to office</button>`}`,
-    });
-  }
-  function request(kind, payload) {
-    if (
-      update(
-        (s) => B.beginBoardRequest(s, kind, payload),
-        () => boardScene(B.activeBoardRequest(state).id),
-      )
-    )
-      return true;
-    return false;
-  }
-  function execute(id) {
-    const r = state.franchise.boardroom?.requests.find((r) => r.id === id);
-    if (!r || r.team !== state.team) return;
-    update(
-      (s) => {
-        const p = r.payload;
-        if (r.kind === "Stadium") W.stadiumProject(s, p.area, p.funding);
-        else if (r.kind === "Relocation") W.relocate(s, p.city, p.name);
-        else if (r.kind === "Staff change")
-          p.replacement
-            ? Staff.hireStaff(s, p.role, p.replacement)
-            : Staff.fireStaff(s, p.id);
-        else if (r.kind === "Trade") C.trade(s, p.id, p.other, p.targetId);
-        else if (r.kind === "Budget") B.applyBudget(s, p);
-        else if (r.kind === "Uniform") B.applyUniform(s, p);
-      },
-      () => {
-        closeModal();
-        toast("Ownership decision put into effect.");
-      },
-    );
-  }
-  function boardView() {
-    K.ensureCareerSystems(state);
-    const f = state.franchise,
-      c = f.clubs[state.team],
-      active = B.activeBoardRequest(state),
-      b = f.boardroom,
-      rows = b.requests.filter((r) => r.team === state.team).slice(0, 8);
-    return `<div class="exp-workspace">${hero("ORGANIZATION / OWNERSHIP", "Make the case. Earn the backing.", "Meet ownership, negotiate the scope and turn an approved commitment into action.", tag(c.owner.trait, "blue"))}${stats(
-      [
-        ["Owner patience", number(c.owner.patience) + "%"],
-        ["Operating reserves", money(c.cash)],
-        ["Staff budget", money(c.staffBudget)],
-        ["Fan approval", number(c.fanApproval) + "%"],
-      ],
-    )}${active ? `<button class="exp-resume" onclick="Expansion.board(${arg(active.id)})">${icon("mic")} Resume ${esc(active.kind.toLowerCase())} meeting ${icon("arrow")}</button>` : ""}<div class="exp-two-col">${panel(
-      "Facilities & identity",
-      `<div class="exp-agenda-grid">${[
-        ["condition", "Stadium restoration"],
-        ["capacity", "Stadium expansion"],
-        ["training", "Training facilities"],
-        ["medical", "Medical center"],
-      ]
-        .map(
-          ([area, title]) =>
-            `<button onclick="Expansion.request('Stadium',{area:'${area}',funding:'Private'})" ${disabled("stadium")}>${icon("building")}<b>${title}</b><small>${money(B.boardCost(state, "Stadium", { area, funding: "Private" }))} · ${K.cooldownRemaining(state, "Stadium") ? K.cooldownRemaining(state, "Stadium") + " days" : "Ready"}</small></button>`,
-        )
-        .join(
-          "",
-        )}</div><div class="exp-agenda-form"><h4>Annual football staff budget</h4><form onsubmit="event.preventDefault();Expansion.request('Budget',{amount:Number(this.amount.value)})"><label>Increase ($M)<input name="amount" type="number" min="1" max="25" step=".5" value="5" required></label><button ${disabled("stadium")}>Request meeting</button></form></div><div class="exp-agenda-form"><h4>Uniform identity</h4><form onsubmit="event.preventDefault();Expansion.request('Uniform',{primary:this.primary.value,secondary:this.secondary.value})"><label>Primary<input type="color" name="primary" value="${c.uniform?.primary || "#1e5ca1"}"></label><label>Secondary<input type="color" name="secondary" value="${c.uniform?.secondary || "#ebc35b"}"></label><button ${disabled("stadium")}>Present colors</button></form></div>`,
-    )}${panel("Relocation proposal", `<p>Ownership reviews the market, stadium condition, funding and the commitment to supporters.</p><form class="exp-stacked-form" onsubmit="event.preventDefault();Expansion.request('Relocation',{city:this.city.value,name:this.nickname.value})"><label>Proposed city<input name="city" maxlength="40" placeholder="New market" required></label><label>Team name<input name="nickname" maxlength="40" placeholder="Franchise identity" required></label><button ${disabled("stadium")}>Request relocation meeting</button></form><div class="exp-inline-links"><button class="secondary small" onclick="W.open('Staff')">Review coaching staff →</button><button class="secondary small" onclick="W.open('Market')">Open trade desk →</button></div><p class="exp-muted">${K.cooldownRemaining(state, "Relocation") ? `Relocation review reopens in ${K.cooldownRemaining(state, "Relocation")} days.` : "Relocation applications open in the offseason when the stadium or market case warrants a move."}</p>`)}</div>${panel("Ownership record", `<div class="exp-list">${rows.map((r) => `<button class="exp-record-row" onclick="Expansion.board(${arg(r.id)})"><span class="exp-row-icon">${icon("briefcase")}</span><span><b>${esc(r.kind)}</b><small>${esc(proposalLabel(r))} · ${r.year} W${r.week + 1}</small></span>${tag(r.status === "meeting" ? "Meeting in progress" : r.status === "executed" ? "Executed" : r.outcome || r.status, r.outcome === "Rejected" ? "red" : r.outcome === "Approved" ? "green" : "amber")}${icon("chevron")}</button>`).join("") || empty("Your next proposal starts here", "Major commitments require an ownership meeting.")}</div>`)}</div>`;
-  }
   function careerView() {
     const f = K.ensureCareerSystems(state),
       rep = f.coachReputation,
@@ -778,9 +646,6 @@ export function installExpansionUI({ views, isBusy, heritage }) {
       contractFilter.page += delta;
       render();
     },
-    request,
-    board: boardScene,
-    execute,
     extension,
     debug(kind, value) {
       update((s) => {
@@ -813,18 +678,6 @@ export function installExpansionUI({ views, isBusy, heritage }) {
         }
         s.debugSave = true;
       });
-    },
-    answerBoard(id, step, choice) {
-      update(
-        (s) => B.answerBoard(s, id, step, choice),
-        () => boardScene(id),
-      );
-    },
-    withdraw(id) {
-      update(
-        (s) => B.withdrawBoard(s, id),
-        () => closeModal(),
-      );
     },
     recordEntity(v) {
       record.entity = v;
@@ -964,34 +817,15 @@ export function installExpansionUI({ views, isBusy, heritage }) {
       `<div class="exp-debug-controls"><label>Coach reputation<input id="exp-debug-rep" type="number" min="0" max="99" value="${K.coachReputation(state)}"></label><button class="secondary small" onclick="Expansion.debug('reputation',document.getElementById('exp-debug-rep').value)">Set reputation</button><button class="secondary small" onclick="Expansion.debug('clock')">Advance action clock 7 days</button><button class="secondary small" onclick="Expansion.debug('rumor')">Create trade rumor</button></div>`,
     );
   views.Contracts = contractsView;
-  views.Boardroom = boardView;
   views["Career dossier"] = careerView;
   views.Records = recordsView;
   views.Awards = awardsView;
   views["Hall of Fame"] = hofView;
   views["League desk"] = leagueView;
-  // Route the existing buttons through the same persisted board approval gate as the domain functions.
   const originalAction = F.action;
   F.action = function (action, ...args) {
-    let kind, payload;
-    if (action === "project") {
-      kind = "Stadium";
-      payload = { area: args[0], funding: args[1] };
-    }
-    if (action === "relocate") {
-      kind = "Relocation";
-      payload = { city: args[0], name: args[1] };
-    }
-    if (action === "trade" && B.isBlockbuster(state, ...args)) {
-      kind = "Trade";
-      payload = { id: args[0], other: args[1], targetId: args[2] };
-    }
     if (action === "interview") {
       window.W.open("Career dossier");
-      return;
-    }
-    if (kind && !B.hasBoardPermit(state, kind, payload)) {
-      request(kind, payload);
       return;
     }
     return originalAction(action, ...args);
@@ -1002,35 +836,5 @@ export function installExpansionUI({ views, isBusy, heritage }) {
       target = document.getElementById("trade-in");
     if (!own || !other || !target) return;
     return F.action("trade", own.value, Number(other.value), target.value);
-  };
-  const appoint = StaffHub.confirmAppointment,
-    dismiss = StaffHub.confirmDismissal;
-  StaffHub.confirmAppointment = function (id, role) {
-    const old = state.franchise.clubs[state.team].staff.find(
-        (c) => c.role === role,
-      ),
-      p = { id: old?.id, replacement: id, role };
-    if (
-      old &&
-      ["HC", "GM", "OC", "DC", "STC"].includes(role) &&
-      !B.hasBoardPermit(state, "Staff change", p)
-    ) {
-      request("Staff change", p);
-      return;
-    }
-    appoint(id, role);
-  };
-  StaffHub.confirmDismissal = function (id) {
-    const c = state.franchise.clubs[state.team].staff.find((c) => c.id === id),
-      p = { id, replacement: null, role: c?.role };
-    if (
-      c &&
-      ["HC", "GM", "OC", "DC", "STC"].includes(c.role) &&
-      !B.hasBoardPermit(state, "Staff change", p)
-    ) {
-      request("Staff change", p);
-      return;
-    }
-    dismiss(id);
   };
 }
