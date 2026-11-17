@@ -244,6 +244,10 @@ export function draftOne(s, pick, p) {
   let team = pick.team;
   p.starter = false;
   p.status = "active";
+  // Same defaults a free-agent signing gets (world.mjs), so rookies can play and record stats.
+  p.stats ??= {};
+  p.wear ??= { knee: 0, ankle: 0, shoulder: 0, back: 0 };
+  p.fitness ??= 100;
   p.salary = Math.max(0.8, 4.5 - pick.round * 0.5);
   let c = basicContract(p, team, s.year + 1);
   c.years = 4;

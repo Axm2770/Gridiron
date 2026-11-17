@@ -70,13 +70,13 @@ function classify(prev, now) {
 }
 
 // Diffs player locations since the previous call and appends the moves. Returns the new entries.
-export function recordTransactions(s) {
+export function recordTransactions(s, stampOverride = null) {
   const log = ensureTransactions(s);
   if (!log) return [];
   const now = locations(s),
     f = s.franchise,
     out = [],
-    stamp = { year: s.year, week: s.week, phase: s.phase, date: f.calendarSim?.date };
+    stamp = { year: s.year, week: s.week, phase: s.phase, date: f.calendarSim?.date, ...(stampOverride || {}) };
   const ids = new Set([...Object.keys(log.at), ...Object.keys(now)]);
   const trades = new Map();
   for (const id of ids) {

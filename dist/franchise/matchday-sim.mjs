@@ -28,7 +28,7 @@ export function applyMatchSegment(state, result) {
   for (const record of result.stats || []) {
     const p = S.roster(state, record.team).find((p) => p.id === record.id);
     if (!p) continue;
-    const stats = (p.stats[state.year] ??= {});
+    const stats = ((p.stats ??= {})[state.year] ??= {});
     for (const [key, value] of Object.entries(record))
       if (!["team", "id"].includes(key)) stats[key] = (stats[key] || 0) + value;
   }

@@ -22,6 +22,7 @@ import {
 import { effectiveAttributes } from "./ratings.mjs";
 import { faceSVG } from "./newgens.mjs";
 import { icon, searchKey } from "./presentation.mjs";
+import { rosterLimit } from "./blockers.mjs";
 import { storyArt } from "../presentation/pixel-art.mjs";
 const fmtBio = (n) => Number(n).toLocaleString("en-US");
 const num = (n, d = 1) =>
@@ -168,7 +169,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       pending = m.status === "pending";
     return `<article class="message-detail"><div class="message-topline">${badge(m.category)}<span>${messageTime(m)}</span><button class="icon-button ${m.bookmarked ? "positive" : ""}" aria-label="${m.bookmarked ? "Unsave" : "Save"} message" onclick="Office.bookmark('${m.id}')">${m.bookmarked ? "★" : "☆"}</button></div><h2>${esc(m.title)}</h2><div class="message-sender"><span class="sender-avatar">${icon(m.category === "Medical" ? "medical" : m.category === "Interviews" ? "mic" : "briefcase")}</span><span><b>${esc(m.source)}</b><small>To ${esc(state.coach.name)} · ${esc(state.franchise.role)}</small></span></div><p class="message-copy">${esc(m.body)}</p>${p ? `<div class="message-player">${playerLink(p, state.team)}<div><b>${num(p.morale, 0)}%</b><small>Morale</small></div><div><b>${num(p.coachTrust ?? 60, 0)}%</b><small>Trust</small></div></div>` : m.playerId ? '<p class="muted">The player is no longer with this franchise.</p>' : ""}${
       pending
-        ? `<section class="response-box"><div><span class="eyebrow">YOUR RESPONSE</span>${badge(m.priority === "urgent" ? "Priority decision" : "Decision", "amber")}</div><p class="muted">Due in ${Math.max(0, m.dueStep - office().step)} league round(s). If left unanswered, the head coach uses the first response.</p>${decisionOptions(
+        ? `<section class="response-box"><div><span class="eyebrow">YOUR RESPONSE</span>${badge(m.priority === "urgent" ? "Priority decision" : "Decision", "amber")}</div><p class="muted">Due in ${Math.max(0, m.dueStep - office().step)} league round(s). If you don’t answer in time, the first response is used.</p>${decisionOptions(
             m,
           )
             .map(
@@ -437,12 +438,21 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     }</tbody></table></div>`;
   }
   const oldRoster = views.Roster;
+  // Over the active limit, say so above the squad and offer the automatic trim right there.
+  const rosterAlert = () => {
+    const active = state.roster.filter((p) => p.status === "active").length,
+      limit = rosterLimit(state),
+      over = active - limit;
+    if (over <= 0) return "";
+    const practice = state.roster.filter((p) => p.status === "practice").length;
+    return `<div class="squad-alert" role="status"><div><b>${over} over the ${limit}-player active limit.</b><small>Games can't be played until you trim. Trim to ${limit} keeps your best player at every position, moves the rest to the practice squad while it has room (${practice} / 16), and releases the remainder.</small></div>${S.allowed(state, "roster") ? `<button onclick="F.action('trim')">Trim to ${limit} automatically</button>` : ""}</div>`;
+  };
   views.Roster = () =>
-    `${metrics([
+    `${rosterAlert()}${metrics([
       [
         "Active roster",
-        state.roster.filter((p) => p.status === "active").length + " / 53",
-        "Before matchday",
+        state.roster.filter((p) => p.status === "active").length + " / " + rosterLimit(state),
+        state.phase === "offseason" ? "Offseason limit" : "Before matchday",
       ],
       [
         "Practice squad",

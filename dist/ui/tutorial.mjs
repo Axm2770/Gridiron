@@ -194,9 +194,14 @@ export function installTutorials({ getSection, isBusy = () => false }) {
     });
   }
 
+  // Older screens (Matchday, Tactics, Media room) are views of their own rather than sections.
+  const currentRoute = () => {
+    const v = typeof view !== "undefined" ? view : null;
+    return v && v !== "Franchise" ? v : getSection?.() || "Overview";
+  };
   function helpCentre(tab = "Tours") {
     const progress = tourProgress(),
-      section = getSection?.() || "Overview",
+      section = currentRoute(),
       label = document.querySelector("#app .title-row h1")?.textContent?.trim() || section,
       help = SCREEN_HELP[section],
       done = progress.filter((t) => t.done).length;
@@ -283,7 +288,7 @@ export function installTutorials({ getSection, isBusy = () => false }) {
   window.Tutorial = api;
 
   // The ? button on every screen opens the help centre on this screen's help.
-  if (window.W) window.W.help = () => helpCentre(SCREEN_HELP[getSection?.()] ? "This screen" : "Tours");
+  if (window.W) window.W.help = () => helpCentre(SCREEN_HELP[currentRoute()] ? "This screen" : "Tours");
 
   addEventListener("keydown", (e) => {
     if (!active) return;

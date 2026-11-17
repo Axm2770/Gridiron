@@ -124,6 +124,9 @@ export const RELATED = {
   News: ["Media room", "Inbox", "League desk"],
   "Media room": ["News", "Inbox"],
   Inbox: ["News", "Calendar"],
+  Matchday: ["Game plan", "Calendar", "Roster"],
+  Settings: ["Careers & saves", "Overview"],
+  "Careers & saves": ["Settings", "Overview"],
 };
 export const NAV_GROUPS = groups;
 const legacy = new Set(["Game plan", "Schedule", "Media room", "Matchday"]);
@@ -833,6 +836,9 @@ export function installPresentation({
       if (view === "Matchday")
         title.querySelector(".subtitle").textContent =
           "Live coaching. Every snap is your decision.";
+      // Older screens (Matchday, Tactics, Media room) get the same help button as the rest.
+      if (!title.querySelector("[onclick=\"W.help()\"]"))
+        title.insertAdjacentHTML("beforeend", `<div class="page-context"><button class="icon-button" onclick="W.help()" aria-label="Help for this screen">?</button></div>`);
     }
     syncMobileNavigation();
     enhanceTables();

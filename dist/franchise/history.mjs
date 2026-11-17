@@ -34,7 +34,7 @@ export function recordPlayerStats(s, e, team) {
     runner = map.get(e.actors[r.carrier]?.id);
   const stat = (p) =>
     p
-      ? (p.stats[s.year] ??= {
+      ? ((p.stats ??= {})[s.year] ??= {
           passYards: 0,
           passTD: 0,
           attempts: 0,

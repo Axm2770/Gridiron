@@ -282,7 +282,10 @@ export const SCREEN_HELP = {
   Statistics: { text: "Season and career statistics for every player; sort any column.", tour: "season" },
   Analysis: { text: "Team and player analytics: efficiency, tendencies and comparisons.", tour: "season" },
   "Careers & saves": { text: "Switch careers, export a backup or import a save." },
-  Settings: { text: "Display, sound, match and data options. Tutorials can be reset here." },
+  Settings: { text: "Display, sound, match and data options. Tutorial progress can be reset from Help & tutorials (the ? button)." },
+  Conversations: { text: "One-to-one talks with players: promises, playing time, contracts and morale.", tour: "roster" },
+  "Career dossier": { text: "Your coaching record, reputation and the history of your career.", tour: "organization" },
+  "Media room": { text: "Press conferences and interviews. Your answers move fan support and player morale.", tour: "season" },
 };
 
 // Glossary terms. Matching labels on screen get a dotted underline and this tooltip.
