@@ -79,7 +79,9 @@ function close(dialog) {
   if (dialog?.open) dialog.close();
   dialog?.remove();
 }
-export function showMatchIntro(m, { s = globalThis.state, clubList = globalThis.clubs, duration = 7400 } = {}) {
+// `state` and `clubs` are script-scoped globals of the classic game scripts, so callers pass them.
+export function showMatchIntro(m, { s, clubList, duration = 7400 } = {}) {
+  if (!s || !clubList) return false;
   const key = introKey(m, s);
   if (seen.has(key) || !globalThis.document) return false;
   seen.add(key);
