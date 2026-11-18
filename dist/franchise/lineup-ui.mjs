@@ -13,7 +13,7 @@ import {
   restoreLineup,
   weakestSlot,
 } from "./lineup.mjs";
-import { FIELD, formationLayout } from "./lineup-layout.mjs";
+import { formationLayout } from "./lineup-layout.mjs";
 
 // Visual lineup for the Squad and Tactics screens and the matchday Team lineup: a pixel field
 // with the unit's formation and a depth panel beside it.
@@ -38,7 +38,29 @@ const pips = (p) => {
     n = f >= 90 ? 4 : f >= 75 ? 3 : f >= 60 ? 2 : 1;
   return `<span class="lu-pips cond-${condTone(p)}" aria-hidden="true">${"<i></i>".repeat(n)}${"<i class=off></i>".repeat(4 - n)}</span>`;
 };
-const lastName = (p) => String(p.name || "").split(" ").slice(1).join(" ") || p.name || "";
+// Short name for a field card: the last name (suffixes like Jr. dropped); a long one steps the
+// font down ("sm"), a long hyphenated/two-word surname keeps its last part, and only a very long
+// single surname steps down again ("xs") with an ellipsis as the last resort.
+// List rows: the full name, or initial + surname when it is long ("Broderick Jones" → "B. Jones").
+export const rowName = (name) => {
+  const n = String(name || "");
+  if (n.length <= 14) return n;
+  const parts = n.split(/\s+/);
+  return parts.length > 1 ? `${parts[0][0]}. ${parts.slice(1).join(" ")}` : n;
+};
+export function shortName(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  while (parts.length > 2 && /^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(parts.at(-1))) parts.pop();
+  let last = parts.slice(1).join(" ") || parts[0] || "";
+  if (last.length <= 7) return { text: last, size: "" };
+  if (last.length <= 9) return { text: last, size: "sm" };
+  const seg = last.split(/[-\s]/).filter(Boolean);
+  if (seg.length > 1) {
+    last = seg.at(-1);
+    return { text: last, size: last.length <= 7 ? "" : last.length <= 9 ? "sm" : "xs" };
+  }
+  return { text: last, size: "xs" };
+}
 const focusQuiet = (el) => {
   try {
     el?.focus?.({ preventScroll: true });
@@ -191,23 +213,38 @@ function createController(busyChecks) {
         : `Select vacant ${t.label} slot. Assign a player.`;
     return `<button type="button" class="lu-tok ${p ? "q-" + quality(p.ovr) + " cond-" + condTone(p) : "vacant"}${isSel ? " selected" : ""}${sel && !isSel && sel.role === a.role && a.p && editable() ? " lu-can-swap" : ""}${flash.includes(a.index) ? " flash" : ""}" style="left:${t.left}%;top:${t.top}%;width:${t.width}%;height:${t.height}%" data-lu-slot="${a.index}" data-lu-role="${a.role}" data-x="${t.x.toFixed(1)}" data-y="${t.y.toFixed(1)}" ${p ? `data-lu-player="${esc(p.id)}" data-lu-drag` : ""} aria-pressed="${isSel}" aria-label="${esc(label)}" onclick="Lineup.select(${a.index})">${
       p
-        ? `<span class="lu-tok-top"><span class="lu-face">${pixelFace(p, { size: 40, team, label: "" })}</span><span class="lu-num">${esc(p.jersey ?? "–")}</span></span><span class="lu-tok-name">${esc(lastName(p))}</span><span class="lu-tok-meta"><i>${t.label}</i><b class="lu-ovr">${p.ovr}</b></span>${pips(p)}`
+        ? `<span class="lu-tok-top"><span class="lu-face">${pixelFace(p, { size: 40, team, label: "" })}</span><span class="lu-num">${esc(p.jersey ?? "–")}</span></span>${((n) => `<span class="lu-tok-name ${n.size}" title="${esc(p.name)}">${esc(n.text)}</span>`)(shortName(p.name))}<span class="lu-tok-meta"><i>${t.label}</i><b class="lu-ovr">${p.ovr}</b></span>${pips(p)}`
         : `<span class="lu-tok-top"><span class="lu-face lu-face-empty">+</span></span><span class="lu-tok-name">Vacant</span><span class="lu-tok-meta"><i>${t.label}</i></span>`
     }</button>`;
   }
 
-  function turf(unit, m, team) {
+  // Turf for the formation window F (layout.field): mowing stripes aligned to the LOS, yard lines
+  // every five yards (one card row) away from it, sideline numbers, hash marks, LOS and
+  // first-down lines, labels in the band on the far side of the LOS from the unit, and the end
+  // zone behind the unit (bottom for offense, top for the mirrored defense).
+  function turf(unit, F, team) {
     const live = state.live && !state.live.finished ? state.live : null,
-      offView = unit !== "Defense",
+      pc = (y) => ((y / F.H) * 100).toFixed(2) + "%",
+      dir = F.flip ? -1 : 1,
       toGo = live ? Math.min(10, Math.max(1, live.toGo || 10)) : 10,
-      fdTop = FIELD.los - toGo * 0.75,
+      fd = F.los - (toGo / 10) * (F.band - 2.6),
       yards = [];
-    for (let y = FIELD.los + FIELD.row, n = 1; y < FIELD.zone - 1; y += FIELD.row, n++) yards.push([y, n]);
+    for (let k = 1; ; k++) {
+      const y = F.los + dir * k * F.row;
+      if (F.flip ? y <= F.zoneBottom + 1 : y >= F.zoneTop - 1) break;
+      yards.push([y, k]);
+    }
+    if (F.los - dir * F.row > 1 && F.los - dir * F.row < F.H - 1) yards.push([F.los - dir * F.row, -1]);
     const crest = typeof logo === "function" ? logo(team) : "",
       name = clubs[team]?.[2] || "",
       down = live ? `${["1ST", "2ND", "3RD", "4TH"][Math.max(0, (live.down || 1) - 1)] || "1ST"} & ${live.goal ? "GOAL" : toGo}` : "1ST & 10",
-      ball = live && typeof fieldPosition === "function" ? ` · ${fieldPosition(live)}` : "";
-    return `<span class="lu-turf" aria-hidden="true"></span><span class="lu-sideline left" aria-hidden="true">${yards.map(([y, n]) => (n % 2 ? "" : `<b style="top:${((y / FIELD.H) * 100).toFixed(2)}%">${n * 5 >= 50 ? 50 : 50 - n * 5}</b>`)).join("")}</span><span class="lu-sideline right" aria-hidden="true">${yards.map(([y, n]) => (n % 2 ? "" : `<b style="top:${((y / FIELD.H) * 100).toFixed(2)}%">${n * 5 >= 50 ? 50 : 50 - n * 5}</b>`)).join("")}</span>${yards.map(([y]) => `<span class="lu-yard" style="top:${((y / FIELD.H) * 100).toFixed(2)}%" aria-hidden="true"></span>`).join("")}<span class="lu-hash l" aria-hidden="true"></span><span class="lu-hash r" aria-hidden="true"></span>${offView && unit === "Offense" ? `<span class="lu-fd" style="top:${((fdTop / FIELD.H) * 100).toFixed(2)}%" aria-hidden="true"></span>` : ""}<span class="lu-los" style="top:${((FIELD.los / FIELD.H) * 100).toFixed(2)}%" aria-hidden="true"></span><span class="lu-tag lu-tag-los" style="top:${(((FIELD.los - 3.4) / FIELD.H) * 100).toFixed(2)}%">LOS${esc(ball)}</span><span class="lu-tag lu-tag-dir" style="top:${(((FIELD.los - 3.4) / FIELD.H) * 100).toFixed(2)}%">${unit === "Defense" ? "▼ DEFEND" : unit === "Offense" ? "▲ ATTACK · " + down : "KICKING UNIT"}</span><span class="lu-endzone" style="top:${((FIELD.zone / FIELD.H) * 100).toFixed(2)}%">${crest ? `<span class="lu-crest">${crest}</span>` : ""}<b>${esc(name)}</b>${crest ? `<span class="lu-crest">${crest}</span>` : ""}</span>`;
+      ball = live && typeof fieldPosition === "function" ? ` · ${fieldPosition(live)}` : "",
+      tagY = F.flip ? F.los + 1.1 : F.los - 4,
+      num = (k) => (k < 0 ? 50 : Math.max(10, 50 - k * 5)),
+      numbers = yards.filter(([, k]) => k % 2 === 0).map(([y, k]) => `<b style="top:${pc(y)}">${num(k)}</b>`).join(""),
+      fieldTop = F.flip ? F.zoneBottom : 0,
+      fieldBottom = F.flip ? F.H : F.zoneTop;
+    return `<span class="lu-turf" style="background-position:0 0,0 ${F.los.toFixed(2)}cqw" aria-hidden="true"></span><span class="lu-sideline left" aria-hidden="true">${numbers}</span><span class="lu-sideline right" aria-hidden="true">${numbers}</span>${yards.map(([y]) => `<span class="lu-yard" style="top:${pc(y)}" aria-hidden="true"></span>`).join("")}<span class="lu-hash l" style="top:${pc(fieldTop)};height:${(((fieldBottom - fieldTop) / F.H) * 100).toFixed(2)}%" aria-hidden="true"></span><span class="lu-hash r" style="top:${pc(fieldTop)};height:${(((fieldBottom - fieldTop) / F.H) * 100).toFixed(2)}%" aria-hidden="true"></span>${unit === "Offense" ? `<span class="lu-fd" style="top:${pc(fd)}" aria-hidden="true"></span>` : ""}<span class="lu-los" style="top:${pc(F.los)}" aria-hidden="true"></span><span class="lu-tag lu-tag-los" style="top:${pc(tagY)}">LOS${esc(ball)}</span><span class="lu-tag lu-tag-dir" style="top:${pc(tagY)}">${unit === "Defense" ? "▼ DEFEND" : unit === "Offense" ? "▲ ATTACK · " + down : "KICKING UNIT"}</span><span class="lu-endzone${F.flip ? " flip" : ""}" style="top:${pc(F.zoneTop)};height:${((F.zoneH / F.H) * 100).toFixed(2)}%">${crest ? `<span class="lu-crest">${crest}</span>` : ""}<b>${esc(name)}</b>${crest ? `<span class="lu-crest">${crest}</span>` : ""}</span>`;
   }
 
   function sidePanel(b, labels, can) {
@@ -241,13 +278,13 @@ function createController(busyChecks) {
     const row = ({ p, rank, slot, out }) => {
       const onField = slot !== null,
         mine = onField && sel?.index === slot,
-        action = out ? "" : pickingHere ? (mine ? "Current" : onField ? "Trade" : "Swap in") : onField ? slotLabel(slot) : "Bench",
+        action = out ? "" : pickingHere ? (mine ? "Now" : onField ? "Trade" : "Swap in") : onField ? slotLabel(slot) : "Bench",
         delta = pickingHere && cur && !mine ? p.ovr - cur.ovr : null,
         deltaChip = delta === null ? "" : `<i class="lu-delta ${delta > 0 ? "up" : delta < 0 ? "down" : "even"}" title="OVR versus ${esc(cur.name)}">${delta > 0 ? "+" : delta < 0 ? "−" : "±"}${Math.abs(delta)}</i>`,
         tone = out ? "out" : mine ? "mine" : onField ? "on-field" : "bench";
       if (out)
-        return `<li><div class="lu-row out" aria-disabled="true"><span class="lu-rank">${rank}</span>${pixelFace(p, { size: 28, team: state.team, label: "" })}<span class="lu-row-name"><b>${esc(p.name)}</b><small>${esc(out)}</small></span><b class="lu-ovr q-${quality(p.ovr)}">${p.ovr}</b><em class="lu-row-tag bad">${p.injury ? "Injured" : "Out"}</em></div></li>`;
-      return `<li><button type="button" class="lu-row ${tone}${suggested === p.id ? " suggested" : ""}" data-lu-player="${esc(p.id)}" data-lu-pos="${p.pos}" data-lu-at="${onField ? slot : ""}" ${can ? "data-lu-drag" : ""} ${!can && !onField ? "disabled" : ""} aria-label="${esc(`${p.name}, ${p.ovr} overall, condition ${pct(p.fitness)}%, depth ${rank}. ${pickingHere && !mine ? (onField ? "Trade places with the selected slot." : "Put him in the selected slot.") : onField ? "On the field at " + slotLabel(slot) + "." : "Bench. Choose a slot for him."}`)}" onclick="Lineup.row(${arg(p.id)})"><span class="lu-rank">${rank}</span>${pixelFace(p, { size: 28, team: state.team, label: "" })}<span class="lu-row-name"><b>${esc(p.name)}</b><small>#${esc(p.jersey ?? "–")} · <span class="cond-${condTone(p)}">${pct(p.fitness)}%</span> · ${p.age} yrs${p.status === "elevated" ? " · elevated" : ""}</small></span><span class="lu-ovr-cell"><b class="lu-ovr q-${quality(p.ovr)}">${p.ovr}</b>${deltaChip}</span><em class="lu-row-tag ${tone}">${esc(action)}</em></button></li>`;
+        return `<li><div class="lu-row out" aria-disabled="true"><span class="lu-rank">${rank}</span>${pixelFace(p, { size: 28, team: state.team, label: "" })}<span class="lu-row-name" title="${esc(out)}"><b>${esc(p.name)}</b><small>${esc(out.length > 22 ? out.split(" · ")[0] : out)}</small></span><b class="lu-ovr q-${quality(p.ovr)}">${p.ovr}</b><em class="lu-row-tag bad">${p.injury ? "Injured" : "Out"}</em></div></li>`;
+      return `<li><button type="button" class="lu-row ${tone}${suggested === p.id ? " suggested" : ""}" data-lu-player="${esc(p.id)}" data-lu-pos="${p.pos}" data-lu-at="${onField ? slot : ""}" ${can ? "data-lu-drag" : ""} ${!can && !onField ? "disabled" : ""} aria-label="${esc(`${p.name}, ${p.ovr} overall, condition ${pct(p.fitness)}%, depth ${rank}. ${pickingHere && !mine ? (onField ? "Trade places with the selected slot." : "Put him in the selected slot.") : onField ? "On the field at " + slotLabel(slot) + "." : "Bench. Choose a slot for him."}`)}" onclick="Lineup.row(${arg(p.id)})"><span class="lu-rank">${rank}</span>${pixelFace(p, { size: 28, team: state.team, label: "" })}<span class="lu-row-name"><b title="${esc(p.name)}">${esc(rowName(p.name))}</b><small title="${p.age} yrs · ${p.starter ? "starter" : "reserve"}">#${esc(p.jersey ?? "–")} · <span class="cond-${condTone(p)}" title="Condition">${pct(p.fitness)}%</span>${p.status === "elevated" ? " · elev." : ""}</small></span><span class="lu-ovr-cell"><b class="lu-ovr q-${quality(p.ovr)}">${p.ovr}</b>${deltaChip}</span><em class="lu-row-tag ${tone}">${esc(action)}</em></button></li>`;
     };
     const head = cur
       ? `<div class="lu-sel has-face">${pixelFace(cur, { size: 44, team: state.team, label: "" })}<div><span class="lu-kicker">Replacing · ${esc(slotLabel(sel.index))}</span><h3 tabindex="-1" data-lu-focus>${esc(cur.name)}</h3><span class="lu-sel-stats"><b class="lu-ovr q-${quality(cur.ovr)}">${cur.ovr}</b>${pips(cur)}<small>${pct(cur.fitness)}% cond · ${pct(cur.morale ?? 75)}% morale</small></span><button type="button" class="link" onclick="W.player(${arg(cur.id)})">Profile →</button></div><button type="button" class="secondary small" onclick="Lineup.close()">Cancel</button></div>`
@@ -295,9 +332,9 @@ function createController(busyChecks) {
       canDepth = S.allowed(state, "coach") || S.allowed(state, "roster");
     return `<section class="panel lu-board${can ? "" : " readonly"}" data-lu-board="${screen}" data-unit="${unit}" style="--lu-team:${colors.primary};--lu-team-2:${colors.secondary};--lu-team-3:${colors.dark}" aria-label="Visual lineup"><div class="lu-bar"><div class="lu-units" role="tablist" aria-label="Unit">${Object.keys(LINEUP_UNITS)
       .map((u) => `<button type="button" role="tab" class="${unit === u ? "active" : ""}" aria-selected="${unit === u}" onclick="Lineup.unit('${u}')">${UNIT_LABELS[u]}</button>`)
-      .join("")}</div>${opts.head || `<div class="lu-title"><b>${esc(formation)}</b><span>${esc(personnel)}</span></div>`}<span class="lu-meta"><b>${b.filled}/${b.actors.length}</b> set · <b>${avg}%</b> cond</span><button type="button" class="secondary small lu-undo" onclick="Lineup.undo()" ${undoStack.length && !locked() ? "" : "disabled"} title="Undo the last lineup change">↶ Undo</button>${
+      .join("")}</div>${(typeof opts.head === "function" ? opts.head() : opts.head) || `<div class="lu-title"><b>${esc(formation)}</b><span>${esc(personnel)}</span></div>`}<span class="lu-meta"><b>${b.filled}/${b.actors.length}</b> set · <b>${avg}%</b> cond</span><button type="button" class="secondary small lu-undo" onclick="Lineup.undo()" ${undoStack.length && !locked() ? "" : "disabled"} title="Undo the last lineup change">↶ Undo</button>${
       screen === "tactics" ? `<button type="button" class="secondary small" onclick="F.depth()" ${canDepth && !locked() ? "" : "disabled"}>Optimize depth</button>` : ""
-    }${opts.tools || ""}</div><div class="lu-layout"><div class="lu-pitch"><div class="lu-field" role="group" aria-label="${UNIT_LABELS[unit]} formation: ${esc(formation)} · ${esc(personnel)}">${turf(unit, m, team)}${layout.tokens
+    }${opts.tools || ""}</div><div class="lu-layout"><div class="lu-pitch"><div class="lu-field" style="--lu-ar:${(layout.field.W / layout.field.H).toFixed(4)};aspect-ratio:${layout.field.W} / ${layout.field.H}" role="group" aria-label="${UNIT_LABELS[unit]} formation: ${esc(formation)} · ${esc(personnel)}">${turf(unit, layout.field, team)}${layout.tokens
       .map((t, i) => token(t, b.actors[i], team))
       .join("")}</div><ol class="lu-slot-list" aria-label="${UNIT_LABELS[unit]} slots">${b.actors
       .map((a, i) => {

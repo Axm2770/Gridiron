@@ -1,17 +1,20 @@
 // Formation layout for the visual lineup (Squad, Tactics and the matchday Team lineup).
 // Pure: positions come from formation templates on a fixed field grid measured in "field
-// units" (the field is FIELD.W = 100 units wide and FIELD.H units tall, drawn with a fixed
-// aspect ratio), so the same layout holds at every screen size, CSS zoom or --ui-scale.
+// units": the field is FIELD.W = 100 units wide; its height is the window around the formation
+// (LOS band + the unit's depth + an end-zone band), so a shallow shotgun gets a short, wide field
+// with big cards and a deep I formation a taller one. Defense is mirrored: LOS near the bottom,
+// the secondary towards the top. Sizes are relative, so the same layout holds at every screen
+// size, CSS zoom or --ui-scale.
 // Slot indices are the match engine's (engine/execution.mjs buildActors):
 //   offense 0 QB · 1 RB · 2,3 WR (TE in Goal Line) · 4 TE (WR in 10) · 5–9 OL · 10 WR (TE in 12, RB in 21)
 //   defense 0–3 DL (3 is an LB in the 3–4) · 4–6 LB (6 CB in Nickel/Dime, 5 CB in Dime) · 7,8 CB · 9,10 S
 
 export const FIELD = Object.freeze({
   W: 100,
-  H: 64,
   side: 4.2, // sideline strip on each side (yard numbers live there)
-  los: 10, // line of scrimmage
-  zone: 59, // end-zone band starts here
+  los: 10, // template line of scrimmage (the final window moves it)
+  zoneH: 3.6, // end-zone band height
+  pad: 1.2, // turf between the deepest card and the end zone
   tw: 9.4, // token width
   th: 10.8, // token height
   row: 11.8, // distance between rows behind the line
@@ -56,7 +59,7 @@ function offenseSpot(a, i, m, roles) {
     case 1:
       if (f === "Empty backfield") return [SLOT_R, 1.7];
       if (f === "I formation") return [50, twoBacks ? 3 : 2.6];
-      if (f === "Singleback") return [50, 2.5];
+      if (f === "Singleback") return [50, 2];
       return [61, 1.4];
     case 2:
       return a.role === "TE" ? [besideLeft, 0] : [WIDE_L, 0];
@@ -69,7 +72,7 @@ function offenseSpot(a, i, m, roles) {
       if (a.role === "RB") {
         if (f === "I formation") return [50, 2];
         if (f === "Empty backfield") return [SLOT_L, 0.62];
-        if (f === "Singleback") return [38.5, 1.6];
+        if (f === "Singleback") return [38.5, 1.25];
         return [39, 1.4];
       }
       return pers === "Goal Line" ? [WIDE_L, 0] : [SLOT_L, 0.62];
@@ -100,9 +103,9 @@ function defenseSpot(a, i, m, roles) {
   }
   if (a.role === "S") {
     const first = i === 9;
-    if (shell === "Single-High") return first ? [24, 2.15] : [50, 3];
+    if (shell === "Single-High") return first ? [24, 2.15] : [50, 2.45];
     if (shell === "Zero") return first ? [24, 2.1] : [76, 2.1];
-    return first ? [28, 2.6] : [72, 2.6];
+    return first ? [28, 2.25] : [72, 2.25];
   }
   return [50, 2];
 }
@@ -154,17 +157,36 @@ export function formationLayout(actors, unit = "Offense", m = {}) {
     return { index: a.index ?? i, role: a.role, label: labels[i], x: Math.min(maxX, Math.max(minX, x)), y: los + 0.8 + r * row };
   });
   const adjusted = separate(tokens);
+  // Window: the band above the LOS (first-down line, labels) grows with the formation's depth so
+  // the line sits about a quarter to a third of the way down, then the depth, then the end zone.
+  const depth = Math.max(...tokens.map((t) => t.y + th)) - los,
+    band = Math.min(15, Math.max(12.5, depth * 0.4)),
+    H = +(band + depth + FIELD.pad + FIELD.zoneH).toFixed(2),
+    flip = unit === "Defense";
+  for (const t of tokens) {
+    t.y = t.y - los + band;
+    if (flip) t.y = H - t.y - th;
+  }
+  const field = {
+    ...FIELD,
+    H,
+    flip,
+    los: flip ? H - band : band,
+    band,
+    zoneTop: flip ? 0 : H - FIELD.zoneH,
+    zoneBottom: flip ? FIELD.zoneH : H,
+  };
   return {
-    field: FIELD,
+    field,
     adjusted,
     tokens: tokens.map((t) => ({
       ...t,
       w: tw,
       h: th,
       left: +(((t.x - tw / 2) / W) * 100).toFixed(3),
-      top: +((t.y / FIELD.H) * 100).toFixed(3),
+      top: +((t.y / H) * 100).toFixed(3),
       width: +((tw / W) * 100).toFixed(3),
-      height: +((th / FIELD.H) * 100).toFixed(3),
+      height: +((th / H) * 100).toFixed(3),
     })),
   };
 }

@@ -106,7 +106,6 @@ body.gd-pixel :is(.lu-view-toggle, .lu-units, .lu-pos-tabs) button.active { box-
 /* ------------------------------------------------------------ field */
 .lu-field {
   position: relative;
-  aspect-ratio: 100 / 64;
   container-type: inline-size;
   overflow: hidden;
   border: 3px solid var(--lu-chalk);
@@ -123,7 +122,6 @@ body.gd-pixel :is(.lu-view-toggle, .lu-units, .lu-pos-tabs) button.active { box-
   background:
     repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 0.5cqw, transparent 0.5cqw 1cqw),
     repeating-linear-gradient(180deg, var(--lu-turf-a) 0 5.9cqw, var(--lu-turf-b) 5.9cqw 11.8cqw);
-  background-position: 0 0, 0 10cqw;
 }
 .lu-sideline {
   top: 0;
@@ -144,8 +142,6 @@ body.gd-pixel :is(.lu-view-toggle, .lu-units, .lu-pos-tabs) button.active { box-
 .lu-sideline.right b { transform: translate(-50%, -50%) rotate(-90deg); }
 .lu-yard { left: 4.2cqw; right: 4.2cqw; height: max(2px, 0.3cqw); background: var(--lu-chalk); opacity: 0.5; }
 .lu-hash {
-  top: 10cqw;
-  bottom: 7.8125%;
   width: 1.3cqw;
   background: repeating-linear-gradient(180deg, var(--lu-chalk) 0 max(2px, 0.3cqw), transparent max(2px, 0.3cqw) 2.36cqw);
   opacity: 0.45;
@@ -168,7 +164,6 @@ body.gd-pixel :is(.lu-view-toggle, .lu-units, .lu-pos-tabs) button.active { box-
 .lu-endzone {
   left: 0;
   right: 0;
-  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -178,15 +173,16 @@ body.gd-pixel :is(.lu-view-toggle, .lu-units, .lu-pos-tabs) button.active { box-
     repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.16) 0 0.6cqw, transparent 0.6cqw 1.2cqw),
     var(--lu-team, var(--team));
 }
+.lu-endzone.flip { border-top: 0; border-bottom: max(3px, 0.45cqw) solid var(--lu-chalk); }
 .lu-endzone b {
-  font: 700 max(13px, 2.6cqw) / 1 var(--gd-display);
+  font: 700 max(12px, 2.2cqw) / 1 var(--gd-display);
   letter-spacing: 0.5em;
   margin-right: -0.5em;
   text-transform: uppercase;
   color: var(--lu-chalk);
   text-shadow: 0.25cqw 0.25cqw 0 var(--lu-ink) !important;
 }
-.lu-crest { display: inline-grid; place-items: center; width: 3.6cqw; height: 3.6cqw; }
+.lu-crest { display: inline-grid; place-items: center; width: 3cqw; height: 3cqw; }
 .lu-crest img,
 .lu-crest .team-logo { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0.2cqw 0.2cqw 0 var(--lu-ink)) !important; }
 
@@ -232,7 +228,8 @@ body.gd-pixel .lu-board .lu-tok {
   border: max(1px, 0.18cqw) solid var(--lu-ink);
 }
 .lu-tok-name {
-  font: 700 max(11px, 1.45cqw) / 1.15 var(--gd-body);
+  font: 700 max(11px, 1.5cqw) / 1.15 var(--gd-body);
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -359,7 +356,7 @@ body.gd-pixel .lu-board .lu-tok.lu-drop-over,
   width: 100%;
   min-height: 44px;
   display: grid;
-  grid-template-columns: 20px 30px minmax(0, 1fr) auto 70px;
+  grid-template-columns: 18px 30px minmax(0, 1fr) auto 60px;
   align-items: center;
   gap: 7px;
   padding: 5px 7px;
@@ -470,8 +467,8 @@ th.sorted .th-sort i { opacity: 1; }
 .touch-lineup-dialog .lu-board { margin: 0; padding: 12px; box-shadow: none !important; border: 0 !important; background: transparent !important; }
 .touch-lineup .lu-board { margin: 0; }
 /* Matchday: the field is sized from the viewport height so tab and dialog fit without scrolling. */
-.lu-board[data-lu-board="match"] .lu-field { width: min(calc(100% - 11px), calc((100dvh - 535px) * 1.5625)); min-width: min(calc(100% - 11px), 520px); margin-inline: auto; }
-.touch-lineup-dialog .lu-board[data-lu-board="match"] .lu-field { width: min(calc(100% - 11px), calc((100dvh - 330px) * 1.5625)); }
+.lu-board[data-lu-board="match"] .lu-field { width: min(calc(100% - 11px), calc((100dvh - 540px) * var(--lu-ar, 1.5625))); min-width: min(calc(100% - 11px), 520px); margin-inline: auto; }
+.touch-lineup-dialog .lu-board[data-lu-board="match"] .lu-field { width: min(calc(100% - 11px), calc((100dvh - 330px) * var(--lu-ar, 1.5625))); }
 .lu-board[data-lu-board="match"] .lu-pitch > .lu-note { display: none; }
 .lu-board[data-lu-board="match"] .lu-bar { margin-bottom: 8px; }
 .lu-board[data-lu-board="match"] .lu-formation { margin-bottom: 8px; }
@@ -482,7 +479,7 @@ th.sorted .th-sort i { opacity: 1; }
 .lu-slot-list { display: none; }
 @media (max-width: 1380px) {
   .lu-layout { grid-template-columns: minmax(0, 1fr) 300px; }
-  .lu-row { grid-template-columns: 18px 28px minmax(0, 1fr) auto 62px; gap: 5px; }
+  .lu-row { grid-template-columns: 16px 28px minmax(0, 1fr) auto 58px; gap: 5px; }
   .lu-row .gd-pixel-face { width: 28px !important; height: 28px !important; }
 }
 @media (max-width: 1100px) {
@@ -566,4 +563,22 @@ th.sorted .th-sort i { opacity: 1; }
   .lu-tok { gap: 0.15cqw; padding: 0.35cqw; }
   .lu-tok .lu-ovr { padding: 0.05em 0.25em; }
   .lu-tok-name { line-height: 1.05; }
+}
+
+/* Card names: one step down for long surnames, a second step only for very long ones. */
+.lu-tok-name.sm { font-size: max(10.5px, 1.3cqw); }
+.lu-tok-name.xs { font-size: max(10px, 1.12cqw); letter-spacing: -0.02em; }
+.lu-row-name b { font-size: 12.5px; letter-spacing: -0.01em; }
+.lu-row-tag { padding: 3px 2px; }
+/* Short windows (the live match at ~720px tall can't fit under the scoreboard anyway): size the
+   field from the column width so cards stay readable; the page scrolls instead. */
+@media (max-height: 820px) {
+  .lu-board[data-lu-board="match"] .lu-field { width: calc(100% - 11px); }
+}
+@media (max-width: 1380px) {
+  .lu-row-name b { font-size: 12px; }
+}
+@container (max-width: 660px) {
+  .lu-tok-name { margin-inline: -0.15cqw; }
+  .lu-tok-name.sm, .lu-tok-name.xs { letter-spacing: -0.035em; }
 }

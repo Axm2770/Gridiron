@@ -18,7 +18,7 @@ import {
 } from "./dist/franchise/lineup.mjs";
 import { formationLayout, tokenRects, overlappingPairs, FIELD } from "./dist/franchise/lineup-layout.mjs";
 import { SQUAD_SORTS, compareSquad, sortSquad, defaultDirection } from "./dist/franchise/squad-sort.mjs";
-import { installLineupUI, slotPositions, viewMode, dropMove, dropTargetValid } from "./dist/franchise/lineup-ui.mjs";
+import { installLineupUI, slotPositions, viewMode, dropMove, dropTargetValid, shortName, rowName } from "./dist/franchise/lineup-ui.mjs";
 
 // A fresh career built the same way the browser builds one.
 const ctx = {
@@ -248,14 +248,36 @@ s.coach.offense = "Shotgun spread";
 for (const [name, layout] of layouts) {
   assert.equal(layout.adjusted, 0, name + ": template needed the collision safety net");
   for (const width of [739, 649, 570]) assert.deepEqual(overlappingPairs(tokenRects(layout, width)), [], name + " overlaps at " + width + "px");
+  const F = layout.field;
+  // The field window shows the formation: the LOS a quarter to a third of the way in from the
+  // far edge (offense from the top, the mirrored defense from the bottom), no big empty band.
+  const losShare = (F.flip ? F.H - F.los : F.los) / F.H;
+  assert(losShare >= 0.2 && losShare <= 0.36, name + " LOS at " + Math.round(losShare * 100) + "%");
+  const deepest = F.flip ? Math.min(...layout.tokens.map((t) => t.y)) - F.zoneBottom : F.zoneTop - Math.max(...layout.tokens.map((t) => t.y + t.h));
+  assert(deepest >= 0 && deepest <= F.pad + 0.01, name + " leaves " + deepest.toFixed(1) + " units of empty turf above the end zone");
   for (const t of layout.tokens) {
     assert(t.x - t.w / 2 >= FIELD.side && t.x + t.w / 2 <= FIELD.W - FIELD.side, name + " " + t.label + " outside the sidelines");
-    assert(t.y > FIELD.los && t.y + t.h <= FIELD.zone, name + " " + t.label + " crosses the LOS or the end zone");
+    if (F.flip) assert(t.y >= F.zoneBottom && t.y + t.h < F.los, name + " " + t.label + " crosses the LOS or the end zone");
+    else assert(t.y > F.los && t.y + t.h <= F.zoneTop, name + " " + t.label + " crosses the LOS or the end zone");
   }
 }
 // The safety net separates a deliberately crowded layout.
 const crowded = formationLayout(Array.from({ length: 11 }, (_, index) => ({ role: "OL", index: 5 + (index % 5) })), "Offense", {});
 assert.deepEqual(overlappingPairs(tokenRects(crowded, 739)), [], "collision avoidance separates stacked tokens");
+
+// Card names: last name, smaller type for long ones, last part of compound surnames, suffixes dropped.
+assert.deepEqual(shortName("Bo Nix"), { text: "Nix", size: "" });
+assert.deepEqual(shortName("Garett Bolles"), { text: "Bolles", size: "" });
+assert.deepEqual(shortName("Jake Ferguson"), { text: "Ferguson", size: "sm" });
+assert.deepEqual(shortName("Luke Wattenberg"), { text: "Wattenberg", size: "xs" });
+assert.deepEqual(shortName("Brevyn Spann-Ford"), { text: "Ford", size: "" });
+assert.deepEqual(shortName("Jalen Spann-Fofanaso"), { text: "Fofanaso", size: "sm" });
+assert.deepEqual(shortName("Luke Schoonmaker"), { text: "Schoonmaker", size: "xs" });
+assert.deepEqual(shortName("Jaylon Porter Jr."), { text: "Porter", size: "" });
+assert.deepEqual(shortName("Amon-Ra St. Brown"), { text: "St. Brown", size: "sm" });
+
+assert.equal(rowName("Dak Prescott"), "Dak Prescott");
+assert.equal(rowName("Broderick Jones"), "B. Jones", "long list names become initial + surname");
 
 // 3. Squad sort comparator: every metric, nulls last in both directions, reverse.
 const P = (id, o) => ({ id, name: "Player " + id, pos: "WR", ovr: 70, age: 25, ...o });

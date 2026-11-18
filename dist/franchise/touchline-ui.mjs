@@ -89,12 +89,15 @@ export function installTouchlineUI({ isBusy }) {
   // The matchday Team lineup is the shared visual lineup (lineup-ui.mjs) with the formation
   // controls on top; selection, drag and drop, swaps and undo all live in that one controller.
   function boardHTML() {
-    const m = lineupSettings(state),
-      LU = lineupController({ isBusy }),
-      unit = LU.current().unit;
+    const LU = lineupController({ isBusy });
     const pick = (label, values, value, handler) =>
       `<label class="lu-pick"><span class="lu-sr">${label}</span><select aria-label="${label}" title="${label}" onchange="${handler}" ${locked() ? "disabled" : ""}>${values.map((x) => `<option ${x === value ? "selected" : ""}>${x}</option>`).join("")}</select></label>`;
-    const head = `<div class="lu-formation">${unit === "Offense" ? pick("Formation", offenses, m.offense, "Touch.setting('offense',this.value)") + pick("Personnel", ["11", "12", "21", "10", "Goal Line"], m.personnel || "11", "Touch.setting('personnel',this.value)") : unit === "Defense" ? pick("Defensive front", defenses, m.defense, "Touch.setting('defense',this.value)") + pick("Disguise shell", ["2-High", "Single-High", "Zero"], m.shell || "2-High", "Touch.setting('shell',this.value)") : "<p>Kicker and punter. Return and coverage units fill automatically.</p>"}<button type="button" class="secondary small" onclick="Touch.assistantDepth()" ${locked() || !(S.allowed(state, "coach") || S.allowed(state, "roster")) ? "disabled" : ""}>Assistant depth</button></div>`;
+    // Built on every board render (also the in-place patches), so it always matches the unit shown.
+    const head = () => {
+      const m = lineupSettings(state),
+        unit = LU.current().unit;
+      return `<div class="lu-formation">${unit === "Offense" ? pick("Formation", offenses, m.offense, "Touch.setting('offense',this.value)") + pick("Personnel", ["11", "12", "21", "10", "Goal Line"], m.personnel || "11", "Touch.setting('personnel',this.value)") : unit === "Defense" ? pick("Defensive front", defenses, m.defense, "Touch.setting('defense',this.value)") + pick("Disguise shell", ["2-High", "Single-High", "Zero"], m.shell || "2-High", "Touch.setting('shell',this.value)") : "<p>Kicker and punter. Return and coverage units fill automatically.</p>"}<button type="button" class="secondary small" onclick="Touch.assistantDepth()" ${locked() || !(S.allowed(state, "coach") || S.allowed(state, "roster")) ? "disabled" : ""}>Assistant depth</button></div>`;
+    };
     return `<div class="touch-lineup">${LU.board("match", { head, redraw: drawBoard, tools: lineupModal ? '<button type="button" class="icon-button lu-close" aria-label="Close lineup board" onclick="closeModal()">×</button>' : "" })}</div>`;
   }
   function drawBoard() {
