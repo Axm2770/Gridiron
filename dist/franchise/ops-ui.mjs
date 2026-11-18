@@ -4,6 +4,7 @@ import * as S from "./state.mjs";
 import * as K from "../ui/kit.mjs";
 import { medicalBoard, treatmentOutlook, recommendedTreatment, chooseTreatment, physioCandidates, hirePhysio, TREATMENTS } from "./medical.mjs";
 import { DAYS, BLOCKS, TEMPLATES, DRILLS, POSITION_MOVES, ensureTraining, weekPlan, setSchedule, applyTemplate, setDrill, setIndividualTarget, changePosition, efficiency } from "./training.mjs";
+import { medicalView as medicalScreen, trainingView as trainingScreen, trainingPlayersView, installMedical } from "./medical-ui.mjs";
 import { evaluateTrade, executeTrade, ownedPicks, pickValue, pickLabel, playerTradeValue, teamMode, marketValue, signingFactors, respondToOffer, marketWindows, tradeBlockers, estimatedAsk, suggestPackage, scoutedTradeValue, pickEquivalent, scoutedAsk, counterOffer } from "./market.mjs";
 import { REGIONS, ensureScouting, scoutCandidates, hireScout, assignScout, scoutedView, consensusBoard, startLiveDraft, onTheClock, stepDraft, simToUserPick, makeUserPick, tradeDownOffers, acceptTradeDown, tradeUpQuote, acceptTradeUp } from "./draft-room.mjs";
 import { ensurePlayerRatings } from "./ratings.mjs";
@@ -31,72 +32,15 @@ const club = (t) => clubTable()?.[t]?.[2] ?? `Team ${t + 1}`;
 const sub = (items, active, key) => K.tabs(items, active, `Ops.sub('${key}','$id')`, { small: true, label: key });
 
 /* ------------------------------------------------------------------- medical */
+// The treatment room and the practice planner live in medical-ui.mjs (styles in medical.css).
 
-function optionCard(c, o, recommended) {
-  const risk = o.playsNow ? `${pct(o.aggravateRisk)} risk of a worse injury each game` : `${pct(o.reinjuryRisk)} re-injury risk after return`;
-  const lt = o.longTerm ? Object.entries(o.longTerm.attrs || {}).map(([k, v]) => `${k} ${v}`).join(", ") || "Small rating loss" : null;
-  return `<button class="gd-play-card ops-option ${o.option === recommended ? "ops-rec" : ""}" onclick="Ops.treat('${c.playerId}','${o.option}')"><b>${e(o.label)}</b><span class="ops-when">${o.playsNow ? "Available now" : `Out ~${o.weeksOut} wk${o.weeksOut === 1 ? "" : "s"}`}</span><small>${e(risk)}</small>${lt ? `<small class="gd-down">Long-term: ${e(lt)}</small>` : ""}${o.note ? `<small>${e(o.note)}</small>` : ""}<span class="ops-chips">${o.option === recommended ? K.chip("Staff pick", "good") : ""}${K.chip(o.trust >= 0 ? `Trust +${o.trust}` : `Trust ${o.trust}`, o.trust >= 0 ? "good" : o.trust <= -8 ? "bad" : "warn")}${o.cost ? K.chip(money(o.cost)) : ""}</span></button>`;
-}
-
-const PREF = { play: "He wants to play through it.", patient: "He wants to take the time and get it right.", surgery: "He'll do whatever fixes it properly." };
-
-export function medicalView() {
-  const b = medicalBoard(state),
-    d = b.department;
-  const decisions = b.decisions.length
-    ? b.decisions
-        .map((c) => {
-          const rec = recommendedTreatment(state, c);
-          return `<article class="ops-case"><header><span class="gd-pos">${e(c.player.pos)}</span><div><b>${e(c.player.name)}</b><small>${e(c.label)} · est. ${c.estimate[0]}–${c.estimate[1]} weeks</small></div>${K.chip(c.tier, c.tier === "season" ? "bad" : c.tier === "major" ? "warn" : "")}</header><p class="ops-quote">“${e(PREF[c.preference])}”</p><div class="gd-deck">${c.options.map((o) => optionCard(c, treatmentOutlook(state, c, o), rec)).join("")}</div></article>`;
-        })
-        .join("")
-    : K.empty("No treatment decisions waiting. New injuries appear here with their options.");
-  const recovering = [...b.treating, ...b.playingThrough];
-  const board = recovering.length
-    ? `<div class="gd-rows">${recovering.map((c) => K.row({ lead: c.player.pos, title: c.player.name, sub: `${c.label} · ${TREATMENTS[c.treatment]?.label ?? "Rehab"}`, trail: c.status === "playing-through" ? K.chip("Playing hurt", "warn") : `<span class="gd-ovr">${c.player.injury}w</span>` })).join("")}</div>`
-    : K.empty("Nobody in the treatment room.");
-  const pool = physioCandidates(state);
-  return `<div class="gd-toolbar"><span style="display:flex;gap:6px;flex-wrap:wrap">${K.chip(`${b.decisions.length} decisions`, b.decisions.length ? "warn" : "")}${K.chip(`${b.treating.length} in treatment`)}${b.playingThrough.length ? K.chip(`${b.playingThrough.length} playing hurt`, "bad") : ""}</span><small style="color:var(--gd-text-3)">Undecided cases follow the staff recommendation after the next game.</small></div>
-  <div class="gd-bento">${K.card({ title: "Treatment decisions", span: 8, accent: true, body: decisions })}${K.card({ title: "Recovery board", span: 4, body: board })}
-  ${K.card({ title: "Medical department", span: 6, body: `${K.stats([["Team doctor", d.doctor.vacant ? "Vacant" : d.doctor.diagnosis, d.doctor.vacant ? "Hire in Staff" : d.doctor.name], ["Physio recovery", d.physio.recovery, d.physio.name], ["Prevention", d.physio.prevention], ["Facilities", `Lvl ${d.facilities}`]])}<p style="margin:0;font-size:12px;color:var(--gd-text-2)">The doctor narrows diagnosis ranges and improves surgical outcomes; the physio speeds rehab and cuts re-injury risk.</p>` })}
-  ${K.card({ title: "Physio market", span: 6, body: `<div class="gd-rows">${pool.map((x) => K.row({ lead: "PT", title: x.name, sub: `Recovery ${x.recovery} · Prevention ${x.prevention}`, trail: `<button class="gd-btn" onclick="Ops.physio('${x.id}')">Hire · ${money(x.salary)}</button>` })).join("") || K.empty("No candidates this year.")}</div>` })}
-  ${K.card({ title: "Case history", span: 12, body: b.history.length ? `<div class="gd-rows">${b.history.map((c) => K.row({ lead: `W${(c.opened?.week ?? 0) + 1}`, title: `${state.roster.find((p) => p.id === c.playerId)?.name ?? "Former player"} — ${c.label}`, sub: `${TREATMENTS[c.treatment]?.label ?? "Rehab"}${c.aggravations ? ` · aggravated ×${c.aggravations}` : ""}` })).join("")}</div>` : K.empty("No completed cases yet.") })}</div>`;
-}
+export const medicalView = () => medicalScreen();
 
 /* ------------------------------------------------------------------- training */
 
 export function trainingView() {
-  const t = ensureTraining(state),
-    plan = weekPlan(state);
-  if (ui.training === "players") return trainingPlayers();
-  const days = DAYS.map((day, i) => {
-    const b = BLOCKS[t.schedule[i]];
-    return `<div class="ops-day"><span class="gd-eyebrow">${day}</span><select aria-label="${day} block" onchange="Ops.day(${i},this.value)">${Object.entries(BLOCKS).map(([k, v]) => `<option value="${k}" ${t.schedule[i] === k ? "selected" : ""}>${e(v.label)}</option>`).join("")}</select><small>Load ${b.intensity} · fatigue ${b.fatigue > 0 ? "+" : ""}${b.fatigue}</small></div>`;
-  }).join("");
-  const drill = (side) => {
-    const current = t.drills[side],
-      def = DRILLS[side][current];
-    return `<label class="ops-drill"><span>${side === "offense" ? "Offense" : "Defense"} emphasis</span><select onchange="Ops.drill('${side}',this.value)">${Object.keys(DRILLS[side]).map((k) => `<option ${k === current ? "selected" : ""}>${e(k)}</option>`).join("")}</select><small>${def.positions.join(", ")} · ${def.attrs.map(attrName).join(", ")}</small></label>`;
-  };
-  return `<div class="gd-toolbar">${sub([["plan", "Weekly plan"], ["players", "Individual plans"]], ui.training, "training")}<span style="display:flex;gap:6px">${Object.keys(TEMPLATES).map((k) => `<button class="gd-btn" onclick="Ops.template('${e(k)}')">${e(k)}</button>`).join("")}</span></div>
-  <div class="gd-bento">${K.card({ title: "This week's schedule", span: 8, accent: true, body: `<div class="ops-week">${days}</div>` })}
-  ${K.card({ title: "Projected effect", span: 4, body: `${K.meter("Intensity", plan.intensity, { color: K.tone(100 - plan.intensity, 50, 25) })}${K.meter("Injury risk", Math.min(100, plan.risk * 25), { color: K.tone(100 - plan.risk * 25, 60, 30) })}${K.meter("Familiarity", t.familiarity, { color: K.tone(t.familiarity) })}${K.meter("Readiness", t.readiness, { color: K.tone(t.readiness) })}<div style="display:flex;gap:6px;flex-wrap:wrap">${K.chip(`${plan.restDays} rest day${plan.restDays === 1 ? "" : "s"}`)}${K.chip(`Fatigue ${plan.fatigue > 0 ? "+" : ""}${plan.fatigue}`, plan.fatigue > 10 ? "warn" : "")}${K.chip(`Growth ×${plan.development}`)}</div>${K.sparkline(t.history.slice().reverse().map((h) => h.readiness))}` })}
-  ${K.card({ title: "Unit drills", span: 6, body: `${drill("offense")}${drill("defense")}` })}
-  ${K.card({ title: "How training works", span: 6, body: `<p style="margin:0;font-size:12px;color:var(--gd-text-2)">Intensity sets fatigue, wear and injury risk for the week. Install, film and walkthroughs build scheme familiarity; padded work and conditioning grow attributes faster but cost freshness. Coordinator quality, facilities and scheme fit scale how much players improve.</p>` })}</div>`;
-}
-
-function trainingPlayers() {
-  const players = state.roster.filter((p) => !p.injury).sort((a, b) => (b.pot - b.ovr) - (a.pot - a.ovr)).slice(0, 14);
-  const rows = players
-    .map((p) => {
-      const r = ensurePlayerRatings(p),
-        attrs = Object.keys(r.attributes || {}).slice(0, 18),
-        target = p.progression?.target ?? "",
-        moves = POSITION_MOVES[p.pos] || [];
-      return `<div class="ops-player"><span class="gd-pos">${e(p.pos)}</span><span><b>${e(p.name)}</b><small>${p.age} yrs · ${p.ovr} → ${p.pot} · efficiency ×${efficiency(state, p)}${p.positionChange && p.positionChange.familiarity < 100 ? ` · learning ${p.positionChange.to} ${p.positionChange.familiarity}%` : ""}</small></span><select aria-label="Training target for ${e(p.name)}" onchange="Ops.target('${p.id}',this.value)"><option value="">Team drills only</option>${attrs.map((a) => `<option value="${a}" ${a === target ? "selected" : ""}>${attrName(a)}</option>`).join("")}</select>${moves.length ? `<select aria-label="Position change for ${e(p.name)}" onchange="if(this.value)Ops.position('${p.id}',this.value)"><option value="">Keep at ${p.pos}</option>${moves.map((m) => `<option value="${m}">Move to ${m}</option>`).join("")}</select>` : "<span></span>"}</div>`;
-    })
-    .join("");
-  return `<div class="gd-toolbar">${sub([["plan", "Weekly plan"], ["players", "Individual plans"]], ui.training, "training")}<small style="color:var(--gd-text-3)">Players with the most headroom first. Targets get double reps; position moves cost rating now and are earned back with practice.</small></div><div class="gd-bento">${K.card({ title: "Individual development", span: 12, accent: true, body: `<div class="ops-players">${rows}</div>` })}</div>`;
+  const tabs = sub([["plan", "Weekly plan"], ["players", "Individual plans"]], ui.training, "training");
+  return ui.training === "players" ? trainingPlayersView(tabs) : trainingScreen(tabs);
 }
 
 /* --------------------------------------------------------------------- market */
@@ -446,6 +390,7 @@ function draftDay() {
 
 let searchTimer = null;
 export function installOps({ isBusy }) {
+  installMedical({ isBusy });
   const mutate = (fn, message) => {
     if (isBusy()) return;
     try {
