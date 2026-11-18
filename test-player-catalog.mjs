@@ -224,7 +224,8 @@ installRecruitmentUI({
 const html = views.Scouting();
 assert(html.includes("Search all players"));
 assert(html.includes("finder-pagination"));
-assert.equal((html.match(/<tr>/g) || []).length, 26);
+// Header row + the default page of 12 (the desk pages rather than scrolling).
+assert.equal((html.match(/<tr>/g) || []).length, 13);
 assert(html.includes("data-player-id="));
 console.log(
   "PASS: actual recruitment HTML renders a paginated, searchable, preview-enabled player directory.",

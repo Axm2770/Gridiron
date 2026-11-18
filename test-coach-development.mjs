@@ -296,3 +296,19 @@ assert.equal(new Set(Array.from({ length: 1000 }, careerId)).size, 1000);
 console.log(
   "PASS: coach setup/budgets/appearance validation; deterministic weekly training, form, exposure, fatigue, age, injury loss, persisted injury ledger, rehabilitation and bounded growth; mentoring and role guards; offseason idempotency; unified 3D model anatomy and finite geometry; career import metadata and unique save identities.",
 );
+
+// Development board: the age-curve hint follows the same peak ages as offseason development
+// (grow up to the peak, hold for three seasons, then decline), and the OVR → POT track never
+// shows less room than zero.
+const { ageCurve, progressTrack } = await import("./dist/franchise/development-ui.mjs");
+assert.equal(ageCurve({ pos: "RB", age: 21 }).key, "rise");
+assert.equal(ageCurve({ pos: "RB", age: 25 }).label, "Near peak");
+assert.equal(ageCurve({ pos: "RB", age: 27 }).key, "prime");
+assert.equal(ageCurve({ pos: "RB", age: 29 }).key, "decline");
+assert.equal(ageCurve({ pos: "QB", age: 29 }).label, "Near peak");
+assert.equal(ageCurve({ pos: "K", age: 34 }).key, "prime");
+const track = progressTrack(70, 82);
+assert.equal((track.match(/<i /g) || []).length, 20);
+assert((track.match(/class="room"/g) || []).length > 0);
+assert.equal((progressTrack(90, 80).match(/class="room"/g) || []).length, 0);
+console.log("PASS: development board age curve and OVR → POT track.");
