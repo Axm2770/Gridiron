@@ -1,11 +1,5 @@
 import * as S from "./state.mjs";
-import {
-  lineupActors,
-  lineupCandidates,
-  lineupSettings,
-  changeLineup,
-  availableForLineup,
-} from "./lineup.mjs";
+import { lineupSettings, availableForLineup } from "./lineup.mjs";
 import {
   playerFace,
   previewAttributes,
@@ -17,6 +11,8 @@ import { icon } from "./presentation.mjs";
 import { textNotice } from "../ui/notice.mjs";
 import { gameForecast, WEATHER_ICON } from "./weather.mjs";
 import { TEAM_COLORS } from "../presentation/team-colors.mjs";
+import { lineupController } from "./lineup-ui.mjs";
+import { formationLayout } from "./lineup-layout.mjs";
 // Matchday styles (pixel panels, scoreboard, sim options popover) load after the theme sheets.
 function loadMatchdayStyles() {
   try {
@@ -31,78 +27,11 @@ function loadMatchdayStyles() {
 const ordinalDown = (d) => `${d}${["st", "nd", "rd", "th"][d - 1] || "th"}`;
 const pips = (n) => `<b class="touch-pips" aria-label="${n} of 3">${"■".repeat(Math.max(0, n))}<i>${"□".repeat(Math.max(0, 3 - n))}</i></b>`;
 const arg = (x) => esc(JSON.stringify(x));
-const unitPositions = {
-  Offense: ["QB", "RB", "WR", "TE", "OL"],
-  Defense: ["DL", "LB", "CB", "S"],
-  Specialists: ["K", "P"],
-};
+// Field positions (percent of the field box, token centre) for each slot, from the shared
+// formation layout (lineup-layout.mjs) that the visual lineup draws.
 export function lineupCoordinates(actors, unit, m) {
-  const off = [
-      [50, 74],
-      [63, 90],
-      [8, 29],
-      [92, 29],
-      [83, 50],
-      [27, 54],
-      [38.5, 54],
-      [50, 54],
-      [61.5, 54],
-      [73, 54],
-      [22, 28],
-    ],
-    def = [
-      [25, 72],
-      [42, 72],
-      [58, 72],
-      [75, 72],
-      [24, 47],
-      [50, 44],
-      [76, 47],
-      [8, 23],
-      [92, 23],
-      [35, 15],
-      [65, 15],
-    ];
-  return actors.map((a, i) => {
-    let [x, y] = (unit === "Defense" ? def : off)[i] || [30 + i * 40, 55];
-    if (unit === "Specialists") {
-      x = 32 + i * 36;
-      y = 52;
-    }
-    if (unit === "Offense") {
-      if (m.offense === "I formation" && i === 0) y = 66;
-      if (["I formation", "Singleback"].includes(m.offense) && i === 1) {
-        x = 50;
-        y = 91;
-      }
-      if (m.offense === "Empty backfield" && i === 1) {
-        x = 5;
-        y = 49;
-      }
-      if (i === 10 && a.role === "TE") {
-        x = 17;
-        y = 51;
-      }
-      if (i === 10 && a.role === "RB") {
-        x = 45;
-        y = 89;
-      }
-      if (i === 4 && a.role === "WR") {
-        x = 83;
-        y = 27;
-      }
-      if (m.personnel === "Goal Line" && [2, 3].includes(i)) {
-        x = i === 2 ? 14 : 86;
-        y = 50;
-      }
-    }
-    if (unit === "Defense" && m.shell === "Zero" && i >= 9) y = 38;
-    if (unit === "Defense" && m.shell === "Single-High" && i === 10) {
-      x = 50;
-      y = 12;
-    }
-    return { ...a, left: x, top: y };
-  });
+  const tokens = formationLayout(actors, unit, m || {}).tokens;
+  return actors.map((a, i) => ({ ...a, left: +(tokens[i].left + tokens[i].width / 2).toFixed(2), top: +(tokens[i].top + tokens[i].height / 2).toFixed(2) }));
 }
 // Weather is set by the stadium and the date (franchise/weather.mjs); shown, never chosen.
 const weatherChip = (m) => {
@@ -124,8 +53,6 @@ export function installTouchlineUI({ isBusy }) {
   document.addEventListener?.("pointerdown", closeSimPopover);
   document.addEventListener?.("keydown", closeSimPopover);
   let tab = "Live",
-    unit = "Offense",
-    slot = 0,
     lineupModal = false,
     error = "",
     simTarget = "quarter",
@@ -159,29 +86,16 @@ export function installTouchlineUI({ isBusy }) {
     save();
     render();
   }
+  // The matchday Team lineup is the shared visual lineup (lineup-ui.mjs) with the formation
+  // controls on top; selection, drag and drop, swaps and undo all live in that one controller.
   function boardHTML() {
     const m = lineupSettings(state),
-      actors = lineupActors(state, unit),
-      points = lineupCoordinates(actors, unit, m);
-    slot = Math.min(slot, actors.length - 1);
-    const selected = actors[slot],
-      p = selected?.p,
-      candidates = lineupCandidates(state, unit, slot),
-      mean =
-        actors
-          .filter((a) => a.p)
-          .reduce((n, a) => n + (a.p.fitness ?? 100), 0) /
-        Math.max(1, actors.filter((a) => a.p).length);
-    return `<div class="touch-lineup"><div class="touch-lineup-toolbar"><div class="touch-segments">${Object.keys(
-      unitPositions,
-    )
-      .map(
-        (v) =>
-          `<button class="${unit === v ? "active" : ""}" aria-pressed="${unit === v}" onclick="Touch.unit('${v}')">${v}</button>`,
-      )
-      .join(
-        "",
-      )}</div><span>${actors.filter((a) => a.p).length}/${actors.length} assigned <i>●</i> ${Math.round(mean)}% average condition</span>${lineupModal ? '<button class="icon-button" aria-label="Close lineup board" onclick="closeModal()">×</button>' : ""}</div><div class="touch-lineup-layout"><section><div class="touch-formation-controls">${unit === "Offense" ? select("Formation", offenses, m.offense, "Touch.setting('offense',this.value)", locked()) + select("Personnel", ["11", "12", "21", "10", "Goal Line"], m.personnel || "11", "Touch.setting('personnel',this.value)", locked()) : unit === "Defense" ? select("Defensive front", defenses, m.defense, "Touch.setting('defense',this.value)", locked()) + select("Disguise shell", ["2-High", "Single-High", "Zero"], m.shell || "2-High", "Touch.setting('shell',this.value)", locked()) : "<p>Choose your kicker and punter here. Return and coverage units are filled automatically.</p>"}</div><div class="touch-tactics-field ${unit.toLowerCase()}"><div class="touch-field-endzone">${esc(clubs[state.team][2].toUpperCase())}</div><div class="touch-field-watermark">${logo(state.team)}</div><div class="touch-field-midline"></div><span class="touch-attack-direction">${unit === "Defense" ? "DEFEND ↓" : "ATTACK ↑"}</span>${points.map((a) => `<button class="touch-lineup-player ${slot === a.index ? "selected" : ""} ${!a.p ? "vacant" : ""}" style="--player-x:${a.left}%;--player-y:${a.top}%" onclick="Touch.select(${a.index})" aria-label="Select ${a.p ? esc(a.p.name) : "vacant " + a.role} at ${a.role}" aria-pressed="${slot === a.index}">${a.p ? playerFace(a.p) : '<span class="touch-vacancy">＋</span>'}<i>${a.role}</i><b>${esc(a.p?.name.split(" ").at(-1) || "Vacant")}</b><span>${a.p ? `${a.p.ovr} <em class="${a.p.fitness < 65 ? "low" : ""}">${Math.round(a.p.fitness ?? 100)}%</em>` : "Assign player"}</span></button>`).join("")}</div><p class="touch-lineup-note">Select a player on the field, then choose a replacement. Changes affect the next snap in live and quick simulation. Injured, inactive and unavailable players are excluded.</p></section><section class="touch-bench"><div class="touch-bench-heading"><span>SELECTED SLOT / ${selected?.role || "—"}</span><h3>${esc(p?.name || "Vacant position")}</h3>${p ? `<div>${scorePill("rating", p.ovr)} OVR ${scorePill("condition", p.fitness)} condition <button class="link" onclick="W.player(${arg(p.id)},${state.team})">Full profile →</button></div>` : ""}</div>${error ? textNotice(error, { cls: "touch-notice" }) : ""}<div class="touch-bench-label"><b>Available replacements</b><span>${candidates.length}</span></div><div class="touch-reserve-list">${candidates.map((q) => `<button onclick="Touch.swap(${arg(q.id)})" ${locked() || !roleCan(unit) ? "disabled" : ""}>${playerFace(q)}<span><b>${esc(q.name)}</b><small>${q.realPosition || q.pos} · ${q.age} years · ${q.starter ? "Current starter" : "Reserve"}</small></span><strong>${q.ovr}<small class="${q.fitness < 65 ? "negative" : ""}">${Math.round(q.fitness ?? 100)}%</small></strong>${icon("arrow")}</button>`).join("") || '<div class="touch-empty-bench"><h3>No eligible replacements.</h3><p>Check the active roster and injury list. Players already in this unit cannot occupy a second slot.</p></div>'}</div><div class="touch-bench-foot"><span>Condition key</span><i class="green-dot"></i> Ready <i class="amber-dot"></i> Monitor <i class="red-dot"></i> Fatigued</div><button class="secondary small" onclick="Touch.assistantDepth()" ${locked() || !(S.allowed(state, "coach") || S.allowed(state, "roster")) ? "disabled" : ""}>Assistant depth chart</button></section></div></div>`;
+      LU = lineupController({ isBusy }),
+      unit = LU.current().unit;
+    const pick = (label, values, value, handler) =>
+      `<label class="lu-pick"><span class="lu-sr">${label}</span><select aria-label="${label}" title="${label}" onchange="${handler}" ${locked() ? "disabled" : ""}>${values.map((x) => `<option ${x === value ? "selected" : ""}>${x}</option>`).join("")}</select></label>`;
+    const head = `<div class="lu-formation">${unit === "Offense" ? pick("Formation", offenses, m.offense, "Touch.setting('offense',this.value)") + pick("Personnel", ["11", "12", "21", "10", "Goal Line"], m.personnel || "11", "Touch.setting('personnel',this.value)") : unit === "Defense" ? pick("Defensive front", defenses, m.defense, "Touch.setting('defense',this.value)") + pick("Disguise shell", ["2-High", "Single-High", "Zero"], m.shell || "2-High", "Touch.setting('shell',this.value)") : "<p>Kicker and punter. Return and coverage units fill automatically.</p>"}<button type="button" class="secondary small" onclick="Touch.assistantDepth()" ${locked() || !(S.allowed(state, "coach") || S.allowed(state, "roster")) ? "disabled" : ""}>Assistant depth</button></div>`;
+    return `<div class="touch-lineup">${LU.board("match", { head, redraw: drawBoard, tools: lineupModal ? '<button type="button" class="icon-button lu-close" aria-label="Close lineup board" onclick="closeModal()">×</button>' : "" })}</div>`;
   }
   function drawBoard() {
     if (lineupModal) {
@@ -331,39 +245,19 @@ export function installTouchlineUI({ isBusy }) {
       }
       pauseAuto();
       lineupModal = true;
-      unit = state.live
-        ? onOffense(state.live)
-          ? "Offense"
-          : "Defense"
-        : "Offense";
-      slot = 0;
-      error = "";
+      const LU = lineupController({ isBusy });
+      LU.setUnit(state.live ? (onOffense(state.live) ? "Offense" : "Defense") : "Offense");
       drawBoard();
     },
+    // Older entry points, kept for callers: they go through the shared lineup controller.
     unit(v) {
-      unit = v;
-      slot = 0;
-      error = "";
-      drawBoard();
+      lineupController({ isBusy }).unit(v);
     },
     select(i) {
-      slot = i;
-      error = "";
-      drawBoard();
+      lineupController({ isBusy }).select(i);
     },
     swap(id) {
-      if (locked()) return;
-      try {
-        state = S.transact(state, (s) => changeLineup(s, unit, slot, id));
-        save();
-        error = "";
-        render();
-        drawBoard();
-        toast("Lineup updated for the next snap.");
-      } catch (e) {
-        error = e.message;
-        drawBoard();
-      }
+      lineupController({ isBusy }).assign(id);
     },
     setting(k, v) {
       // Play calls belong to the staff unless the coach has taken over (Playcaller: Manual).
