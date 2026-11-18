@@ -9,6 +9,12 @@ import { STAGES, SCOUT_COSTS, ensurePipeline, pipelineView, addToWatchlist, remo
 import { scout, draftPick } from "./personnel.mjs";
 import * as K from "../ui/kit.mjs";
 import { medicalView, trainingView, marketView, draftView, installOps } from "./ops-ui.mjs";
+import { pixelFace } from "../ui/pixel-face.mjs";
+import { teamColors } from "../presentation/pixel-art.mjs";
+import { fixtures } from "./front-office.mjs";
+import { rosterLimit } from "./blockers.mjs";
+import { winChance, oddsLabel, moneyline, litBlocks, recentForm, teamForm, divisionTable, ordinal, pageOf, daysBetween, shortDate, senderInitials, loadDeskStyles } from "./hub-model.mjs";
+
 
 const TABS = [
   ["hub", "Hub"],
@@ -40,6 +46,7 @@ const remember = (key, value) => {
 let tab = store("gridiron-hub-tab", "hub"),
   unit = "offense",
   feedFilter = "all",
+  feedPage = 0,
   prospectPos = "need";
 
 const millions = (cents) => `$${(cents / 1e8).toFixed(1)}M`;
@@ -61,117 +68,241 @@ function divisionRank(t) {
 }
 
 /* ------------------------------------------------------------------ cards */
+// The Hub tab is a pixel "front office dashboard": the next match as a scoreboard hero, a KPI
+// strip, then panels (fd-* classes, styled in desk.css). Every panel links to the screen that owns it.
+
+const h = K.escapeHTML;
+const short = (name) => String(name || "").split(" ").at(-1);
+const abbr = (t) => clubs[t]?.[0] ?? "—";
+const teamPower = (t) => {
+  try {
+    if (typeof strength === "function") return strength(t);
+  } catch {}
+  return state.teams[t]?.rating ?? 75;
+};
+// Block meter: whole squares, never smooth fills (same idea as the draft room's dr-blocks).
+const blocks = (value, max = 100, cells = 10, tone = "") =>
+  `<span class="fd-blocks ${tone}" aria-hidden="true">${Array.from({ length: cells }, (_, i) => `<i${i < litBlocks(value, max, cells) ? ' class="on"' : ""}></i>`).join("")}</span>`;
+const toneOf = (v, good = 65, bad = 40) => (v >= good ? "good" : v <= bad ? "bad" : "warn");
+const formStrip = (form, cells = 5) =>
+  `<span class="fd-form" aria-label="Last ${cells}: ${form.join(" ") || "no games"}">${Array.from({ length: cells }, (_, i) => {
+    const r = form[form.length - cells + i];
+    return `<i class="${r === "W" ? "w" : r === "L" ? "l" : r === "T" ? "t" : ""}">${r || "·"}</i>`;
+  }).join("")}</span>`;
+const panel = ({ title, span = 4, action = "", body, cls = "" }) =>
+  `<section class="fd-panel fd-s${span} ${cls}"><header class="fd-head"><h2>${h(title)}</h2>${action}</header><div class="fd-body">${body}</div></section>`;
+const crest = (t, cls = "") => `<span class="fd-crest ${cls}">${logo(t)}</span>`;
+const face = (p, size = 34) => pixelFace(p, { size, team: state.team });
 
 function hero() {
   const g = game(),
     me = state.teams[state.team],
     { rank, div } = divisionRank(state.team),
-    pulse = socialPulse(state);
-  const teamBlock = (t, right) =>
-    `<div class="gd-hero-team ${right ? "gd-right" : ""}">${right ? "" : logo(t)}<div><b>${K.escapeHTML(nameOf(t))}</b><small>${state.teams[t].w}–${state.teams[t].l} · ${K.escapeHTML(clubs[t][3])}</small></div>${right ? logo(t) : ""}</div>`;
-  if (!g)
-    return `<section class="gd-card gd-span-12 gd-hero"><div class="gd-hero-team">${logo(state.team)}<div><b>${K.escapeHTML(nameOf(state.team))}</b><small>${me.w}–${me.l} · ${K.escapeHTML(div)}</small></div></div><div class="gd-hero-mid"><span class="gd-eyebrow">${K.escapeHTML(state.phase)}</span><strong>${state.phase === "offseason" ? "BUILD" : "NEXT UP"}</strong></div><div></div><div class="gd-hero-actions"><span>${K.chip(pulse.label, pulse.drama >= 60 ? "bad" : pulse.fanScore >= 70 ? "good" : "")}</span><button class="gd-btn gd-primary" onclick="advance()">${state.phase === "offseason" ? "Open offseason" : "Advance calendar"} →</button></div></section>`;
+    pulse = socialPulse(state),
+    myColors = teamColors(state.team),
+    myForm = teamForm(state.schedule, state.team);
+  const side = (t, label, form, right) => {
+    const r = state.teams[t];
+    return `<div class="fd-side ${right ? "fd-right" : ""}">${crest(t, "fd-crest-lg")}<div class="fd-side-copy"><small>${h(label)}</small><b>${h(nameOf(t))}</b><em>${r.w}–${r.l}${r.t ? `–${r.t}` : ""} · ${h(clubs[t][3])}</em>${formStrip(form)}</div></div>`;
+  };
+  if (!g) {
+    const title = state.phase === "offseason" ? "Offseason" : state.phase === "playoffs" ? "Season over" : "Bye week",
+      note = state.phase === "offseason" ? "Re-sign, draft and rebuild before next season." : state.phase === "playoffs" ? "Your season has ended. Advance to the offseason." : "No game this week. Rest, train and plan.";
+    return `<section class="fd-match fd-s12 fd-idle" style="--home:${myColors.primary};--home-2:${myColors.secondary}"><div class="fd-match-grid">${side(state.team, `#${rank} ${div}`, myForm, false)}<div class="fd-board"><span class="fd-kick">${state.year} · ${h(title.toUpperCase())}</span><strong class="fd-vs">${state.phase === "offseason" ? "BUILD" : "REST"}</strong><span class="fd-venue">${h(note)}</span></div><div class="fd-side fd-right fd-idle-actions">${K.chip(pulse.label, pulse.drama >= 60 ? "bad" : pulse.fanScore >= 70 ? "good" : "")}</div></div><div class="fd-match-foot"><span class="fd-chips"></span><span class="fd-actions"><button class="gd-btn gd-primary" onclick="advance()">${state.phase === "offseason" ? "Open offseason" : "Advance calendar"} →</button></span></div></section>`;
+  }
   const opp = opponent(),
     home = g.a === state.team,
-    env = environment(state, { a: g.a, b: g.b, weather: state.live?.weather });
-  return `<section class="gd-card gd-span-12 gd-hero">${teamBlock(state.team, false)}<div class="gd-hero-mid"><span class="gd-eyebrow">Week ${state.week + 1} · ${home ? "Home" : "Away"}</span><strong>VS</strong></div>${teamBlock(opp, true)}<div class="gd-hero-actions"><span style="display:flex;gap:6px;flex-wrap:wrap">${K.chip(`#${rank} ${div}`, "team")}${K.chip(`Crowd ${env.crowd}`, env.hostile ? "warn" : "")}${clubs[opp][3] === div ? K.chip("Rivalry", "bad") : ""}${K.chip(pulse.label, pulse.drama >= 60 ? "bad" : pulse.fanScore >= 70 ? "good" : "")}</span><span style="display:flex;gap:6px"><button class="gd-btn" onclick="W.open('Game plan')">Game plan</button><button class="gd-btn gd-primary" onclick="advance()">${state.live ? "Return to match" : "Go to matchday"} →</button></span></div></section>`;
+    oppColors = teamColors(opp),
+    env = environment(state, { a: g.a, b: g.b, weather: state.live?.weather }),
+    stadium = state.franchise.clubs?.[home ? state.team : opp]?.stadium?.name,
+    cal = state.franchise.calendarSim,
+    kickoff = cal?.nextRoundDate,
+    days = daysBetween(cal?.date, kickoff),
+    chance = winChance(teamPower(state.team), teamPower(opp), home),
+    rival = clubs[opp][3] === div,
+    when = state.phase === "playoffs" ? "Playoffs" : `Week ${state.week + 1}`,
+    live = state.live && !state.live.finished;
+  const odds = `<div class="fd-odds" role="meter" aria-label="Win chance ${chance}%" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${chance}"><div class="fd-odds-legend"><span><small>Win chance</small><b>${chance}%</b></span><span class="fd-odds-mid">${K.chip(oddsLabel(chance), chance >= 56 ? "good" : chance <= 44 ? "bad" : "warn")}<small>Moneyline ${moneyline(chance)}</small></span><span><small>${h(abbr(opp))}</small><b>${100 - chance}%</b></span></div><div class="fd-odds-track">${Array.from({ length: 20 }, (_, i) => `<i class="${i < Math.round(chance / 5) ? "us" : "them"}"></i>`).join("")}</div></div>`;
+  return `<section class="fd-match fd-s12" style="--home:${myColors.primary};--home-2:${myColors.secondary};--away:${oppColors.primary};--away-2:${oppColors.secondary}"><div class="fd-match-grid">${side(state.team, `Your club · ${home ? "Home" : "Away"}`, myForm, false)}<div class="fd-board"><span class="fd-kick">${h(when)}${kickoff ? ` · ${h(shortDate(kickoff))}` : ""}${days != null && days >= 0 ? ` · ${days === 0 ? "Game day" : `in ${days} day${days === 1 ? "" : "s"}`}` : ""}</span><strong class="fd-vs">${live ? "LIVE" : "VS"}</strong><span class="fd-venue">${stadium ? `${h(stadium)} · ` : ""}${h(env.weather)} · Crowd ${env.crowd}</span></div>${side(opp, `Opponent · #${divisionTable(state.teams, clubs, opp).find((r) => r.me)?.rank ?? "–"} ${clubs[opp][3]}`, teamForm(state.schedule, opp), true)}</div>${odds}<div class="fd-match-foot"><span class="fd-chips">${K.chip(`#${rank} ${div}`, "team")}${env.hostile ? K.chip(`Hostile crowd ${env.crowd}`, "warn") : ""}${env.communication !== "Normal" ? K.chip(env.communication, "warn") : ""}${rival ? K.chip("Division rival", "bad") : ""}${K.chip(pulse.label, pulse.drama >= 60 ? "bad" : pulse.fanScore >= 70 ? "good" : "")}</span><span class="fd-actions"><button class="gd-btn" onclick="W.open('Game plan')">Game plan</button><button class="gd-btn gd-primary" onclick="advance()">${state.live ? "Return to match" : "Go to matchday"} →</button></span></div></section>`;
 }
 
-function seasonCard() {
+function kpiStrip() {
   const me = state.teams[state.team],
-    games = me.w + me.l,
+    games = me.w + me.l + (me.t || 0),
     cap = S.capLedger(state),
-    diff = me.pf - me.pa;
-  return K.card({
-    title: "Season",
-    span: 4,
-    accent: true,
-    body: K.stats([
-      ["Record", `${me.w}-${me.l}`, games ? `${Math.round((me.w / games) * 100)}% wins` : "No games yet"],
-      ["Point diff", `${diff > 0 ? "+" : ""}${diff}`, `${me.pf} PF · ${me.pa} PA`, Math.sign(diff)],
-      ["Cap room", millions(cap.room ?? 0), "This league year", (cap.room ?? 0) < 0 ? -1 : 0],
-      ["Morale", Math.round(state.morale ?? 75), "Team average"],
-    ]),
-  });
+    table = divisionTable(state.teams, clubs, state.team),
+    mine = table.find((r) => r.me),
+    leader = table[0],
+    back = mine && leader && !leader.me ? (leader.w - mine.w + (mine.l - leader.l)) / 2 : 0,
+    diff = me.pf - me.pa,
+    active = state.roster.filter((p) => !p.status || p.status === "active").length,
+    limit = rosterLimit(state),
+    capPct = cap.limit ? Math.max(0, Math.min(100, ((cap.used ?? 0) / cap.limit) * 100)) : 0;
+  const tile = (label, value, note, meter, tone = "") => `<div class="fd-kpi ${tone}"><small>${h(label)}</small><b>${h(value)}</b>${meter}<em>${h(note)}</em></div>`;
+  return `<div class="fd-kpis fd-s12">${[
+    tile("Record", `${me.w}–${me.l}${me.t ? `–${me.t}` : ""}`, games ? `${Math.round((me.w / games) * 100)}% wins · ${games} played` : "No games yet", blocks(me.w, Math.max(1, state.schedule.length), 17, "good")),
+    tile("Division", mine ? ordinal(mine.rank) : "—", back > 0 ? `${back} game${back === 1 ? "" : "s"} back in the ${clubs[state.team][3]}` : mine?.rank === 1 ? `Leads the ${clubs[state.team][3]}` : clubs[state.team][3], blocks(table.length - (mine?.rank ?? table.length) + 1, Math.max(1, table.length), Math.max(1, table.length), "team")),
+    tile("Point diff", `${diff > 0 ? "+" : ""}${diff}`, `${me.pf} for · ${me.pa} against`, `<span class="fd-blocks-gap"></span>`, diff > 0 ? "up" : diff < 0 ? "down" : ""),
+    tile("Cap room", millions(cap.room ?? 0), `${Math.round(capPct)}% of the cap committed`, blocks(capPct, 100, 10, capPct > 95 ? "bad" : capPct > 85 ? "warn" : "good"), (cap.room ?? 0) < 0 ? "down" : ""),
+    tile("Roster", `${active}/${limit}`, active > limit ? `Cut ${active - limit} before the deadline` : `${limit - active} open spot${limit - active === 1 ? "" : "s"}`, blocks(active, limit, 10, active > limit ? "bad" : ""), active > limit ? "down" : ""),
+  ].join("")}</div>`;
 }
 
-function pulseCard() {
-  const p = socialPulse(state);
-  return K.card({
-    title: "Team pulse",
-    span: 4,
+function pulseCard(span = 4) {
+  const p = socialPulse(state),
+    owner = state.franchise.clubs?.[state.team]?.owner,
+    morale = Math.round(state.morale ?? 75);
+  const row = (label, v, tone, note = "") => `<div class="fd-meter"><span>${h(label)}</span>${blocks(v, 100, 12, tone)}<b>${Math.round(v)}</b>${note ? `<small>${h(note)}</small>` : ""}</div>`;
+  return panel({
+    title: "Club pulse",
+    span,
+    cls: "fd-pulse",
     action: K.link("Fans", "Hub2.tab('media')"),
-    body: `${K.meter("Fan score", p.fanScore, { color: K.tone(p.fanScore) })}${K.meter("Drama", p.drama, { color: K.tone(100 - p.drama) })}${K.meter("Chemistry", p.chemistry, { color: K.tone(p.chemistry) })}<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px"><span style="color:var(--gd-text-2)">Weekly morale effect</span>${K.chip(`${p.moraleModifier > 0 ? "+" : ""}${p.moraleModifier}`, p.moraleModifier > 0 ? "good" : p.moraleModifier < 0 ? "bad" : "")}</div>${K.sparkline(p.trend.map((h) => h.fanScore))}`,
+    body: `${row("Morale", morale, toneOf(morale))}${row("Chemistry", p.chemistry, toneOf(p.chemistry))}${row("Fan score", p.fanScore, toneOf(p.fanScore))}${owner ? row("Board", owner.patience, toneOf(owner.patience)) : ""}${row("Drama", p.drama, toneOf(100 - p.drama))}<div class="fd-pulse-note"><b>${h(p.label)}</b><span>Hot takes raise drama; wins and straight answers calm it.</span>${K.sparkline(p.trend.map((x) => x.fanScore), { width: 200, height: 26 })}</div><div class="fd-foot-line"><span>Weekly morale effect</span>${K.chip(`${p.moraleModifier > 0 ? "+" : ""}${p.moraleModifier}`, p.moraleModifier > 0 ? "good" : p.moraleModifier < 0 ? "bad" : "")}</div>`,
   });
 }
 
-function deskCard() {
+function deskCard(span = 5) {
   const c = officeCounts(state),
     dilemma = activeDilemma(state),
     presser = pressConference(state),
-    answered = presser && ensureDepth(state).pressers.some((x) => x.id === presser.id);
-  let body = "";
-  if (dilemma)
-    body += `<div class="gd-decision"><span class="gd-eyebrow">Locker room</span><h4>${K.escapeHTML(dilemma.title)}</h4><p>${K.escapeHTML(dilemma.body)}</p><div class="gd-choices">${dilemma.choices.map((ch) => `<button class="gd-btn" onclick="Hub2.dilemma('${dilemma.id}','${ch.id}')">${K.escapeHTML(ch.label)}</button>`).join("")}</div></div>`;
-  else if (presser && !answered)
-    body += `<div class="gd-decision"><span class="gd-eyebrow">Press conference</span><h4>${K.escapeHTML(presser.question)}</h4><div class="gd-choices">${presser.answers.map((a) => `<button class="gd-btn" onclick="Hub2.press('${presser.id}','${a.id}')">${K.escapeHTML(a.label)}</button>`).join("")}</div></div>`;
+    answered = presser && ensureDepth(state).pressers.some((x) => x.id === presser.id),
+    messages = ensureOffice(state).messages;
+  let body = "",
+    leadId = null;
+  const decision = (kicker, title, text, choices, tone = "") => `<div class="fd-decision ${tone}"><span class="fd-kicker">${h(kicker)}</span><h3>${h(title)}</h3>${text ? `<p>${h(text)}</p>` : ""}<div class="fd-choices">${choices}</div></div>`;
+  if (dilemma) body += decision("Locker room", dilemma.title, dilemma.body, dilemma.choices.map((ch) => `<button class="gd-btn" onclick="Hub2.dilemma('${dilemma.id}','${ch.id}')">${h(ch.label)}</button>`).join(""));
+  else if (presser && !answered) body += decision("Press conference", presser.question, "", presser.answers.map((a) => `<button class="gd-btn" onclick="Hub2.press('${presser.id}','${a.id}')">${h(a.label)}</button>`).join(""));
   else {
     // Inbox decisions count here too, so the card never says "nothing waiting" beside a decision chip.
-    const next = ensureOffice(state).messages.find((m) => m.status === "pending");
-    body += next
-      ? `<div class="gd-decision"><span class="gd-eyebrow">${K.escapeHTML(next.source || "Inbox")}</span><h4>${K.escapeHTML(next.title)}</h4>${next.summary ? `<p>${K.escapeHTML(next.summary)}</p>` : ""}<div class="gd-choices"><button class="gd-btn" onclick="W.open('Inbox');Office.select('${next.id}')">Respond in inbox</button></div></div>`
-      : K.empty("Nothing needs your answer right now.");
+    const next = messages.find((m) => m.status === "pending");
+    leadId = next?.id;
+    body += next ? decision(next.source || "Inbox", next.title, next.summary, `<button class="gd-btn gd-primary" onclick="W.open('Inbox');Office.select('${next.id}')">Respond in inbox →</button>`, next.priority === "urgent" ? "urgent" : "") : `<div class="fd-clear"><b>Desk clear</b><small>Nothing needs your answer right now.</small></div>`;
   }
-  body += `<div style="display:flex;gap:6px;flex-wrap:wrap">${K.chip(`${c.unread} unread`)}${c.pending ? K.chip(`${c.pending} decision${c.pending === 1 ? "" : "s"}`, "warn") : ""}${c.urgent ? K.chip(`${c.urgent} urgent`, "bad") : ""}</div>`;
-  return K.card({ title: "Your desk", span: 4, action: K.link("Inbox", "W.open('Inbox')"), body });
+  const queue = messages
+    .filter((m) => m.id !== leadId && (m.status === "pending" || !m.read))
+    .slice(0, 2)
+    .map((m) => `<button class="fd-mail ${m.read ? "" : "unread"}" onclick="W.open('Inbox');Office.select('${m.id}')"><span class="fd-mono fd-cat-${h(String(m.category || "").toLowerCase())}">${h(senderInitials(m.source))}</span><span><b>${h(m.title)}</b><small>${h(m.source)} · ${h(m.category)}</small></span>${m.status === "pending" ? K.chip("Reply", m.priority === "urgent" ? "bad" : "warn") : ""}</button>`)
+    .join("");
+  body += queue ? `<div class="fd-queue">${queue}</div>` : "";
+  return panel({
+    title: "Your desk",
+    span,
+    cls: "fd-desk",
+    action: `<span class="fd-head-chips">${K.chip(`${c.unread} unread`)}${c.pending ? K.chip(`${c.pending} decision${c.pending === 1 ? "" : "s"}`, "warn") : ""}${c.urgent ? K.chip(`${c.urgent} urgent`, "bad") : ""}${K.link("Inbox", "W.open('Inbox')")}</span>`,
+    body,
+  });
+}
+
+function standingsCard(span = 3) {
+  const rows = divisionTable(state.teams, clubs, state.team),
+    div = clubs[state.team][3],
+    games = fixtures(state).filter((r) => r.stage === "Regular season" && !r.bye && clubs[r.opponent]?.[3] === div),
+    nextDiv = games.find((r) => !r.done),
+    dw = games.filter((r) => r.result === "W").length,
+    dl = games.filter((r) => r.result === "L").length;
+  return panel({
+    title: clubs[state.team][3],
+    span,
+    cls: "fd-std",
+    action: K.link("League", "W.open('League desk')"),
+    body: `<table class="fd-table"><thead><tr><th>#</th><th>Club</th><th>W–L</th><th>Diff</th></tr></thead><tbody>${rows
+      .map((r) => `<tr class="${r.me ? "me" : ""}"><td>${r.rank}</td><td><span class="fd-club">${crest(r.team, "fd-crest-sm")}<b>${h(abbr(r.team))}</b></span></td><td>${r.w}–${r.l}${r.t ? `–${r.t}` : ""}</td><td class="${r.diff > 0 ? "up" : r.diff < 0 ? "down" : ""}">${r.diff > 0 ? "+" : ""}${r.diff}</td></tr>`)
+      .join("")}</tbody></table><div class="fd-std-foot"><span><small>Division record</small><b>${dw}–${dl}</b></span><span><small>Next division game</small><b>${nextDiv ? `W${nextDiv.week} ${nextDiv.home ? "vs" : "at"} ${h(abbr(nextDiv.opponent))}` : "None left"}</b></span></div>`,
+  });
+}
+
+function roadCard(span = 8) {
+  const all = fixtures(state).filter((r) => r.stage === "Regular season"),
+    played = all.filter((r) => r.done),
+    last = played.at(-1),
+    next = all.find((r) => !r.done && !r.bye),
+    form = recentForm(all, 5);
+  const tile = (r) =>
+    r.bye
+      ? `<span class="fd-week bye" title="Week ${r.week}: bye"><small>W${r.week}</small><b>BYE</b></span>`
+      : `<button class="fd-week ${r.result ? r.result.toLowerCase() : ""} ${r.current ? "now" : ""}" title="Week ${r.week}: ${r.home ? "vs" : "at"} ${h(nameOf(r.opponent))}${r.done ? ` · ${r.result} ${r.for}–${r.against}` : ""}" onclick="W.open('Calendar')"><small>W${r.week}</small><b>${r.home ? "" : "@"}${h(abbr(r.opponent))}</b><em>${r.done ? `${r.for}–${r.against}` : r.current ? "NEXT" : ""}</em></button>`;
+  return panel({
+    title: "Season road",
+    span,
+    cls: "fd-roadp",
+    action: K.link("Schedule", "W.open('Calendar')"),
+    body: `<div class="fd-road" style="--weeks:${Math.max(1, all.length)}">${all.map(tile).join("")}</div><div class="fd-road-foot"><span><small>Form</small>${formStrip(form)}</span><span><small>Last result</small><b>${last ? `${last.result} ${last.for}–${last.against} ${last.home ? "vs" : "at"} ${h(abbr(last.opponent))}` : "Season opener ahead"}</b></span><span><small>Next</small><b>${next ? `W${next.week} ${next.home ? "vs" : "at"} ${h(nameOf(next.opponent))}` : "Regular season complete"}</b></span></div>`,
+  });
 }
 
 function rosterCard(span = 5) {
-  const active = state.roster.filter((p) => !p.injury),
-    top = active.slice().sort((a, b) => b.ovr - a.ovr).slice(0, 6),
-    injured = state.roster.filter((p) => p.injury);
-  const rows = top
-    .map((p) => K.row({ lead: p.pos, title: p.name, sub: `${p.age} yrs · morale ${Math.round(p.morale ?? 75)}`, trail: `<span class="gd-ovr">${p.ovr}</span>`, onclick: `W.player('${p.id}',${state.team})` }))
-    .join("");
-  return K.card({
+  const top = state.roster
+    .filter((p) => !p.injury)
+    .sort((a, b) => b.ovr - a.ovr)
+    .slice(0, 6);
+  return panel({
     title: "Core players",
     span,
+    cls: "fd-core",
     action: K.link("Squad", "Hub2.tab('squad')"),
-    body: `<div class="gd-rows">${rows}</div>${injured.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${injured.slice(0, 4).map((p) => K.chip(`${p.pos} ${p.name.split(" ").at(-1)} · ${p.injury}w`, "bad")).join("")}</div>` : ""}`,
+    body: `<div class="fd-players">${top
+      .map((p) => {
+        const m = Math.round(p.morale ?? 75);
+        return `<button class="fd-player" onclick="W.player('${p.id}',${state.team})">${face(p, 36)}<span class="fd-player-copy"><b><i class="fd-pos">${h(p.pos)}</i>${h(p.name)}</b><small>${p.age} yrs · morale ${m}</small></span>${blocks(m, 100, 5, toneOf(m))}<span class="fd-ovr">${p.ovr}</span></button>`;
+      })
+      .join("")}</div>`,
   });
 }
 
-function leadersCard(span = 3) {
+function medicalCard(span = 3) {
+  const out = state.roster.filter((p) => p.injury).sort((a, b) => b.injury - a.injury || b.ovr - a.ovr),
+    starters = out.filter((p) => p.starter).length;
+  return panel({
+    title: "Medical room",
+    span,
+    cls: "fd-med",
+    action: K.link("Medical", "Hub2.tab('medical')"),
+    body: `<div class="fd-med-sum"><div><b class="${out.length ? "down" : "up"}">${out.length}</b><small>Injured</small></div><div><b class="${starters ? "down" : ""}">${starters}</b><small>Starters out</small></div></div>${
+      out.length
+        ? `<div class="fd-injuries">${out
+            .slice(0, 4)
+            .map((p) => `<button class="fd-injury" onclick="W.player('${p.id}',${state.team})">${face(p, 28)}<span><b>${h(p.pos)} ${h(short(p.name))}</b><small>${p.starter ? "Starter" : "Reserve"} · ${p.ovr} OVR</small></span><em>${p.injury}w</em></button>`)
+            .join("")}${out.length > 4 ? `<button class="gd-link fd-more" onclick="Hub2.tab('medical')">+${out.length - 4} more →</button>` : ""}</div>`
+        : `<div class="fd-clear"><b>Full health</b><small>Every player is available.</small></div>`
+    }`,
+  });
+}
+
+function leadersCard(span = 4) {
   const best = (key) => state.roster.slice().sort((a, b) => seasonStat(b, key) - seasonStat(a, key))[0];
-  const items = [
-    ["Pass yds", "passYards"],
-    ["Rush yds", "rushYards"],
-    ["Rec yds", "recYards"],
-    ["Sacks", "sacks"],
-  ].map(([label, key]) => {
-    const p = best(key);
-    return [label, p && seasonStat(p, key) ? seasonStat(p, key).toLocaleString("en-US") : "—", p && seasonStat(p, key) ? p.name.split(" ").at(-1) : ""];
+  const rows = [
+    ["Passing", "passYards", "yds"],
+    ["Rushing", "rushYards", "yds"],
+    ["Receiving", "recYards", "yds"],
+    ["Sacks", "sacks", ""],
+  ].map(([label, key, unit]) => {
+    const p = best(key),
+      v = p ? seasonStat(p, key) : 0;
+    return v
+      ? `<button class="fd-leader" onclick="W.player('${p.id}',${state.team})">${face(p, 28)}<span><small>${h(label)}</small><b>${h(p.name)}</b></span><strong>${v.toLocaleString("en-US")}<small>${unit}</small></strong></button>`
+      : `<div class="fd-leader empty"><span class="fd-leader-blank"></span><span><small>${h(label)}</small><b>No stats yet</b></span><strong>—</strong></div>`;
   });
-  return K.card({ title: "Leaders", span, body: K.stats(items) });
+  return panel({ title: "Team leaders", span, cls: "fd-lead", action: K.link("Stats", "W.open('Statistics')"), body: `<div class="fd-leaders">${rows.join("")}</div>` });
 }
 
-function feedCard(span = 4, limit = 4) {
+function feedCard(span = 4, limit = 3) {
   const posts = socialEnginePosts(state)
     .filter((p) => feedFilter === "all" || p.archetype === feedFilter)
     .slice(0, limit);
-  return K.card({
+  return panel({
     title: "The timeline",
     span,
-    scroll: limit > 4,
+    cls: "fd-feed",
     action: limit > 4 ? "" : K.link("All", "Hub2.tab('media')"),
-    body: posts.length ? posts.map(K.post).join("") : K.empty("The timeline lights up after your first game."),
+    body: posts.length ? posts.map(K.post).join("") : `<div class="fd-clear"><b>Quiet so far</b><small>The timeline lights up after your first game.</small></div>`,
   });
 }
 
 /* ------------------------------------------------------------------- tabs */
 
 function hubTab() {
-  return `<div class="gd-bento">${hero()}${seasonCard()}${pulseCard()}${deskCard()}${rosterCard(5)}${leadersCard(3)}${feedCard(4)}</div>`;
+  return `<div class="fd-grid gd-bento">${hero()}${kpiStrip()}${deskCard(5)}${pulseCard(4)}${standingsCard(3)}${roadCard(8)}${leadersCard(4)}${rosterCard(5)}${medicalCard(3)}${feedCard(4)}</div>`;
 }
 
 function squadTab() {
@@ -180,25 +311,22 @@ function squadTab() {
     .map((pos) => {
       const players = list.filter((p) => p.pos === pos);
       if (!players.length) return "";
-      return K.card({
+      const avg = Math.round(players.slice(0, 3).reduce((n, p) => n + p.ovr, 0) / Math.min(3, players.length));
+      return panel({
         title: `${pos} · ${players.length}`,
         span: 4,
-        body: `<div class="gd-rows">${players
+        action: `<span class="fd-head-chips">${K.chip(`Top 3 avg ${avg}`, avg >= 80 ? "good" : avg < 70 ? "warn" : "")}</span>`,
+        body: `<div class="fd-players">${players
           .slice(0, 8)
-          .map((p) =>
-            K.row({
-              lead: p.starter ? "★" : p.pos,
-              title: p.name,
-              sub: `${p.age} yrs${p.injury ? ` · out ${p.injury}w` : ""}${p.holdout ? " · holdout" : ""}`,
-              trail: `<span class="gd-ovr ${p.injury ? "gd-down" : ""}">${p.ovr}</span>`,
-              onclick: `W.player('${p.id}',${state.team})`,
-            }),
+          .map(
+            (p) =>
+              `<button class="fd-player ${p.injury ? "hurt" : ""}" onclick="W.player('${p.id}',${state.team})">${face(p, 32)}<span class="fd-player-copy"><b>${p.starter ? '<i class="fd-pos fd-star" title="Starter">★</i>' : ""}${h(p.name)}</b><small>${p.age} yrs${p.injury ? ` · out ${p.injury}w` : ""}${p.holdout ? " · holdout" : ""}</small></span><span class="fd-ovr ${p.injury ? "down" : ""}">${p.ovr}</span></button>`,
           )
-          .join("")}</div>`,
+          .join("")}${players.length > 8 ? `<button class="gd-link fd-more" onclick="W.open('Roster')">+${players.length - 8} more in the roster →</button>` : ""}</div>`,
       });
     })
     .join("");
-  return `<div class="gd-toolbar">${K.tabs(
+  return `<div class="gd-toolbar fd-subbar">${K.tabs(
     [
       ["offense", "Offense"],
       ["defense", "Defense"],
@@ -207,29 +335,30 @@ function squadTab() {
     unit,
     "Hub2.unit('$id')",
     { small: true, label: "Unit" },
-  )}<button class="gd-btn" onclick="W.open('Roster')">Full roster & depth chart →</button></div><div class="gd-bento">${groups || K.card({ span: 12, body: K.empty("No players at these positions.") })}${leadersCard(12)}</div>`;
+  )}<button class="gd-btn" onclick="W.open('Roster')">Full roster & depth chart →</button></div><div class="fd-grid">${groups || panel({ title: "Unit", span: 12, body: K.empty("No players at these positions.") })}${leadersCard(12)}</div>`;
 }
 
+const FEED_PAGE = 6;
 function mediaTab() {
-  const p = socialPulse(state),
-    filters = [
+  const filters = [
       ["all", "All"],
       ["insider", "Insiders"],
       ["beat", "Beat"],
       ["hottake", "Hot takes"],
       ["fan", "Fans"],
       ["rival", "Rivals"],
-    ];
-  return `<div class="gd-toolbar">${K.tabs(filters, feedFilter, "Hub2.feed('$id')", { small: true, label: "Feed filter" })}<button class="gd-btn" onclick="W.open('News')">Classic news & social →</button></div><div class="gd-bento">${feedCard(8, 30)}${K.card({
-    title: "Narrative",
-    span: 4,
-    accent: true,
-    body: `${K.stats([
-      ["Fan score", Math.round(p.fanScore)],
-      ["Drama", Math.round(p.drama)],
-      ["Chemistry", Math.round(p.chemistry)],
-    ])}<p style="margin:0;font-size:12px;color:var(--gd-text-2)">${K.escapeHTML(p.label)}. Hot takes and insider reports raise drama; drama above 55 erodes chemistry and weekly morale. Wins, accountable answers and good dilemma calls repair it.</p>${K.sparkline(p.trend.map((h) => h.drama))}`,
-  })}${deskCard()}</div>`;
+    ],
+    posts = socialEnginePosts(state).filter((p) => feedFilter === "all" || p.archetype === feedFilter),
+    pg = pageOf(posts, feedPage, FEED_PAGE);
+  feedPage = pg.page;
+  const feed = panel({
+    title: "The timeline",
+    span: 8,
+    cls: "fd-feed fd-tall",
+    action: `<span class="fd-head-chips">${K.chip(`${pg.total} posts`)}</span>`,
+    body: `${pg.rows.length ? pg.rows.map(K.post).join("") : `<div class="fd-clear"><b>Quiet so far</b><small>The timeline lights up after your first game.</small></div>`}<div class="fd-pager"><button class="gd-btn" onclick="Hub2.feedPage(-1)" ${pg.page <= 0 ? "disabled" : ""}>◀ Prev</button><span>${pg.total ? `${pg.from}–${pg.to} of ${pg.total}` : "0 posts"} · page ${pg.page + 1}/${pg.pages}</span><button class="gd-btn" onclick="Hub2.feedPage(1)" ${pg.page >= pg.pages - 1 ? "disabled" : ""}>Next ▶</button></div>`,
+  });
+  return `<div class="gd-toolbar fd-subbar">${K.tabs(filters, feedFilter, "Hub2.feed('$id')", { small: true, label: "Feed filter" })}<button class="gd-btn" onclick="W.open('News')">News & social →</button></div><div class="fd-grid">${feed}${pulseCard(4)}${deskCard(4)}</div>`;
 }
 
 function coachTab() {
@@ -256,7 +385,7 @@ function coachTab() {
     .slice(0, 6)
     .map((x) => K.row({ lead: `W${x.week + 1}`, title: x.title, sub: x.outcome }))
     .join("");
-  return `<div class="gd-toolbar"><span>${K.chip(`${points} coaching point${points === 1 ? "" : "s"} available`, points ? "good" : "")} <small style="color:var(--gd-text-3)">Earn points through career XP each round.</small></span></div><div class="gd-bento">${tree}${K.card({ title: "Locker-room decisions", span: 6, body: history ? `<div class="gd-rows">${history}</div>` : K.empty("No locker-room decisions yet.") })}${K.card({ title: "Press record", span: 6, body: d.pressers.length ? `<div class="gd-rows">${d.pressers.slice(0, 6).map((x) => K.row({ lead: `W${x.week + 1}`, title: `"${x.quote}"`, sub: x.answer })).join("")}</div>` : K.empty("No press conferences answered yet.") })}</div>`;
+  return `<div class="gd-toolbar"><span>${K.chip(`${points} coaching point${points === 1 ? "" : "s"} available`, points ? "good" : "")} <small style="color:var(--gd-text-3)">Earn points through career XP each round.</small></span></div><div class="gd-bento fd-coach">${tree}${K.card({ title: "Locker-room decisions", span: 6, body: history ? `<div class="gd-rows">${history}</div>` : K.empty("No locker-room decisions yet.") })}${K.card({ title: "Press record", span: 6, body: d.pressers.length ? `<div class="gd-rows">${d.pressers.slice(0, 6).map((x) => K.row({ lead: `W${x.week + 1}`, title: `"${x.quote}"`, sub: x.answer })).join("")}</div>` : K.empty("No press conferences answered yet.") })}</div>`;
 }
 
 /* --------------------------------------------------------------- pipeline */
@@ -317,7 +446,7 @@ export function hubView() {
   if (tab === "pipeline") tab = "draft";
   const views = { squad: squadTab, medical: medicalView, training: trainingView, market: marketView, draft: () => draftView({ pipeline: pipelineTab }), media: mediaTab, coach: coachTab };
   const body = (views[tab] ?? hubTab)();
-  return `<div class="gd-hub"><div class="gd-toolbar">${K.tabs(TABS, tab, "Hub2.tab('$id')", { label: "Franchise hub" })}</div>${body}</div>`;
+  return `<div class="gd-hub fd-hub fd-tab-${tab}"><div class="gd-toolbar fd-tabbar">${K.tabs(TABS, tab, "Hub2.tab('$id')", { label: "Franchise hub" })}</div>${body}</div>`;
 }
 
 /* -------------------------------------------------------------- matchday */
@@ -342,6 +471,7 @@ export function gameDayStrip(s = state) {
 /* ------------------------------------------------------------- installer */
 
 export function installDashboard({ views, isBusy }) {
+  loadDeskStyles();
   installOps({ isBusy });
   // The sidebar's "Medical & training" route opens the new medical and training planner.
   const classicMedical = views.Medical;
@@ -368,12 +498,17 @@ export function installDashboard({ views, isBusy }) {
       remember("gridiron-hub-tab", tab);
       render();
     },
+    feedPage(delta) {
+      feedPage = Math.max(0, feedPage + Number(delta || 0));
+      render();
+    },
     unit(id) {
       unit = UNITS[id] ? id : "offense";
       render();
     },
     feed(id) {
       feedFilter = id;
+      feedPage = 0;
       render();
     },
     dilemma: (id, choice) => mutate((s) => resolveDilemma(s, id, choice), (r) => `Decision made: ${r.outcome}`),

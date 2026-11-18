@@ -28,6 +28,8 @@ import { storyArt } from "../presentation/pixel-art.mjs";
 import { heightInches } from "./player-catalog.mjs";
 import { SQUAD_SORTS, SQUAD_SORT_MENU, defaultDirection, compareSquad } from "./squad-sort.mjs";
 import { installLineupUI } from "./lineup-ui.mjs";
+import { pixelFace } from "../ui/pixel-face.mjs";
+import { pageOf, pageContaining, litBlocks, senderInitials, loadDeskStyles } from "./hub-model.mjs";
 const fmtBio = (n) => Number(n).toLocaleString("en-US");
 const num = (n, d = 1) =>
   Number.isFinite(n)
@@ -57,7 +59,7 @@ const metrics = (arr) =>
 const panel = (title, body, extra = "") =>
   `<section class="panel office-panel"><div class="panel-head"><h2>${title}</h2>${extra}</div><div class="office-pad">${body}</div></section>`;
 export function installOfficeUI({ views, isBusy, getSection }) {
-  let inbox = { category: "All", filter: "All", query: "", selected: null },
+  let inbox = { category: "All", filter: "All", query: "", selected: null, page: 0 },
     news = {
       scope: "All",
       category: "All",
@@ -145,16 +147,46 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       )
       .sort((a, b) => rank(a) - rank(b));
   }
+  // Inbox: a paged message list (no inner scroll box) beside the reading pane. Rows are a fixed
+  // height so a page of INBOX_PAGE keeps the list the same size; styles in desk.css (ib-*).
+  const INBOX_PAGE = 7;
+  const catClass = (c) => "fd-cat-" + String(c || "").toLowerCase().replace(/[^a-z]/g, "");
+  const senderPlayer = (m) => (m.playerId ? state.roster.find((p) => p.id === m.playerId) : null);
+  const senderAvatar = (m, size = 36) => {
+    const p = senderPlayer(m);
+    return p
+      ? pixelFace(p, { size, team: state.team })
+      : `<span class="fd-mono ${catClass(m.category)}" style="width:${size}px;height:${size}px">${esc(senderInitials(m.source))}</span>`;
+  };
+  const dueRounds = (m) => Math.max(0, (m.dueStep ?? office().step) - office().step);
+  const statusChip = (m) =>
+    m.status === "pending"
+      ? badge(dueRounds(m) <= 0 ? "Due now" : `Due in ${dueRounds(m)} round${dueRounds(m) === 1 ? "" : "s"}`, m.priority === "urgent" ? "danger" : "amber")
+      : isTask(m)
+        ? badge("Action needed", m.priority === "urgent" ? "danger" : "amber")
+        : m.status === "resolved"
+          ? badge("Replied", "good")
+          : m.status === "delegated"
+            ? badge("Delegated")
+            : "";
+  const inboxPager = (pg) =>
+    pg.pages > 1
+      ? `<div class="ib-pager"><button class="secondary small" onclick="Office.inboxPage(-1)" ${pg.page <= 0 ? "disabled" : ""} aria-label="Previous page">◀ Prev</button><span>${pg.from}–${pg.to} of ${pg.total}</span><button class="secondary small" onclick="Office.inboxPage(1)" ${pg.page >= pg.pages - 1 ? "disabled" : ""} aria-label="Next page">Next ▶</button></div>`
+      : `<div class="ib-pager ib-pager-single"><span>${pg.total} message${pg.total === 1 ? "" : "s"}</span></div>`;
   function inboxList() {
-    const rows = filteredMessages();
+    const all = filteredMessages(),
+      pg = pageOf(all, inbox.page, INBOX_PAGE);
+    inbox.page = pg.page;
+    const rows = pg.rows
+      .map(
+        (m) =>
+          `<button class="inbox-row ib-row ${m.id === inbox.selected ? "selected" : ""} ${!m.read ? "unread" : ""} ${m.priority === "urgent" && isTask(m) ? "urgent" : ""}" onclick="Office.select('${m.id}')" aria-current="${m.id === inbox.selected}">${senderAvatar(m)}<span class="ib-row-main"><span class="ib-row-top"><b>${esc(m.source)}</b><time>${messageTime(m)}</time></span><span class="ib-row-title">${m.priority === "urgent" && isTask(m) ? '<i class="ib-prio" title="Urgent">!</i>' : ""}${esc(m.title)}</span><span class="ib-row-tags">${badge(m.category)}${statusChip(m)}${m.bookmarked ? '<span class="saved-star" title="Saved">★</span>' : ""}</span></span>${!m.read ? '<span class="new-dot" aria-label="Unread"></span>' : ""}</button>`,
+      )
+      .join("");
     return (
-      rows
-        .map(
-          (m) =>
-            `<button class="inbox-row ${m.id === inbox.selected ? "selected" : ""} ${!m.read ? "unread" : ""}" onclick="Office.select('${m.id}')"><span class="inbox-row-meta"><span>${esc(m.source)}</span><time>${messageTime(m)}</time></span><b>${m.priority === "urgent" ? '<i class="urgent-dot"></i>' : ""}${esc(m.title)}</b><span class="inbox-preview">${esc(m.summary || m.body)}</span><span class="inbox-row-tags">${badge(m.category)}${isTask(m) ? badge(m.status === "pending" ? "Response needed" : "Action needed", m.priority === "urgent" ? "danger" : "amber") : m.status === "resolved" ? badge("Replied", "good") : m.status === "delegated" ? badge("Delegated") : ""}${m.bookmarked ? '<span class="saved-star">★</span>' : ""}${!m.read ? '<span class="new-dot" aria-label="Unread"></span>' : ""}</span></button>`,
-        )
-        .join("") ||
-      '<div class="office-empty"><b>Your desk is clear.</b><p>No messages match these filters.</p></div>'
+      (rows
+        ? `<div class="ib-rows">${rows}</div>`
+        : '<div class="office-empty ib-empty"><b>Your desk is clear.</b><p>No messages match these filters. Try All or clear the search.</p></div>') + inboxPager(pg)
     );
   }
   function impactRows(changes) {
@@ -162,43 +194,65 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       ? `<div class="impact-grid">${changes.map((c) => `<div><span>${esc(c.name)}</span><b class="${c.delta >= 0 ? "positive" : "negative"}">${sign(c.delta)} morale</b>${c.trust ? `<small>${sign(c.trust)} coach trust</small>` : ""}</div>`).join("")}</div>`
       : '<p class="muted">No direct morale change.</p>';
   }
+  const meterBlocks = (v, cells = 10) => {
+    const n = litBlocks(v, 100, cells),
+      tone = v >= 65 ? "good" : v <= 40 ? "bad" : "warn";
+    return `<span class="fd-blocks ${tone}" aria-hidden="true">${Array.from({ length: cells }, (_, i) => `<i${i < n ? ' class="on"' : ""}></i>`).join("")}</span>`;
+  };
   function messageDetail() {
     const m = currentMessage();
     if (!m)
-      return '<div class="inbox-blank"><span>✉</span><h2>Your next decision starts here.</h2><p>Choose a message to read the brief, review its context and respond.</p></div>';
-    const p = state.roster.find((p) => p.id === m.playerId),
+      return '<div class="inbox-blank ib-blank"><span class="fd-mono fd-cat-team">✉</span><h2>Your next decision starts here.</h2><p>Choose a message to read the brief, review its context and respond.</p></div>';
+    const p = senderPlayer(m),
       effects = office().moodHistory.find(
         (h) => h.sourceId === m.id || h.sourceId === m.key,
       ),
-      pending = m.status === "pending";
-    return `<article class="message-detail"><div class="message-topline">${badge(m.category)}<span>${messageTime(m)}</span><button class="icon-button ${m.bookmarked ? "positive" : ""}" aria-label="${m.bookmarked ? "Unsave" : "Save"} message" onclick="Office.bookmark('${m.id}')">${m.bookmarked ? "★" : "☆"}</button></div><h2>${esc(m.title)}</h2><div class="message-sender"><span class="sender-avatar">${icon(m.category === "Medical" ? "medical" : m.category === "Interviews" ? "mic" : "briefcase")}</span><span><b>${esc(m.source)}</b><small>To ${esc(state.coach.name)} · ${esc(state.franchise.role)}</small></span></div><p class="message-copy">${esc(m.body)}</p>${p ? `<div class="message-player">${playerLink(p, state.team)}<div><b>${num(p.morale, 0)}%</b><small>Morale</small></div><div><b>${num(p.coachTrust ?? 60, 0)}%</b><small>Trust</small></div></div>` : m.playerId ? '<p class="muted">The player is no longer with this franchise.</p>' : ""}${
+      pending = m.status === "pending",
+      options = pending ? decisionOptions(m) : [],
+      locked = isBusy() || state.live;
+    return `<article class="message-detail ib-msg"><div class="message-topline ib-msg-top">${badge(m.category)}${m.priority === "urgent" ? badge("Urgent", "danger") : m.priority === "important" ? badge("Important", "amber") : ""}<span>${messageTime(m)}</span><button class="icon-button ib-star ${m.bookmarked ? "positive" : ""}" aria-label="${m.bookmarked ? "Unsave" : "Save"} message" onclick="Office.bookmark('${m.id}')">${m.bookmarked ? "★" : "☆"}</button></div><h2>${esc(m.title)}</h2><div class="message-sender ib-sender">${senderAvatar(m, 44)}<span><b>${esc(m.source)}</b><small>To ${esc(state.coach.name)} · ${esc(state.franchise.role)}</small></span></div><p class="message-copy ib-copy">${esc(m.body)}</p>${
+      p
+        ? `<div class="message-player ib-player">${playerLink(p, state.team)}<div class="ib-player-meter"><small>Morale</small>${meterBlocks(p.morale ?? 75)}<b>${num(p.morale, 0)}%</b></div><div class="ib-player-meter"><small>Trust</small>${meterBlocks(p.coachTrust ?? 60)}<b>${num(p.coachTrust ?? 60, 0)}%</b></div></div>`
+        : m.playerId
+          ? '<p class="muted">The player is no longer with this franchise.</p>'
+          : ""
+    }${
       pending
-        ? `<section class="response-box"><div><span class="eyebrow">YOUR RESPONSE</span>${badge(m.priority === "urgent" ? "Priority decision" : "Decision", "amber")}</div><p class="muted">Due in ${Math.max(0, m.dueStep - office().step)} league round(s). If you don’t answer in time, the first response is used.</p>${decisionOptions(
-            m,
-          )
+        ? `<section class="response-box ib-decide"><div class="ib-decide-head"><span class="eyebrow">YOUR RESPONSE</span>${badge(m.priority === "urgent" ? "Priority decision" : "Decision", m.priority === "urgent" ? "danger" : "amber")}${badge(dueRounds(m) <= 0 ? "Due now" : `Due in ${dueRounds(m)} league round${dueRounds(m) === 1 ? "" : "s"}`)}</div><p class="muted">Pick one. If you don’t answer in time, option A is used.</p><div class="ib-options">${options
             .map(
               (c, i) =>
-                `<button class="inbox-choice" onclick="Office.respond('${m.id}','${c.id}')" ${isBusy() || state.live ? "disabled" : ""}><span>${i + 1}</span><span><b>${esc(c.text)}</b><small>${esc(c.note)}</small></span>${icon("arrow")}</button>`,
+                `<button class="inbox-choice ib-option" onclick="Office.respond('${m.id}','${c.id}')" ${locked ? "disabled" : ""}><span class="ib-opt-key">${String.fromCharCode(65 + i)}</span><span class="ib-opt-copy"><b>${esc(c.text)}</b><small><i>What happens:</i> ${esc(c.note)}</small></span>${i === 0 ? '<span class="ib-opt-default">Default</span>' : ""}<span class="ib-opt-go">${icon("arrow")}</span></button>`,
             )
-            .join(
-              "",
-            )}${state.live ? "<p>Finish the current match to respond.</p>" : ""}</section>`
+            .join("")}</div>${state.live ? '<p class="ib-locked">Finish the current match to respond.</p>' : ""}</section>`
         : m.response
-          ? `<section class="response-record"><span class="eyebrow">${m.status === "delegated" ? "STAFF RESPONSE" : "YOUR RESPONSE"}</span><p>“${esc(m.response)}”</p><small>${esc(m.outcome)}</small>${impactRows(m.changes)}</section>`
+          ? `<section class="response-record ib-record"><span class="eyebrow">${m.status === "delegated" ? "STAFF RESPONSE" : "YOUR RESPONSE"}</span><p>“${esc(m.response)}”</p><small>${esc(m.outcome)}</small>${impactRows(m.changes)}</section>`
           : m.outcome
             ? `<p class="muted">${esc(m.outcome)}</p>`
             : ""
-    }${effects && !m.response ? `<section class="response-record"><span class="eyebrow">WHAT CHANGED</span><p>${esc(effects.reason)}</p>${impactRows(effects.changes)}</section>` : ""}<div class="message-actions">${m.route ? `<button class="secondary" onclick="Office.route('${m.route}','${m.playerId || ""}')">${m.interview ? "Attend interview" : m.promiseKey ? "Meet player" : "Open " + ({ Development: "development report", Medical: "medical centre" }[m.route] || m.route)} ${icon("arrow")}</button>` : ""}${p ? `<button class="secondary" onclick="W.player('${p.id}')">Player profile</button>` : ""}${m.category === "Scouting" && m.playerId ? `<button class="secondary" onclick="Scout.open('${m.playerId}')">Open scouting card</button>` : ""}<button class="link" onclick="Office.unread('${m.id}')">Mark unread</button></div></article>`;
+    }${effects && !m.response ? `<section class="response-record ib-record"><span class="eyebrow">WHAT CHANGED</span><p>${esc(effects.reason)}</p>${impactRows(effects.changes)}</section>` : ""}<div class="message-actions ib-actions">${m.route ? `<button class="secondary" onclick="Office.route('${m.route}','${m.playerId || ""}')">${m.interview ? "Attend interview" : m.promiseKey ? "Meet player" : "Open " + ({ Development: "development report", Medical: "medical centre" }[m.route] || m.route)} ${icon("arrow")}</button>` : ""}${p ? `<button class="secondary" onclick="W.player('${p.id}')">Player profile</button>` : ""}${m.category === "Scouting" && m.playerId ? `<button class="secondary" onclick="Scout.open('${m.playerId}')">Open scouting card</button>` : ""}<button class="link" onclick="Office.unread('${m.id}')">Mark unread</button></div></article>`;
   }
   views.Inbox = () => {
+    loadDeskStyles();
     const counts = officeCounts(state),
-      rows = filteredMessages();
-    if (!rows.some((m) => m.id === inbox.selected))
-      inbox.selected = rows[0]?.id || null;
-    return `<div class="office-page-lead"><div><span class="eyebrow">THE COACHING OFFICE</span><p>Your people. Your priorities. Your next decision.</p></div><div>${badge(counts.pending + (counts.pending === 1 ? " open decision" : " open decisions"), counts.pending ? "amber" : "good")}<button class="secondary small" onclick="Office.markAll()">Mark all read</button></div></div><div class="inbox-toolbar"><div class="office-tabs" aria-label="Inbox filters">${["All", "Unread", "Needs response", "Saved"].map((v) => `<button class="${v === inbox.filter ? "active" : ""}" onclick="Office.inboxFilter('filter','${v}')">${v}</button>`).join("")}</div><div class="table-search">${icon("search")}<input type="search" aria-label="Search inbox" placeholder="Search your inbox…" value="${esc(inbox.query)}" oninput="Office.searchInbox(this.value)"></div><select aria-label="Inbox category" onchange="Office.inboxFilter('category',this.value)">${opts(CATEGORIES, inbox.category)}</select></div><div class="inbox-workspace"><section class="inbox-list" aria-label="Messages"><div class="inbox-list-heading"><b id="inbox-message-count">${rows.length} messages</b><span>Priority · newest</span></div><div id="inbox-list">${inboxList()}</div></section><section id="inbox-detail" class="inbox-reading" aria-label="Selected message">${messageDetail()}</section></div>`;
+      rows = filteredMessages(),
+      all = allMessages();
+    if (!rows.some((m) => m.id === inbox.selected)) inbox.selected = pageOf(rows, inbox.page, INBOX_PAGE).rows[0]?.id || rows[0]?.id || null;
+    const filterCount = { All: all.length, Unread: all.filter((m) => !m.read).length, "Needs response": all.filter(isTask).length, Saved: all.filter((m) => m.bookmarked).length };
+    const tile = (label, value, tone, filter) => `<button class="ib-tile ${tone} ${inbox.filter === filter ? "on" : ""}" onclick="Office.inboxFilter('filter','${filter}')"><small>${label}</small><b>${value}</b></button>`;
+    return `<div class="ib-page"><div class="ib-head"><div class="ib-head-copy"><span class="eyebrow">THE COACHING OFFICE</span><p>Your people. Your priorities. Your next decision.</p></div><div class="ib-tiles">${tile("Unread", counts.unread, counts.unread ? "" : "dim", "Unread")}${tile("Decisions", counts.pending, counts.pending ? "warn" : "dim", "Needs response")}${tile("Urgent", counts.urgent, counts.urgent ? "bad" : "dim", "Needs response")}${tile("Saved", filterCount.Saved, "dim", "Saved")}</div><button class="secondary small" onclick="Office.markAll()">Mark all read</button></div><div class="inbox-toolbar ib-toolbar"><div class="ib-seg" role="tablist" aria-label="Inbox filters">${["All", "Unread", "Needs response", "Saved"].map((v) => `<button role="tab" aria-selected="${v === inbox.filter}" class="${v === inbox.filter ? "on" : ""}" onclick="Office.inboxFilter('filter','${v}')">${v}<i>${filterCount[v]}</i></button>`).join("")}</div><div class="table-search ib-search">${icon("search")}<input type="search" aria-label="Search inbox" placeholder="Search sender, subject…" value="${esc(inbox.query)}" oninput="Office.searchInbox(this.value)"></div></div><div class="ib-cats" role="tablist" aria-label="Inbox category">${CATEGORIES.map((c) => `<button role="tab" aria-selected="${c === inbox.category}" class="${c === inbox.category ? "on" : ""}" onclick="Office.inboxFilter('category','${c}')">${c === "All" ? "" : `<span class="ib-cat-dot ${catClass(c)}"></span>`}${c === "All" ? "All categories" : c}</button>`).join("")}</div><div class="inbox-workspace ib-work"><section class="inbox-list ib-list" aria-label="Messages"><div class="inbox-list-heading ib-list-head"><b id="inbox-message-count">${rows.length} messages</b><span>Priority · newest</span></div><div id="inbox-list">${inboxList()}</div></section><section id="inbox-detail" class="inbox-reading ib-read" aria-label="Selected message">${messageDetail()}</section></div></div>`;
   };
-  function storyCards() {
-    const rows = office()
+  // Newsroom: a pixel broadsheet. Each page of NEWS_PAGE stories opens with a lead story, two
+  // briefs beside it, then a grid. Styles in desk.css (nw-*).
+  const NEWS_PAGE = 9;
+  const SOURCE_RANK = {
+    "Sunday Review": 0,
+    "Team communications": 1,
+    "Gridiron Journal": 1,
+    "Transactions wire": 1,
+    "League desk": 2,
+  };
+  function storyRows() {
+    return office()
       .stories.filter(
         (a) =>
           (!a.title.startsWith("Conversation:") ||
@@ -226,37 +280,54 @@ export function installOfficeUI({ views, isBusy, getSection }) {
         (a, b) =>
           b.year - a.year ||
           b.week - a.week ||
-          ({
-            "Sunday Review": 0,
-            "Team communications": 1,
-            "Gridiron Journal": 1,
-            "Transactions wire": 1,
-            "League desk": 2,
-          }[a.source] ?? 3) -
-            ({
-              "Sunday Review": 0,
-              "Team communications": 1,
-              "Gridiron Journal": 1,
-              "Transactions wire": 1,
-              "League desk": 2,
-            }[b.source] ?? 3),
+          (SOURCE_RANK[a.source] ?? 3) - (SOURCE_RANK[b.source] ?? 3),
       );
-    news.total = rows.length;
-    news.pages = Math.max(1, Math.ceil(rows.length / 9));
-    news.page = Math.max(0, Math.min(news.page, news.pages - 1));
-    return (
-      rows
-        .slice(news.page * 9, news.page * 9 + 9)
-        .map(
-          (a, i) =>
-            `<article class="story-card story-topic-${a.category.toLowerCase()} ${i === 0 ? "lead-story" : ""}"><div class="story-top"><span>${esc(a.source)}</span><button class="icon-button" aria-label="${a.bookmarked ? "Unsave" : "Save"} story" onclick="Office.storyBookmark('${a.id}')">${a.bookmarked ? "★" : "☆"}</button></div><div class="story-category">${badge(a.category)}<span>${a.year} · Week ${a.week + 1}</span></div>${storyArt(a)}<h2>${esc(a.title)}</h2><p>${esc(a.body)}</p><div class="story-bottom"><span>${logo(a.team)}${esc(clubs[a.team][2])}</span>${a.messageId ? `<button class="link" onclick="Office.fromStory('${a.messageId}')">Open brief ${icon("arrow")}</button>` : a.route ? `<button class="link" onclick="W.open('${a.route}')">Explore ${icon("arrow")}</button>` : a.playerId ? `<button class="link" onclick="W.player('${a.playerId}',${a.team})">Player ${icon("arrow")}</button>` : ""}</div></article>`,
-        )
-        .join("") ||
-      '<div class="office-empty"><h2>No stories in this view.</h2><p>Change your filters or follow more franchises.</p></div>'
-    );
   }
-  views.News = () =>
-    `<div class="news-masthead"><div><span class="eyebrow">AROUND THE LEAGUE</span><h2>Gridiron Journal<span> / </span>${state.year}</h2></div><div><p>Results. Relationships. The stories behind Sunday.</p></div></div><div class="news-tools"><div class="office-tabs">${["All", "My team", "Following", "Tracked players", "Saved stories"].map((v) => `<button class="${news.scope === v ? "active" : ""}" onclick="Office.newsFilter('scope','${v}')">${v === "All" ? "Around the league" : v}</button>`).join("")}</div><select aria-label="News topic" onchange="Office.newsFilter('category',this.value)">${opts(["All", "Players", "Team", "Medical", "League", "Scouting"], news.category)}</select><button class="secondary small" onclick="Office.settings('News & workflow')">Manage following</button></div><div class="stories-grid">${storyCards()}</div><div class="exp-pagination"><span>${news.total} stories</span><button class="secondary small" onclick="Office.newsPage(-1)" ${news.page === 0 ? "disabled" : ""}>Previous</button><b>${news.page + 1} / ${news.pages}</b><button class="secondary small" onclick="Office.newsPage(1)" ${news.page >= news.pages - 1 ? "disabled" : ""}>Next</button></div>`;
+  function storyCard(a, kind) {
+    const art = storyArt(a),
+      action = a.messageId
+        ? `<button class="link" onclick="Office.fromStory('${a.messageId}')">Open brief ${icon("arrow")}</button>`
+        : a.route
+          ? `<button class="link" onclick="W.open('${a.route}')">Explore ${icon("arrow")}</button>`
+          : a.playerId
+            ? `<button class="link" onclick="W.player('${a.playerId}',${a.team})">Player ${icon("arrow")}</button>`
+            : "";
+    return `<article class="nw-story nw-${kind} story-topic-${esc(a.category.toLowerCase())}"><div class="nw-art ${art ? "" : "nw-art-crest"}">${art || (Number.isInteger(a.otherTeam) && a.otherTeam !== a.team && clubs[a.otherTeam] ? `<span class="nw-matchup"><span class="nw-crest">${logo(a.team)}</span><b>VS</b><span class="nw-crest">${logo(a.otherTeam)}</span></span>` : `<span class="nw-crest">${logo(a.team)}</span>`)}</div><div class="nw-copy"><div class="nw-meta">${badge(a.category)}<span>${esc(a.source)} · ${a.year} W${a.week + 1}</span><button class="icon-button nw-save ${a.bookmarked ? "on" : ""}" aria-label="${a.bookmarked ? "Unsave" : "Save"} story" onclick="Office.storyBookmark('${a.id}')">${a.bookmarked ? "★" : "☆"}</button></div><h3>${esc(a.title)}</h3><p>${esc(a.body)}</p><div class="nw-foot"><span class="nw-team">${logo(a.team)}${esc(clubs[a.team]?.[2] ?? "League")}</span>${action}</div></div></article>`;
+  }
+  function storyCards() {
+    const rows = storyRows(),
+      pg = pageOf(rows, news.page, NEWS_PAGE);
+    news.total = pg.total;
+    news.pages = pg.pages;
+    news.page = pg.page;
+    if (!pg.rows.length)
+      return '<div class="nw-empty"><h2>No stories in this view.</h2><p>Change the section or topic, clear the search, or follow more franchises.</p></div>';
+    const [lead, ...rest] = pg.rows;
+    return `<div class="nw-front">${storyCard(lead, "lead")}${rest.length ? `<div class="nw-briefs">${rest
+      .slice(0, 2)
+      .map((a) => storyCard(a, "brief"))
+      .join("")}</div>` : ""}</div>${rest.length > 2 ? `<div class="nw-grid">${rest
+      .slice(2)
+      .map((a) => storyCard(a, "card"))
+      .join("")}</div>` : ""}`;
+  }
+  function followStrip() {
+    const followed = office().followedTeams.filter((t) => clubs[t]);
+    return `<div class="nw-follow"><span class="nw-label">Following</span>${followed
+      .map((t) => `<span class="nw-follow-chip">${logo(t)}<b>${esc(clubs[t][0])}</b>${t === state.team ? "" : `<button class="link" aria-label="Unfollow ${esc(cname(t))}" onclick="Office.followTeam(${t},false)">×</button>`}</span>`)
+      .join("")}<select aria-label="Follow another franchise" onchange="this.value!=='' && Office.followTeam(Number(this.value),true)"><option value="">＋ Follow a team…</option>${clubs
+      .map((c, i) => [c, i])
+      .filter(([, i]) => !followed.includes(i))
+      .map(([c, i]) => `<option value="${i}">${esc(c[1] + " " + c[2])}</option>`)
+      .join("")}</select><button class="link nw-manage" onclick="Office.settings('News & workflow')">Manage following</button></div>`;
+  }
+  views.News = () => {
+    loadDeskStyles();
+    const list = storyCards(),
+      cal = state.franchise.calendarSim?.date,
+      when = cal ? new Date(cal + "T00:00:00Z").toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long", month: "long", day: "numeric", year: "numeric" }) : `${state.year} season`;
+    return `<div class="nw-page"><div class="nw-mast"><div class="nw-mast-rule"><span>Vol. ${state.year} · ${state.phase === "offseason" ? "Offseason" : state.phase === "playoffs" ? "Playoffs" : "Week " + (state.week + 1)}</span><span>${esc(when)}</span><span>${news.total} stor${news.total === 1 ? "y" : "ies"}</span></div><h2>The Gridiron Journal</h2><p>Results. Relationships. The stories behind Sunday.</p></div><div class="nw-tools"><div class="nw-seg" role="tablist" aria-label="News section">${["All", "My team", "Following", "Tracked players", "Saved stories"].map((v) => `<button role="tab" aria-selected="${news.scope === v}" class="${news.scope === v ? "on" : ""}" onclick="Office.newsFilter('scope','${v}')">${v === "All" ? "Around the league" : v}</button>`).join("")}</div><label class="nw-search">${icon("search")}<input id="news-search" type="search" aria-label="Search stories" placeholder="Search headlines…" value="${esc(news.query)}" oninput="Office.searchNews(this.value)"></label></div><div class="nw-cats" role="tablist" aria-label="News topic">${["All", "Players", "Team", "Medical", "Interviews", "League", "Scouting"].map((c) => `<button role="tab" aria-selected="${news.category === c}" class="${news.category === c ? "on" : ""}" onclick="Office.newsFilter('category','${c}')">${c === "All" ? "All topics" : c}</button>`).join("")}</div>${followStrip()}<div class="nw-stories">${list}</div><div class="nw-pager"><button class="secondary small" onclick="Office.newsPage(-1)" ${news.page === 0 ? "disabled" : ""}>◀ Previous</button><span><b>Page ${news.page + 1} / ${news.pages}</b> · ${news.total} stories</span><button class="secondary small" onclick="Office.newsPage(1)" ${news.page >= news.pages - 1 ? "disabled" : ""}>Next ▶</button></div></div>`;
+  };
   const statYears = () =>
     [
       ...new Set([
@@ -649,6 +720,9 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       const m = allMessages().find((x) => x.id === id);
       if (!m) return;
       inbox.selected = id;
+      // Opened from elsewhere (the Hub desk): clear filters that would hide it, show its page.
+      if (!filteredMessages().some((x) => x.id === id)) Object.assign(inbox, { filter: "All", category: "All", query: "" });
+      inbox.page = pageContaining(filteredMessages(), id, INBOX_PAGE, inbox.page);
       m.read = true;
       save();
       render();
@@ -656,10 +730,16 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     inboxFilter(k, v) {
       inbox[k] = v;
       inbox.selected = null;
+      inbox.page = 0;
+      render();
+    },
+    inboxPage(delta) {
+      inbox.page = Math.max(0, inbox.page + Number(delta || 0));
       render();
     },
     searchInbox(v) {
       inbox.query = v;
+      inbox.page = 0;
       document.getElementById("inbox-list").innerHTML = inboxList();
       document.getElementById("inbox-message-count").textContent =
         filteredMessages().length + " messages";
@@ -669,6 +749,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       inbox.category = "All";
       inbox.query = "";
       inbox.selected = id;
+      inbox.page = pageContaining(filteredMessages(), id, INBOX_PAGE);
       mutate((s) => respondMessage(s, id, c));
     },
     bookmark(id) {
@@ -709,6 +790,16 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       news.page += delta;
       render();
     },
+    searchNews(v) {
+      news.query = v;
+      news.page = 0;
+      render();
+      const el = document.getElementById("news-search");
+      if (el) {
+        el.focus({ preventScroll: true });
+        el.setSelectionRange?.(v.length, v.length);
+      }
+    },
     newsFilter(k, v) {
       news[k] = v;
       news.page = 0;
@@ -725,6 +816,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       inbox.category = "All";
       inbox.query = "";
       inbox.selected = id;
+      inbox.page = pageContaining(filteredMessages(), id, INBOX_PAGE);
       const m = allMessages().find((m) => m.id === id);
       if (m) m.read = true;
       save();
