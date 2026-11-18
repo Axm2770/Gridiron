@@ -58,8 +58,11 @@ export const youngStarters = (s) =>
 function seasonFor(s) {
   const e = s.franchise.expectations,
     season = e?.seasons?.[s.year];
-  return season && season.team === s.team ? season : null;
+  // A new career can reuse the boot world's franchise object: expectations belong to one career.
+  return season && season.team === s.team && (season.world ?? careerKey(s)) === careerKey(s) ? season : null;
 }
+const careerKey = (s) => `${s.franchise.userCoach?.saveName ?? ""}|${s.franchise.userCoach?.name ?? ""}`;
+const keyTag = (s) => careerKey(s).replace(/[^a-z0-9]+/gi, "").slice(0, 24);
 
 // Create this season's expectations (and the inbox brief) once per year and club.
 export function ensureSeasonExpectations(s, { post = true } = {}) {
@@ -73,6 +76,7 @@ export function ensureSeasonExpectations(s, { post = true } = {}) {
     season = e.seasons[s.year] = {
       year: s.year,
       team: s.team,
+      world: careerKey(s),
       ...strength,
       targetShift: e.nextTone?.year === s.year ? e.nextTone.shift : 0,
       createdWeek: s.week,
@@ -87,7 +91,7 @@ export function ensureSeasonExpectations(s, { post = true } = {}) {
     season.posted = true;
     const r = expectationsReport(s),
       club = s.franchise.clubs[s.team];
-    const m = postMessage(s, `expectations-${s.year}-${s.team}`, {
+    const m = postMessage(s, `expectations-${s.year}-${s.team}-${keyTag(s)}`, {
       title: `Owner's expectations for ${s.year}`,
       summary: r.headline,
       body: `${club.owner.name} has set out what ownership expects this season. The roster rates ${prof(r)}, so the board projects ${r.projected} wins and judges you on a target of ${r.target} under the ${r.mandate} mandate.\n\nTargets:\n${r.items.map((x) => `• ${x.label}${x.required ? "" : " (secondary)"}`).join("\n")}\n\nConsequences:\n${r.bands.map((b) => `• ${b.label}: ${b.when}. ${b.effect}`).join("\n")}\n\nThe board will call a meeting if results fall clearly behind. Track progress in the Boardroom.`,

@@ -70,7 +70,7 @@ assert(BM.expectationsReport(s).items.some((x) => x.key === "playoffs" && x.requ
 s = fresh();
 syncOffice(s);
 syncOffice(s);
-const brief = ensureOffice(s).messages.filter((m) => m.key === `expectations-${s.year}-${s.team}`);
+const brief = ensureOffice(s).messages.filter((m) => m.key.startsWith(`expectations-${s.year}-${s.team}`));
 assert.equal(brief.length, 1);
 assert.equal(brief[0].priority, "important");
 assert.match(brief[0].body, /Consequences:/);

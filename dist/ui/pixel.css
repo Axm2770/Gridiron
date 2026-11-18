@@ -137,6 +137,8 @@ body.gd-pixel :is(.gd-meter-track, .condition) > * {
 
 /* Images and portraits go through the mosaic filter; canvases (the 3D match) stay crisp. */
 body.gd-pixel :is(img, .team-logo) { image-rendering: pixelated; filter: url(#gd-pixelate); }
+/* An SVG filter referenced from inside a top-layer <dialog> does not render (the image disappears), so dialogs pixelate images by scaling only. */
+body.gd-pixel dialog :is(img, .team-logo) { filter: none; }
 
 /* Motion steps like sprite animation instead of easing smoothly. */
 body.gd-pixel * { transition-timing-function: steps(4, end) !important; animation-timing-function: steps(6, end) !important; }
