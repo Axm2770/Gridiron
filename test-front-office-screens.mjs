@@ -143,6 +143,14 @@ for (const html of [views.Boardroom(), views["Locker room"](), window.plan()]) {
   assert(!/undefined|NaN|\[object/.test(html), html.slice(0, 200));
 }
 assert(views.Boardroom().includes("Job security") && views.Boardroom().includes("FrontOffice.budget()"));
+// Organization hub: overview and the facilities tab keep the stadium actions.
+for (const t of ["Overview", "Facilities"]) {
+  FrontOffice.clubTab(t);
+  const html = views.Club();
+  assert(html.length > 1000 && !/undefined|NaN|\[object/.test(html), t);
+}
+assert(views.Club().includes("F.action('ticket'") && views.Club().includes("F.action('relocate'") && views.Club().includes("F.action('project'"));
+FrontOffice.clubTab("Overview");
 assert(window.plan().includes("OPPONENT ANALYSIS") && window.plan().includes("Suggested counters"));
 assert(views["Locker room"]().includes("TEAM MORALE") && views["Locker room"]().includes("CHEMISTRY"));
 const budget = state.franchise.clubs[state.team].staffBudget;

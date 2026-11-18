@@ -13,6 +13,8 @@ import {
 import { playerFace, scorePill } from "./player-ui.mjs";
 import { reputationView } from "./reputation.mjs";
 import { icon } from "./presentation.mjs";
+import { pixelFace } from "../ui/pixel-face.mjs";
+import { blocks, ensureFrontDeskStyles } from "./fo-pixel.mjs";
 import { scoutRange } from "./scouting.mjs";
 const money = (n) =>
   "$" +
@@ -20,6 +22,7 @@ const money = (n) =>
   "M";
 const arg = (x) => esc(JSON.stringify(x));
 export function installNegotiationUI({ isBusy }) {
+  ensureFrontDeskStyles();
   let activeId = null,
     mode = "free",
     stage = null,
@@ -156,7 +159,8 @@ export function installNegotiationUI({ isBusy }) {
         return;
       }
       const eligible = !c.ended && c.start + c.years === S.financeYear(state),
-        index = S.financeYear(state) - c.start;
+        index = S.financeYear(state) - c.start,
+        peak = Math.max(1, ...Array.from({ length: c.years + (c.voidYears || 0) }, (_, i) => S.capHit(c, c.start + i)));
       line =
         notice ||
         "Let us walk through the current agreement. We can discuss a base-to-bonus restructure, review the cap schedule, or handle an expiring deal through the available tag options.";
@@ -169,7 +173,7 @@ export function installNegotiationUI({ isBusy }) {
         .map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`)
         .join(
           "",
-        )}</div><div class="neg-ledger"><table><thead><tr><th>SEASON</th><th>BASE</th><th>CAP CHARGE</th></tr></thead><tbody>${Array.from({ length: c.years + (c.voidYears || 0) }, (_, i) => `<tr><td>${c.start + i}</td><td>${money(c.base[i] || 0)}</td><td>${money(S.capHit(c, c.start + i))}</td></tr>`).join("")}</tbody></table></div><div class="neg-restructure"><label>Convert base to signing bonus ($M)<input aria-label="Convert base to bonus" id="neg-restructure" type="number" min=".1" step=".1" value="1"></label><button class="secondary" onclick="Neg.restructure()" ${readonly || index < 0 || index >= c.years || state.live ? "disabled" : ""}>Discuss restructure</button></div><p class="neg-helper">A restructure moves cap charges into future years. At least $0.8M base must remain.</p><button class="small" onclick="Expansion.extension('${esc(p.id)}')" ${readonly || state.live || index < 0 || index >= c.years ? "disabled" : ""}>Negotiate extension →</button><div class="neg-tag-row"><button class="secondary small" onclick="Neg.tag('Non-exclusive franchise')" ${readonly || !eligible || state.live ? "disabled" : ""}>Franchise tag</button><button class="secondary small" onclick="Neg.tag('Transition')" ${readonly || !eligible || state.live ? "disabled" : ""}>Transition tag</button><small>${eligible ? "One tag per league year." : "Tags unlock when this contract expires."}</small></div>`;
+        )}</div><div class="neg-ledger"><table><thead><tr><th>SEASON</th><th>BASE</th><th>CAP CHARGE</th><th class="neg-bar-col" aria-hidden="true"></th></tr></thead><tbody>${Array.from({ length: c.years + (c.voidYears || 0) }, (_, i) => `<tr class="${c.start + i === S.financeYear(state) ? "neg-now" : ""}"><td>${c.start + i}${i >= c.years ? " <small>void</small>" : ""}</td><td>${money(c.base[i] || 0)}</td><td>${money(S.capHit(c, c.start + i))}</td><td class="neg-bar-col">${blocks(S.capHit(c, c.start + i), peak, 10)}</td></tr>`).join("")}</tbody></table></div><div class="neg-restructure"><label>Convert base to signing bonus ($M)<input aria-label="Convert base to bonus" id="neg-restructure" type="number" min=".1" step=".1" value="1"></label><button class="secondary" onclick="Neg.restructure()" ${readonly || index < 0 || index >= c.years || state.live ? "disabled" : ""}>Discuss restructure</button></div><p class="neg-helper">A restructure moves cap charges into future years. At least $0.8M base must remain.</p><button class="small" onclick="Expansion.extension('${esc(p.id)}')" ${readonly || state.live || index < 0 || index >= c.years ? "disabled" : ""}>Negotiate extension →</button><div class="neg-tag-row"><button class="secondary small" onclick="Neg.tag('Non-exclusive franchise')" ${readonly || !eligible || state.live ? "disabled" : ""}>Franchise tag</button><button class="secondary small" onclick="Neg.tag('Transition')" ${readonly || !eligible || state.live ? "disabled" : ""}>Transition tag</button><small>${eligible ? "One tag per league year." : "Tags unlock when this contract expires."}</small></div>`;
     }
     // Anything that would stop the offer is stated before the meeting, not after it.
     if (mode === "free") {
@@ -177,7 +181,7 @@ export function installNegotiationUI({ isBusy }) {
       if (blocks.length) body = `<div class="neg-blockers"><b>This offer can't be submitted yet</b>${blocks.map((b) => `<p>${esc(b.reason)}${b.fix ? ` <span>${esc(b.fix)}</span>` : ""}</p>`).join("")}</div>${body}`;
     }
     modal(
-      `<div class="negotiation-scene"><div class="neg-topbar"><span>${icon("briefcase")} CONTRACT MEETING <i>●</i> ${esc(step.toUpperCase())}</span><button class="icon-button" aria-label="Leave contract meeting" onclick="closeModal()">×</button></div><div class="neg-workspace"><section class="neg-cinema"><div id="neg-character-stage"></div><div class="neg-location">PRIVATE MEETING / FRONT OFFICE<small>${shot ? "AGENT RESPONSE" : "FRONT OFFICE"}</small></div><div class="neg-player-dossier">${playerFace(p)}<div><h2>${esc(p.name)}</h2><p>${esc(p.realPosition || p.pos)} · ${p.age} years · ${mode === "free" && !scoutRange(state, p, -1).exact ? `<b class="ops-fogged">${scoutRange(state, p, -1).label}</b>` : scorePill("rating", p.ovr)} OVR <button class="link" onclick="Scout.open('${p.id}')">Scouting card</button></p><span>${rep.label} · ${Math.round(rep.recognition)} reputation</span></div></div></section><section class="neg-talk"><div class="neg-cap-strip"><span>YOUR CAP ROOM<b>${money(S.capLedger(state).room)}</b></span><span>COMPETING TEAMS<b>${state.franchise.market.offers.filter((o) => o.playerId === p.id && o.team !== state.team).length}</b></span></div><div class="neg-agent-line"><span>PLAYER REPRESENTATIVE </span><p>“${esc(line)}”</p></div>${notice && mode === "free" ? `<div class="neg-error" role="alert">${esc(notice)}</div>` : ""}${readonly ? '<p class="neg-error">In your career role, contracts are handled by the front office.</p>' : ""}${body}</section></div></div>`,
+      `<div class="negotiation-scene"><div class="neg-topbar"><span>${icon("briefcase")} CONTRACT MEETING <i>●</i> ${esc(step.toUpperCase())}</span><button class="icon-button" aria-label="Leave contract meeting" onclick="closeModal()">×</button></div><div class="neg-workspace"><section class="neg-cinema"><div id="neg-character-stage"></div><div class="neg-location">PRIVATE MEETING / FRONT OFFICE<small>${shot ? "AGENT RESPONSE" : "FRONT OFFICE"}</small></div><div class="neg-player-dossier">${pixelFace(p, { size: 56, team: mode === "free" ? null : state.team })}<div><h2>${esc(p.name)}</h2><p>${esc(p.realPosition || p.pos)} · ${p.age} years · ${mode === "free" && !scoutRange(state, p, -1).exact ? `<b class="ops-fogged">${scoutRange(state, p, -1).label}</b>` : scorePill("rating", p.ovr)} OVR <button class="link" onclick="Scout.open('${p.id}')">Scouting card</button></p><span>${rep.label} · ${Math.round(rep.recognition)} reputation</span></div></div></section><section class="neg-talk"><div class="neg-cap-strip"><span>YOUR CAP ROOM<b>${money(S.capLedger(state).room)}</b></span><span>COMPETING TEAMS<b>${state.franchise.market.offers.filter((o) => o.playerId === p.id && o.team !== state.team).length}</b></span></div><div class="neg-agent-line"><span>PLAYER REPRESENTATIVE </span><p>“${esc(line)}”</p></div>${notice && mode === "free" ? `<div class="neg-error" role="alert">${esc(notice)}</div>` : ""}${readonly ? '<p class="neg-error">In your career role, contracts are handled by the front office.</p>' : ""}${body}</section></div></div>`,
     );
     document.getElementById("modal").classList.add("negotiation-dialog");
     try {
