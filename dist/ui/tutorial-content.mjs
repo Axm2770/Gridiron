@@ -91,8 +91,9 @@ export const TOURS = [
       },
       {
         route: "Game plan",
+        target: ["#app .tx-tabs", "#app .fo-plan"],
         title: "Tactics and the depth chart",
-        body: "Tactics sets your offensive and defensive schemes and who starts at each spot. Players who fit the scheme play better, and the opponent analysis shows what this week's opponent does well.",
+        body: "Tactics is your NFL game plan. The Base plan sets the scheme family, personnel, formation, front and coverage; Situational adds 3rd-down, red-zone, two-minute and 4th-down packages; Advanced fine-tunes concepts, tempo and special teams. Scheme fit shows which systems suit your roster (good fits play better), and the opponent analysis sets this week's opponent against your plan. The depth chart below decides who starts.",
       },
       {
         route: "Medical",
@@ -263,7 +264,7 @@ export const SCREEN_HELP = {
   News: { text: "League news and fan reaction. Follow clubs to see more of their stories.", tour: "season" },
   Matchday: { text: "Coach the next game live, or quick-sim it for an instant result.", tour: "season" },
   Roster: { text: "Your players. Open a profile to promote, bench, extend or release. 53 active in the season, 90 in the offseason.", tour: "roster" },
-  "Game plan": { text: "Schemes, starters and this week's opponent analysis.", tour: "roster" },
+  "Game plan": { text: "Your game plan (scheme, packages, 4th-down chart), scheme fit, starters and this week's opponent analysis.", tour: "roster" },
   Medical: { text: "Injuries, return dates and the weekly training workload.", tour: "roster" },
   Development: { text: "How each player is growing or declining, and what drives it.", tour: "organization" },
   "Locker room": { text: "Player morale and team chemistry, and the conversations that move them.", tour: "roster" },
@@ -309,5 +310,11 @@ export const GLOSSARY = {
   "Signing bonus": "Paid up front; for the cap it is spread evenly over up to five seasons.",
   "Trade deadline": "The last week of the season when trades are allowed.",
   "Scheme fit": "How well a player suits your offensive or defensive system. Good fits play above their rating.",
+  "Base personnel": "Who is on the field: the first digit is running backs, the second tight ends, e.g. 11 = 1 RB, 1 TE, 3 WR.",
+  "Coverage shell": "How the secondary splits the field: Cover 2 has two deep safeties, Cover 3 three deep zones, Cover 1 man with one safety deep.",
+  "Blitz rate": "How often the defense sends more than four pass rushers.",
+  "Run–pass lean": "How often your staff run versus pass on early downs.",
+  "Red zone": "Inside the opponent's 20-yard line, where the field shrinks.",
+  "Two-minute drill": "The hurry-up offense at the end of a half: no huddle, throws to stop the clock.",
   "Head-to-head": "Your all-time record against one club.",
 };

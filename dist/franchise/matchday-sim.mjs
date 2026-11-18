@@ -1,6 +1,7 @@
 import { gameForecast } from "./weather.mjs";
 import { recordDecision } from "./career-systems.mjs";
 import * as S from "./state.mjs";
+import { jobTactics } from "./tactics.mjs";
 import { SIM_TARGETS, matchFingerprint } from "../engine/sim-targets.mjs";
 import { commentaryFor } from "../engine/commentary.mjs";
 export const periodLabel = (m) =>
@@ -28,7 +29,7 @@ export function roundJob(s, g, { live = null } = {}) {
     weather: gameForecast(s, g)?.condition || "Clear",
     directives: s.franchise.directives,
     // The play style applies to every simulated game, as the game plan promises.
-    tactics: { style: s.coach?.style },
+    tactics: jobTactics(s),
     settings: {
       otMode: s.franchise.rules.overtime,
       touchback: s.franchise.rules.touchback || 25,
@@ -182,7 +183,7 @@ export function installMatchdaySim({
               directives: structuredClone(state.franchise.directives),
               settings: m.settings,
               labels: [clubs[m.a][0], clubs[m.b][0]],
-              tactics: { calling: preference, style: state.coach.style },
+              tactics: jobTactics(state, { calling: preference }),
             },
           ];
         view = "Matchday";
