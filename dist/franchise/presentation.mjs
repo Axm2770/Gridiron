@@ -573,7 +573,10 @@ export function installPresentation({
       const heads = [...table.tHead.rows[0].cells];
       if (heads.some((th) => th.hasAttribute("aria-sort") || th.onclick || th.getAttribute("onclick") || th.querySelector("button, select, input"))) continue;
       const host = table.closest(".f-panel, .gd-card, .panel, section") || table.parentElement;
-      if (rows.length > 12 && !table.dataset.tableFiltered && !host.querySelector('input[type="search"]')) {
+      // A paginated table sorts and searches the whole list with its own controls; doing it to one page would mislead.
+      const paginated = [...(host.parentElement || host).querySelectorAll("button")].some((b) => /^(Next|Previous)$/.test(b.textContent.trim()));
+      const ownSearch = (host.parentElement || host).querySelector('input[type="search"]');
+      if (rows.length > 12 && !paginated && !table.dataset.tableFiltered && !ownSearch) {
         let tools = document.createElement("div");
         tools.className = "table-tools";
         let label = host.querySelector("h2, h3")?.textContent?.trim() || "table";
@@ -589,8 +592,6 @@ export function installPresentation({
           tools.querySelector("small").textContent = `${shown} of ${rows.length} records`;
         };
       }
-      // A paginated table sorts the whole list with its own controls; sorting one page would mislead.
-      const paginated = [...host.querySelectorAll("button")].some((b) => /^(Next|Previous)$/.test(b.textContent.trim()));
       if (rows.length < 3 || paginated) continue;
       for (let [index, th] of heads.entries()) {
         if (SKIP_COLUMNS.has(th.textContent.trim())) continue;

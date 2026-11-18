@@ -270,6 +270,9 @@ export class CharacterStage {
       player,
       extras = [],
       shot = 0,
+      // Internal render scale used in the pixel theme (body.gd-pixel). The coach creator/dossier
+      // avatar renders at about 1/4.5 resolution and is scaled up with image-rendering: pixelated.
+      pixelScale = scene === "creator" ? 0.22 : null,
       reducedMotion = globalThis.matchMedia?.(
         "(prefers-reduced-motion: reduce)",
       ).matches,
@@ -284,6 +287,7 @@ export class CharacterStage {
     this.rigs = [];
     this.closed = false;
     this.orbit = 0.18;
+    this.pixelScale = pixelScale;
     try {
       this.renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -382,7 +386,15 @@ export class CharacterStage {
     this.camera.lookAt(this.target);
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(host);
-    this.resize();
+    this.applyPixelMode();
+    // Follow the pixel theme toggle while the stage is open.
+    if (this.pixelScale && globalThis.MutationObserver && globalThis.document?.body) {
+      this.themeObserver = new MutationObserver(() => this.applyPixelMode());
+      this.themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+    }
     this.tick = this.tick.bind(this);
     this.frame = requestAnimationFrame(this.tick);
     this.last = 0;
@@ -523,6 +535,23 @@ export class CharacterStage {
       sphere(scene, 0.035, 0.035, 0.06, dark, 0.25, 1.42, 0.24);
     }
   }
+  // Pixelated when the pixel theme is on and this stage has a pixel scale; smooth otherwise.
+  applyPixelMode() {
+    if (this.closed) return;
+    const on =
+      !!this.pixelScale &&
+      !!globalThis.document?.body?.classList.contains("gd-pixel");
+    if (on === this.pixelated && this.pixelated !== undefined) return;
+    this.pixelated = on;
+    this.renderer.setPixelRatio(
+      on ? this.pixelScale : Math.min(globalThis.devicePixelRatio || 1, 1.5),
+    );
+    const canvas = this.renderer.domElement;
+    canvas.style.imageRendering = on ? "pixelated" : "";
+    canvas.classList.toggle("gd-px-canvas", on);
+    this.host.classList?.toggle("gd-px-stage", on);
+    this.resize();
+  }
   resize() {
     if (this.closed) return;
     const w = Math.max(1, this.host.clientWidth),
@@ -558,6 +587,7 @@ export class CharacterStage {
     this.closed = true;
     cancelAnimationFrame(this.frame);
     this.resizeObserver?.disconnect();
+    this.themeObserver?.disconnect();
     this.abort?.abort();
     const geometries = new Set(),
       materials = new Set();

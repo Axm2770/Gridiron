@@ -22,6 +22,7 @@ import { hireStaff } from "./staff.mjs";
 import { assertCanAdvance } from "./compliance.mjs";
 import { random, clamp } from "../engine/random.mjs";
 import { offerScore, proposal } from "./contracts.mjs";
+import { depthRank, signingEdge } from "./market.mjs";
 // In season the calendar moves a round at a time, so free-agent decisions and waiver claims are
 // settled with each round (two market days: every offer made that week reaches its deadline).
 // Idempotent per round key; the calendar date itself is not moved.
@@ -81,6 +82,8 @@ export function marketDay(s, {calendarManaged=false, compliance=true}={}) {
     for (let j = 0; j < 3; j++) {
       let team = Math.floor(rng() * 32);
       if (team === s.team || existing.some((o) => o.team === team)) continue;
+      // Clubs don't bid for a player who would be buried on their depth chart.
+      if (depthRank(s, p, team) > ({ QB: 3, K: 2, P: 2 }[p.pos] ?? 7)) continue;
       let c = proposal(s, p, {
         annual: Math.max(0.8, p.salary * (0.9 + rng() * 0.5)),
         years: 2 + Math.floor(rng() * 3),
@@ -151,6 +154,7 @@ export function marketDay(s, {calendarManaged=false, compliance=true}={}) {
         p.fitness ??= 100;
         p.starter = false;
         p.salary = winning.contract.base[0] / MILLION;
+        p.joined = { team: winning.team, year: s.year };
         roster(s, winning.team).push(p);
         f.contracts[id] = winning.contract;
         s.agents = s.agents.filter((x) => x.id !== id);
@@ -173,7 +177,7 @@ export function marketDay(s, {calendarManaged=false, compliance=true}={}) {
       const ours = offers.find((o) => o.team === s.team);
       if (ours && winning?.team !== s.team) {
         const eligible = capLedger(s).room >= ours.contract.base[0] + ours.contract.bonus / ours.contract.prorate && roster(s).filter((q) => q.status === "active").length < (s.phase === "offseason" ? 90 : 53);
-        log(s, "Free agent signed elsewhere", !eligible ? `Your offer to ${p.name} lapsed: when he decided you no longer had the cap room or an active-roster spot to sign him.` : winning ? `${p.name} chose the ${teamName(s, winning.team)}. Their offer scored higher on money, guarantees, contention and fit; more guaranteed money or a starting role would have helped.` : `${p.name} turned down every offer for now.`);
+        log(s, "Free agent signed elsewhere", !eligible ? `Your offer to ${p.name} lapsed: when he decided you no longer had the cap room or an active-roster spot to sign him.` : winning ? `${p.name} chose the ${teamName(s, winning.team)}. ${(() => { const edge = signingEdge(s, p, winning.team, s.team); return edge.length ? `Beyond the money, what swung it: ${edge.slice(0, 2).join(" and ")}.` : "Their offer was stronger on money and guarantees."; })()} More guaranteed money or a clearer role would have helped.` : `${p.name} turned down every offer for now.`);
       }
       f.market.offers = f.market.offers.filter((o) => o.playerId !== id);
     }

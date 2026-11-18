@@ -269,7 +269,7 @@ export function allowed(s, area) {
 export function requireRole(s, area) {
   if (!allowed(s, area))
     throw Error(
-      `As ${ROLE_TITLES[s.franchise.role] || s.franchise.role}, ${area} decisions are not yours to make. Change your career role in Coach career to take them on.`,
+      `As ${ROLE_TITLES[s.franchise.role] || s.franchise.role}, ${area} decisions are not yours to make. Your career role was set when the career began; start a new career or accept a job offer to take them on.`,
     );
 }
 export function bonusCharge(amount, term, index) {

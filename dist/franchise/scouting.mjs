@@ -155,7 +155,7 @@ export function reportBlocker(s, id) {
   const where = locate(s, id);
   if (!where) return { reason: "This player is no longer in the league.", fix: null };
   if (where.team === s.team) return { reason: "He is on your roster, so your staff already know his exact ratings.", fix: null };
-  if (!allowed(s, "scout")) return { reason: `In a ${s.franchise.role} career your general manager runs scouting.`, fix: "Change your career role to Owner or GM in Career dossier." };
+  if (!allowed(s, "scout")) return { reason: `In a ${s.franchise.role} career your general manager runs scouting.`, fix: "Your career role was set when the career began. Start a new career, or accept a job offer as Owner or GM, to run scouting yourself." };
   const view = scoutRange(s, where.p, where.team);
   if (view.exact) return { reason: "Fully scouted: these are his true ratings.", fix: null };
   if (view.pending) return { reason: `A report is already on the way, due ${view.pending.due}.`, fix: null };

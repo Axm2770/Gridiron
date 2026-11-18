@@ -4,7 +4,7 @@ import * as S from "./state.mjs";
 import * as K from "../ui/kit.mjs";
 import { medicalBoard, treatmentOutlook, recommendedTreatment, chooseTreatment, physioCandidates, hirePhysio, TREATMENTS } from "./medical.mjs";
 import { DAYS, BLOCKS, TEMPLATES, DRILLS, POSITION_MOVES, ensureTraining, weekPlan, setSchedule, applyTemplate, setDrill, setIndividualTarget, changePosition, efficiency } from "./training.mjs";
-import { evaluateTrade, executeTrade, ownedPicks, pickValue, pickLabel, playerTradeValue, teamMode, marketValue, signingFactors, respondToOffer, marketWindows, tradeBlockers, estimatedAsk, suggestPackage, scoutedTradeValue, pickEquivalent } from "./market.mjs";
+import { evaluateTrade, executeTrade, ownedPicks, pickValue, pickLabel, playerTradeValue, teamMode, marketValue, signingFactors, respondToOffer, marketWindows, tradeBlockers, estimatedAsk, suggestPackage, scoutedTradeValue, pickEquivalent, scoutedAsk, counterOffer } from "./market.mjs";
 import { REGIONS, ensureScouting, scoutCandidates, hireScout, assignScout, scoutedView, consensusBoard, startLiveDraft, onTheClock, stepDraft, simToUserPick, makeUserPick, tradeDownOffers, acceptTradeDown, tradeUpQuote, acceptTradeUp } from "./draft-room.mjs";
 import { ensurePlayerRatings } from "./ratings.mjs";
 import { scoutRange } from "./scouting.mjs";
@@ -105,10 +105,11 @@ const blockList = (list) => `<ul class="ops-blockers">${list.map((b) => `<li><b>
 
 function assetList(team, picked, side) {
   const mine = team === state.team,
-    all = (mine ? state.roster : state.franchise.clubs[team].players).filter((p) => (!p.status || p.status === "active") && (!p.injury || !mine)),
+    all = (mine ? state.roster : state.franchise.clubs[team].players).filter((p) => picked.includes(p.id) || ((!p.status || p.status === "active") && (!p.injury || !mine))),
     players = all
       .map((p) => {
-        const v = mine ? { estimate: playerTradeValue(state, p, ui.partner), exact: true } : scoutedTradeValue(state, p, state.team, team);
+        // Yours: what he is worth to them. Theirs: what they would ask for him, as your scouts see it.
+        const v = mine ? { estimate: playerTradeValue(state, p, ui.partner), exact: true } : scoutedAsk(state, p, team);
         return { p, v };
       })
       .sort((a, b) => b.v.estimate - a.v.estimate)
@@ -122,10 +123,54 @@ function assetList(team, picked, side) {
           ovr = mine || view.exact ? `${p.ovr} OVR` : `<span class="ops-fogged">${view.label} OVR (scouted ${view.confidence}%)</span>`,
           value = v.exact ? v.estimate : `${v.low}–${v.high}`,
           report = `<button type="button" class="gd-link ops-report" onclick="event.preventDefault();Scout.open('${p.id}')">Report</button>`;
-        return item(p.id, `${p.pos} ${p.name}`, `${ovr} · ${p.age} yrs`, value, report);
+        const tag = !mine && v.untouchable ? ` · <b class="gd-down">Not for sale</b>` : p.tradeDemand ? ` · <span class="gd-up">Wants out</span>` : p.injury ? ` · <span class="gd-down">Injured</span>` : "";
+        return item(p.id, `${p.pos} ${p.name}`, `${ovr} · ${p.age} yrs${tag}`, value, report);
       })
       .join("") + picks.map((x) => item(x.id, pickLabel(state, x), "Draft pick", pickValue(state, x))).join("")
   );
+}
+
+// One line per factor: + helps your offer, − raises their price. The percentage is the effect
+// on that asset's value (or on the whole deal), never the hidden rating behind it.
+function effectLabel(f) {
+  const n = Math.round(Math.abs(f.pct) * 100),
+    sign = f.pct > 0 ? "+" : "−";
+  if (f.key === "dead" || (!f.pct && f.flat)) return `+${f.flat ?? Math.abs(f.points)} pts`;
+  if (f.key === "margin") return `+${n}% on top`;
+  if (f.side === "deal") return `picks ${sign}${n}%`;
+  return f.side === "receive" ? `their price ${sign}${n}%` : `value to them ${sign}${n}%`;
+}
+
+function factorList(list, limit = 8) {
+  return `<ul class="mk-factors">${list
+    .slice(0, limit)
+    .map((f) => `<li class="mk-${f.tone || "neutral"}"><span class="mk-sign" aria-hidden="true">${f.tone === "good" ? "+" : f.tone === "bad" ? "−" : "·"}</span><span>${e(f.text)}</span><small>${e(effectLabel(f))}</small></li>`)
+    .join("")}</ul>`;
+}
+
+// The Market's trade builder state after "Trade for <player>": that club as partner, the player
+// ticked in "You receive", and a suggested package (if one covers the ask) in "You send".
+export function applyTradeFor(s, id, team, target = ui) {
+  const partner = Number(team);
+  target.market = "builder";
+  target.partner = partner;
+  target.get = [id];
+  target.give = [];
+  target.response = null;
+  if (!s.franchise.clubs[partner] || partner === s.team || !S.roster(s, partner).some((p) => p.id === id)) {
+    target.get = [];
+    target.response = { ok: false, title: "He is no longer with that club", lines: ["Pick another player from their list."] };
+    return target;
+  }
+  const name = S.roster(s, partner).find((p) => p.id === id).name,
+    pkg = suggestPackage(s, partner, [id]);
+  if (pkg.untouchable?.length) target.response = { ok: false, title: `${name} is not for sale`, lines: pkg.untouchable.map((u) => `${u.why}.`) };
+  else if (!pkg.covered) target.response = { ok: false, title: "Nothing you own covers it", lines: [`Your scouts expect them to want about ${pkg.target} points for ${name}, more than any four of your tradeable assets are worth to them.`] };
+  else {
+    target.give = pkg.give;
+    target.response = { ok: true, title: `Suggested package for ${name}`, lines: [`Worth ${pkg.total} points to them against an estimated ask of ${pkg.target}. Their reasoning is above; adjust it, then propose.`] };
+  }
+  return target;
 }
 
 function tradeDesk() {
@@ -141,10 +186,22 @@ function tradeDesk() {
   if (!ui.get.length) body += `<p class="ops-help">1. Tick the players or picks you want from the ${e(club(ui.partner))}. 2. Press <b>Suggest a package</b> or pick what you send. 3. Propose.</p>`;
   if (blockers.length) body += `<p class="ops-label">Can't be proposed yet</p>${blockList(blockers)}`;
   if (ask) {
-    const verdict = sending >= ask.high ? ["Likely accepted", "good"] : sending >= ask.low ? ["Borderline", "warn"] : ["Likely refused", "bad"];
-    body += `${K.stats([["You send", `${sending} pts`, ui.give.length ? pickEquivalent(sending) : "Nothing yet"], ["They want", ask.exact ? `${ask.estimate} pts` : `${ask.low}–${ask.high} pts`, ask.exact ? "Exact: fully scouted" : "Your scouts' estimate"]])}<p class="ops-verdict">${K.chip(ui.give.length ? verdict[0] : "Add what you send", ui.give.length ? verdict[1] : "")} ${ask.exact ? "" : `<small>Unscouted players make this a guess. Request a report to narrow it.</small>`}</p><button class="gd-btn" onclick="Ops.suggest()">Suggest a package</button>`;
+    const locked = ask.untouchable.length > 0,
+      verdict = locked ? ["Not for sale", "bad"] : sending >= ask.high ? ["Likely accepted", "good"] : sending >= ask.low ? ["Borderline", "warn"] : ["Likely refused", "bad"];
+    body += `${K.stats([["You send", `${sending} pts`, ui.give.length ? pickEquivalent(sending) : "Nothing yet"], ["They want", ask.exact ? `${ask.estimate} pts` : `${ask.low}–${ask.high} pts`, ask.exact ? "Exact: fully scouted" : "Your scouts' estimate"]])}<p class="ops-verdict">${K.chip(ui.give.length || locked ? verdict[0] : "Add what you send", ui.give.length || locked ? verdict[1] : "")} ${ask.exact ? "" : `<small>Unscouted players make this a guess. Request a report to narrow it.</small>`}</p>`;
+    if (locked) body += `<div class="mk-untouchable">${ask.untouchable.map((u) => `<p><b>${e(u.why)}.</b></p>`).join("")}<small>Ask about someone else, or come back if they start rebuilding.</small></div>`;
+    else {
+      // Their reasoning, live: the partner's factors for this exact package.
+      const reaction = evaluateTrade(state, { partner: ui.partner, give: ui.give, get: ui.get }),
+        shown = reaction.factors.filter((f) => f.points || f.flat);
+      body += `<p class="ops-label mk-label">Their front office's reasoning</p>${shown.length ? factorList(shown) : `<p class="ops-help">Nothing beyond the points: no age, contract, injury, reputation, character or need concerns either way.</p>`}`;
+      const gap = ask.estimate - sending,
+        counter = ui.give.length && gap > 0 ? counterOffer(state, { partner: ui.partner, give: ui.give, get: ui.get }, gap) : null;
+      if (counter) body += `<div class="mk-counter"><small>To close the estimated gap of ${gap} points:</small><button class="gd-btn" onclick="Ops.addAll('${counter.adds.join(",")}')">Add ${e(counter.label)} (${counter.value} pts)</button></div>`;
+    }
+    body += `<button class="gd-btn" ${locked ? "disabled" : ""} onclick="Ops.suggest()">Suggest a package</button>`;
   }
-  if (ui.response) body += `<div class="ops-response ${ui.response.ok ? "good" : "bad"}"><b>${e(ui.response.title)}</b>${ui.response.lines.map((l) => `<p>${e(l)}</p>`).join("")}${ui.response.counter ? `<button class="gd-btn" onclick="Ops.asset('give','${ui.response.counter.add}',true)">Add ${e(ui.response.counter.label)} and try again</button>` : ""}</div>`;
+  if (ui.response) body += `<div class="ops-response ${ui.response.ok ? "good" : "bad"}"><b>${e(ui.response.title)}</b>${ui.response.lines.map((l) => `<p>${e(l)}</p>`).join("")}${ui.response.factors?.length ? factorList(ui.response.factors) : ""}${ui.response.counter ? `<button class="gd-btn" onclick="Ops.addAll('${(ui.response.counter.adds || [ui.response.counter.add]).join(",")}')">Add ${e(ui.response.counter.label)} and try again</button>` : ""}</div>`;
   const reason = blockers[0] ? blockerText(blockers[0]) : "";
   body += `<button class="gd-btn gd-primary" ${blockers.length || !ui.get.length || !ui.give.length ? "disabled" : ""} title="${e(reason || (!ui.give.length || !ui.get.length ? "Add at least one player or pick on each side." : "Send this offer to their front office."))}" onclick="Ops.propose()">Propose trade</button>`;
   return body;
@@ -162,10 +219,10 @@ function freeAgentTable() {
         bids = state.franchise.market.offers.filter((o) => o.playerId === p.id),
         own = mine.find((o) => o.playerId === p.id),
         block = offerBlockers(state, p.id)[0];
-      return `<tr><td><span class="gd-pos">${e(p.pos)}</span> <b>${e(p.name)}</b><small>${p.age} yrs</small></td><td>${v.exact ? p.ovr : `<span class="ops-fogged">${v.label}</span>`}</td><td>${money(Math.round(p.salary * S.MILLION))}/yr</td><td>${K.chip(`×${f.total}`, f.total >= 1.05 ? "good" : f.total <= 0.95 ? "bad" : "")}<small>${bids.length} bid${bids.length === 1 ? "" : "s"}</small></td><td>${own ? K.chip(`Your offer: decided market day ${own.close}`, "good") : ""}<span class="ops-actions"><button class="gd-btn" onclick="Scout.open('${p.id}')">Report</button><button class="gd-btn gd-primary" ${block ? "disabled" : ""} title="${e(block ? blockerText(block) : "Open contract talks")}" onclick="Neg.open('${p.id}')">Negotiate</button></span></td></tr>`;
+      return `<tr><td><span class="gd-pos">${e(p.pos)}</span> <b>${e(p.name)}</b><small>${p.age} yrs</small></td><td>${v.exact ? p.ovr : `<span class="ops-fogged">${v.label}</span>`}</td><td>${money(Math.round(p.salary * S.MILLION))}/yr</td><td title="${e(f.reasons.map((r) => r.text).join(" ") || "No strong pull either way")}">${K.chip(`×${f.total}`, f.total >= 1.05 ? "good" : f.total <= 0.95 ? "bad" : "")}<small>${bids.length} bid${bids.length === 1 ? "" : "s"}</small>${f.reasons.slice(0, 2).map((r) => `<small class="mk-why mk-${r.tone || "neutral"}">${e(r.text)}</small>`).join("")}</td><td>${own ? K.chip(`Your offer: decided market day ${own.close}`, "good") : ""}<span class="ops-actions"><button class="gd-btn" onclick="Scout.open('${p.id}')">Report</button><button class="gd-btn gd-primary" ${block ? "disabled" : ""} title="${e(block ? blockerText(block) : "Open contract talks")}" onclick="Neg.open('${p.id}')">Negotiate</button></span></td></tr>`;
     })
     .join("");
-  return `${general.length ? `<div class="ops-callout"><b>Contract offers are blocked right now</b>${blockList(general)}</div>` : ""}<div class="hub-table-scroll"><table class="ops-table"><thead><tr><th>Player</th><th>Overall</th><th>Asking</th><th>Pull / bids</th><th>Action</th></tr></thead><tbody>${rows || `<tr><td colspan="5">No free agents available right now.</td></tr>`}</tbody></table></div>`;
+  return `${general.length ? `<div class="ops-callout"><b>Contract offers are blocked right now</b>${blockList(general)}</div>` : ""}<div class="hub-table-scroll"><table class="ops-table"><thead><tr><th>Player</th><th>Overall</th><th>Asking</th><th title="How much your club appeals to him beyond money: role, contention, coach, scheme, his personality">Pull to you / bids</th><th>Action</th></tr></thead><tbody>${rows || `<tr><td colspan="5">No free agents available right now.</td></tr>`}</tbody></table></div>`;
 }
 
 // Why the "Next market day" button cannot move the calendar, or null.
@@ -182,7 +239,13 @@ function marketClock() {
   return `<div class="ops-clock"><div><b>Market clock · ${e(ensureCalendar(state).date)} · market day ${state.franchise.market.day}</b><small>Each market day, players decide on offers whose deadline has arrived, CPU clubs bid, and waiver claims are awarded. In season this also happens automatically after every game week.</small></div><button class="gd-btn" ${block ? "disabled" : ""} title="${e(block || "Move the calendar forward one day")}" onclick="Ops.marketDay()">Next market day →</button>${block ? `<small class="ops-why">${e(block)}</small>` : ""}</div>${d ? `<div class="ops-digest"><b>${e(d.from)} → ${e(d.to)}</b>${d.items.length ? `<ul>${d.items.map((x) => `<li><b>${e(x.title)}</b> ${e(x.body)}</li>`).join("")}</ul>` : `<p>A quiet day: no offer reached its deadline and no claims were due.</p>`}</div>` : ""}`;
 }
 
+// Market styles live in market.css, loaded once beside the design system.
+function marketStyles() {
+  if (typeof document !== "undefined" && typeof document.querySelector === "function" && !document.querySelector('link[href="market.css"]')) document.head?.insertAdjacentHTML?.("beforeend", '<link rel="stylesheet" href="market.css">');
+}
+
 export function marketView() {
+  marketStyles();
   const offers = state.franchise.tradeDesk?.offers.filter((o) => o.status === "open") ?? [];
   const tabs = sub([["builder", "Trade builder"], ["offers", `Offers${offers.length ? ` (${offers.length})` : ""}`], ["agents", "Free agents"]], ui.market, "market");
   const head = `<div class="gd-toolbar">${tabs}<span style="display:flex;gap:6px;flex-wrap:wrap">${`<span title="How the league sees your club this season: contenders value proven players, rebuilding clubs value youth and picks.">${K.chip(`Your club: ${teamMode(state, state.team)}`, "team")}</span>`}${K.chip(`Cap room ${money(S.capLedger(state).room)}`)}${K.chip(`Roster ${activeCount(state)}/${rosterLimit(state)}`)}</span></div>${windowStrip()}`;
@@ -191,7 +254,7 @@ export function marketView() {
   if (ui.market === "agents") return `${head}${marketClock()}<div class="gd-bento">${K.card({ title: "Free agents", span: 12, accent: true, body: freeAgentTable() })}</div>`;
   const partners = Array.from({ length: 32 }, (_, i) => i).filter((i) => i !== state.team);
   if (ui.partner == null || ui.partner === state.team) ui.partner = partners[0];
-  return `${head}<div class="gd-bento">${K.card({ title: "You send", span: 4, scroll: true, body: `<p class="ops-value-hint">The number beside each player or pick is its trade value in points: what the other club thinks it is worth. Deals need roughly equal points.</p><div class="ops-assets">${assetList(state.team, ui.give, "give")}</div>` })}${K.card({ title: "You receive", span: 4, scroll: true, action: `<select aria-label="Trade partner" onchange="Ops.partner(this.value)">${partners.map((t) => `<option value="${t}" ${t === ui.partner ? "selected" : ""}>${e(club(t))} · ${teamMode(state, t)}</option>`).join("")}</select>`, body: `<div class="ops-assets">${assetList(ui.partner, ui.get, "get")}</div>` })}${K.card({ title: "Their front office", span: 4, accent: true, body: tradeDesk() })}</div>`;
+  return `${head}<div class="gd-bento">${K.card({ title: "You send", span: 4, scroll: true, body: `<p class="ops-value-hint">The number beside each asset is its trade value in points: yours as the other club values them, theirs as your scouts expect them to price them. Points are only the starting point: age, contracts, injuries, reputation, character and each club's needs move the price, and their front office lists its reasoning as you build the deal.</p><div class="ops-assets">${assetList(state.team, ui.give, "give")}</div>` })}${K.card({ title: "You receive", span: 4, scroll: true, action: `<select aria-label="Trade partner" onchange="Ops.partner(this.value)">${partners.map((t) => `<option value="${t}" ${t === ui.partner ? "selected" : ""}>${e(club(t))} · ${teamMode(state, t)}</option>`).join("")}</select>`, body: `<div class="ops-assets">${assetList(ui.partner, ui.get, "get")}</div>` })}${K.card({ title: "Their front office", span: 4, accent: true, body: tradeDesk() })}</div>`;
 }
 
 /* ---------------------------------------------------------------------- draft */
@@ -279,9 +342,16 @@ export function installOps({ isBusy }) {
       ui.response = null;
       render();
     },
+    addAll(ids) {
+      for (const id of String(ids).split(",").filter(Boolean)) if (!ui.give.includes(id)) ui.give.push(id);
+      ui.response = null;
+      render();
+    },
     suggest() {
       const pkg = suggestPackage(state, ui.partner, ui.get);
-      if (!pkg.covered) {
+      if (pkg.untouchable?.length) {
+        ui.response = { ok: false, title: "Not for sale", lines: pkg.untouchable.map((u) => `${u.why}.`) };
+      } else if (!pkg.covered) {
         ui.response = { ok: false, title: "Nothing you own covers it", lines: [`Your scouts expect them to want about ${pkg.target} points, more than any four of your tradeable assets are worth to them.`] };
       } else {
         ui.give = pkg.give;
@@ -290,21 +360,19 @@ export function installOps({ isBusy }) {
       render();
     },
     // Opens the trade builder for one player from his scouting card, with a suggested package.
+    // Also used by the player profile ("Trade for <name>").
     tradeFor(id, team) {
-      ui.market = "builder";
-      ui.partner = Number(team);
-      ui.get = [id];
-      ui.give = [];
+      applyTradeFor(state, id, team);
       if (typeof closeModal === "function") closeModal();
-      Ops.suggest();
-      window.W?.open?.("Market");
+      if (window.W?.open) window.W.open("Market");
+      else render();
     },
     propose() {
       if (isBusy()) return;
       const proposal = { partner: ui.partner, give: [...ui.give], get: [...ui.get] },
         verdict = evaluateTrade(state, proposal);
       if (!verdict.accept) {
-        ui.response = { ok: false, title: `${club(ui.partner)} said no`, lines: verdict.reasons, counter: verdict.counter };
+        ui.response = { ok: false, title: `${club(ui.partner)} said no`, lines: verdict.reasons, counter: verdict.counter, factors: verdict.factors.filter((f) => f.points < 0).slice(0, 4) };
         render();
         return;
       }

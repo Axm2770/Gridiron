@@ -29,15 +29,44 @@ Every file in this release was built by GitHub Actions from this tag, passed the
 
 If you have 0.24.1 or later, the game offers this update in-game: choose **Download now**, then **Restart now**. Your careers are untouched. On 0.23.0 or earlier, download this version once from this page.
 
-## New in 0.24.4
+## New in 0.25.0
+
+### A real transfer market
+- Clubs no longer trade on points alone. Age, contract, injury history, reputation (fan favourites, franchise icons and legends), character and controversy, team needs and whether a club is contending or rebuilding all move the price. Some players are simply not for sale.
+- Their front office explains its thinking as you build a deal ("They need a CB", "He's a franchise icon: they want 30% more", "Injury concerns") and suggests what would close the gap.
+- **Trade for a specific player:** open any player's profile on another club and choose **Trade for <name>**. The trade builder opens with him selected and a package suggested.
+- Suggested packages aim for a fair price, and a trade that would leave you without a healthy player at a position is blocked before it happens.
+- Free agents weigh more than money: veterans chase contenders, young players want to start, and a player may return to a former club. You see the reasons.
+
+### Lineups you can see
+- Squad and Tactics show your starters on a pixel football field, like a retro lineup screen. Switch between offense, defense and special teams.
+- Click a player on the field (or drag one from the bench) to change your starter. Injured players are listed with the reason they can't play.
+- Switch to **Table** for the full list. Sorting now works properly: every metric, both directions, players without data last, and the column headers and the Sort by menu agree.
+
+### Expectations and meetings
+- Each season the owner sets expectations from your club's strength: a win target, playoffs for strong clubs, cap discipline and young players to develop. Find them in the Boardroom.
+- Fall clearly behind and the board calls a meeting: commit to a short-term target, ask for patience to develop youth, or request resources, each with real consequences. Struggling teams also get a meeting with the captains.
+- Plans have a checkpoint, and missing it hurts your job security. Each season ends with a review against the expectations.
+
+### Careers
+- **Delete careers** from the career library, with a confirmation (and an option to export first).
+- The career library has a cleaner layout: one card per career with club, coach, season, record and last played.
+- Your career role, background and archetype are fixed once a career starts. Start a new career, or accept a job offer, to change role.
+- The coach avatar is pixel art, in the creation screen, the dossier and the sidebar.
+
+### Fixes
+- The expectations brief now reaches the inbox for new careers.
+- Team logos show inside dialogs again with the pixel theme on.
+
+## Earlier 0.24 updates
+
+### New in 0.24.4
 
 - **Sort any table.** Click a column header to sort it, on every screen: Squad, Locker room, the draft board, Development and the rest. Numbers sort highest first. Long tables also get a search box.
 - **The contract ledger** shows 25 contracts per page instead of 8.
 - **Player profiles** show where the player sits on the depth chart (for example "QB, 1st of 2, starter") and his four best attributes.
 - **Clearer roster buttons** on a profile: Make starter, Move to bench, or Move to active roster for a practice-squad player.
 - **Search runs actions.** Press Ctrl+K (⌘K on a Mac) and type "sim", "trim", "help" or "tour" to simulate to the next game, trim to 53, open help or start a tutorial.
-
-## Earlier 0.24 updates
 
 ### New in 0.24.3
 
