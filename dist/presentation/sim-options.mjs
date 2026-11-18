@@ -107,11 +107,15 @@ export function simOptionsControls({ compact = false, voices = [], voiceURI = ""
         .join("")}</select>`,
     toggle = (key, aria) => `<input type="checkbox" aria-label="${aria}" ${o[key] ? "checked" : ""} onchange="SimOptions.set('${key}',this.checked);render()">`,
     esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const group = (title) => (compact ? `<b class="sim-opt-group">${title}</b>` : "");
   return [
-    row("Instant replays", "Replay touchdowns, takeaways, sacks, kicks and big gains automatically.", toggle("replays", "Instant replays")),
-    row("Replay speed", "Slow motion for instant and manual replays.", select("replaySpeed", "Replay speed", SIM_OPTION_CHOICES.replaySpeed.map((v) => [v, v === 1 ? "Full speed" : `${v}× slow motion`]))),
+    compact ? `<div class="sim-opt-head"><b>Simulator</b><small>Saved on this device · never changes a result</small></div>` : "",
+    group("Playback"),
     row("Game speed", "How fast each live play animates. Results are identical at every speed.", select("gameSpeed", "Game speed", SIM_OPTION_CHOICES.gameSpeed.map((v) => [v, `${v}×`]))),
+    row("Instant replays", "Replay touchdowns, takeaways, sacks, kicks and big gains automatically.", toggle("replays", "Instant replays")),
+    row("Replay speed", "Slow motion for instant and manual replays.", select("replaySpeed", "Replay speed", SIM_OPTION_CHOICES.replaySpeed.map((v) => [v, v === 1 ? "Full speed" : compact ? `${v}× slow` : `${v}× slow motion`]))),
     row("Matchday intro", "Teams, venue, weather and records before kickoff. Skippable.", toggle("intro", "Matchday intro")),
+    group("Commentary"),
     row("Spoken commentary", "Play-by-play voice. Captions follow the setting below.", toggle("commentary", "Spoken commentary")),
     row(
       "Commentator voice",

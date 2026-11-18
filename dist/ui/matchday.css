@@ -1,0 +1,392 @@
+/* Matchday workspace (franchise/touchline-ui.mjs). Loaded by touchline-ui after the theme sheets.
+   Structure fixes apply to both themes; the pixel look is scoped to body.gd-pixel.
+   Layout, top to bottom: scoreboard + situation strip, control rail (tabs, skip-to), then the
+   field card (actions, 3D/2D view, sideline + booth, mini stats) beside the call sheet. */
+
+/* ---------- Structure (both themes) ---------- */
+.touch-broadcast { overflow: visible; }
+.touch-broadcast .stadium-wrap { overflow: hidden; }
+/* The 3D toolbar wraps instead of scrolling, and sits above the canvas so popovers are never cut off. */
+.touch-broadcast .stadium-toolbar { overflow: visible !important; flex-wrap: wrap; position: relative; z-index: 30; }
+/* Two tidy groups: view (camera, reset, replay, 2D) then presentation (sound, theater,
+   fullscreen, sim options). They share one row when the field is wide and split cleanly when not. */
+.touch-broadcast { container-type: inline-size; container-name: md-field; }
+.touch-broadcast .stadium-toolbar > .tag { display: none; }
+.touch-broadcast .stadium-toolbar > button.link { order: 1; margin-left: auto; }
+.touch-broadcast .stadium-toolbar > :is(button[onclick^="window.matchAudio"], button[onclick^="BroadcastHUD"]) { order: 3; }
+.touch-broadcast .stadium-toolbar > .sim-options-pop { order: 4; margin-left: auto; }
+.touch-broadcast .stadium-toolbar::after { content: ""; order: 2; flex-basis: 100%; height: 0; }
+@container md-field (min-width: 940px) {
+  .stadium-toolbar::after { display: none; }
+}
+.sim-options-pop[open] > .sim-options-panel { display: grid; }
+.sim-options-panel {
+  left: auto !important;
+  right: 0;
+  z-index: 60 !important;
+  width: 300px !important;
+  max-width: calc(100vw - 32px);
+  max-height: none !important;
+  overflow: visible !important;
+  gap: 6px !important;
+  grid-template-columns: minmax(0, 1fr);
+}
+.sim-opt { display: grid; grid-template-columns: minmax(0, 1fr) 132px; align-items: center; gap: 10px; font-size: 13px; }
+.sim-opt > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sim-opt > select { width: 132px; min-width: 0; font-size: 12px; padding: 5px 6px; }
+.sim-opt > input[type="checkbox"] { justify-self: end; width: 18px; height: 18px; margin: 0; accent-color: var(--gd-accent, #b8f03a); }
+.sim-opt-head { display: grid; gap: 2px; padding-bottom: 6px; border-bottom: 2px solid var(--gd-border, #2a3446); }
+.sim-opt-head b { font-size: 14px; }
+.sim-opt-head small { font-size: 11px; color: var(--gd-text-3, #8a96ad); }
+.sim-opt-group { margin-top: 4px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gd-text-3, #8a96ad); }
+.touch-feed-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.touch-feed-row > .touch-booth { border-top: 0; }
+.touch-header .touch-scoreboard { border-radius: 0; }
+.touch-timeouts > span { display: inline-flex; align-items: center; gap: 6px; }
+.touch-pips { letter-spacing: 2px; }
+.touch-pips i { font-style: normal; opacity: 0.45; }
+/* The field fits the viewport so the snap controls and the call sheet stay in view. */
+body:not(.gd-theater) .touch-broadcast .stadium-host { height: clamp(300px, calc(100vh - 430px), 560px) !important; min-height: 0; }
+
+/* ---------- Pixel theme ---------- */
+body.gd-pixel .touch-app {
+  --md-panel: var(--gd-surface);
+  --md-ink: var(--px-ink);
+  --md-label: var(--gd-text-3);
+  display: grid;
+  gap: 12px;
+  color: var(--gd-text);
+}
+body.gd-pixel.matchday-app #app > .title-row { margin: 8px 0 10px; }
+body.gd-pixel.matchday-app #app > .title-row .subtitle { font-size: 13px; }
+/* Small caps labels used across every matchday panel. */
+body.gd-pixel :is(.touch-panel-heading > span, .touch-broadcast-heading > span, .touch-coordinator b, .touch-booth b, .touch-tempo > span, .touch-mini-stats small, .touch-score-clock > span, .touch-score-clock small, .touch-score-team small, .touch-timeouts, .touch-period-grid > span, .touch-prematch-top, .touch-entry-card > span) {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+  color: var(--md-label, var(--gd-text-3)) !important;
+}
+
+/* Matchday game-day strip (momentum, crowd, weather) as one slim row. */
+body.gd-pixel.matchday-app .gd-gameday { margin-bottom: 12px !important; }
+body.gd-pixel.matchday-app .gd-gameday > .gd-card-body { display: grid; grid-template-columns: auto minmax(220px, 1fr); align-items: center; gap: 8px 20px; padding: 8px 14px !important; }
+body.gd-pixel.matchday-app .gd-gameday .gd-toolbar { margin: 0 !important; gap: 12px; }
+body.gd-pixel.matchday-app .gd-gameday .gd-meter { margin: 0 !important; }
+body.gd-pixel.matchday-app .gd-gameday > .gd-card-body > :nth-child(n + 3) { grid-column: 1 / -1; }
+
+/* Scoreboard: team-colour blocks, LED-style digits, the situation strip attached underneath. */
+body.gd-pixel .touch-header { border: 3px solid var(--gd-border-strong); box-shadow: var(--gd-shadow); background: var(--gd-bg-2); }
+body.gd-pixel .touch-scoreboard {
+  grid-template-columns: minmax(0, 1fr) 170px minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  border: 0 !important;
+  background: var(--md-ink) !important;
+  box-shadow: none !important;
+}
+body.gd-pixel .touch-scoreboard::before { display: none; }
+body.gd-pixel .touch-score-team { padding: 12px 16px; gap: 14px; background: linear-gradient(90deg, var(--home) 0 10px, var(--gd-surface) 10px); min-height: 84px; }
+body.gd-pixel .touch-score-team.away { background: linear-gradient(270deg, var(--away) 0 10px, var(--gd-surface) 10px); }
+body.gd-pixel .touch-score-team > .team-logo { width: 52px; height: 52px; filter: none; }
+body.gd-pixel .touch-score-team b { font-family: var(--gd-display) !important; font-size: 22px; color: var(--gd-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.02em; }
+body.gd-pixel .touch-score-team small { margin-top: 4px; }
+body.gd-pixel .touch-score-team > .touch-score-num {
+  font-family: "Press Start 2P", var(--gd-display) !important;
+  font-size: 34px;
+  letter-spacing: 0;
+  color: var(--gd-text) !important;
+  min-width: 2.2ch;
+  text-align: center;
+  line-height: 1;
+}
+body.gd-pixel .touch-score-team.possession > span::after {
+  content: "▶ BALL";
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--md-ink);
+  background: var(--gd-accent);
+}
+body.gd-pixel .touch-score-team.away.possession > span::after { content: "BALL ◀"; }
+body.gd-pixel .touch-score-clock { display: grid; align-content: center; gap: 6px; padding: 10px 8px; border: 0; border-left: 3px solid var(--gd-border); border-right: 3px solid var(--gd-border); background: var(--md-ink); }
+body.gd-pixel .touch-score-clock b { font-family: "Press Start 2P", var(--gd-display) !important; font-size: 24px; margin: 0; color: var(--gd-warn); letter-spacing: 0; line-height: 1; }
+body.gd-pixel .touch-score-clock > span.is-live { color: var(--gd-bad) !important; }
+body.gd-pixel .touch-situation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 8px 14px;
+  border: 0;
+  border-top: 3px solid var(--gd-border);
+  background: var(--gd-surface-strong);
+  color: var(--gd-text-2);
+  font-size: 13px;
+}
+body.gd-pixel .touch-situation > strong { font-family: var(--gd-display) !important; font-size: 20px; color: var(--gd-text); }
+body.gd-pixel .touch-ball-on b { color: var(--gd-text); }
+body.gd-pixel .touch-unit-label { padding: 3px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; border: 2px solid currentColor; background: transparent; color: var(--gd-good); }
+body.gd-pixel .touch-unit-label.defense { color: var(--gd-warn); background: transparent; }
+body.gd-pixel .touch-unit-label.final { color: var(--gd-accent); }
+body.gd-pixel .touch-timeouts { margin-left: auto; gap: 14px; }
+body.gd-pixel .touch-timeouts .touch-pips { color: var(--gd-warn); font-size: 13px; }
+
+/* Control rail: view tabs left, skip-to controls right. */
+body.gd-pixel .touch-control-rail { margin: 0; flex-wrap: wrap; gap: 10px 14px; }
+body.gd-pixel .touch-view-tabs { gap: 0; border: 3px solid var(--gd-border-strong); background: var(--gd-bg-2); box-shadow: var(--gd-shadow); }
+body.gd-pixel .touch-view-tabs button:not(.link) {
+  border: 0 !important;
+  border-right: 2px solid var(--gd-border) !important;
+  box-shadow: none !important;
+  background: transparent;
+  color: var(--gd-text-2);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+}
+body.gd-pixel .touch-view-tabs button:last-child { border-right: 0 !important; }
+body.gd-pixel .touch-view-tabs button.active { background: var(--gd-accent) !important; color: var(--md-ink) !important; }
+body.gd-pixel .touch-sim-menu { gap: 10px; flex-wrap: wrap; padding: 6px 10px; border: 3px solid var(--gd-border-strong); background: var(--gd-surface); box-shadow: var(--gd-shadow); }
+body.gd-pixel .touch-sim-menu label { font-size: 12px; font-weight: 700; color: var(--gd-text-2); gap: 8px; }
+body.gd-pixel .touch-sim-menu select { width: 190px; font-size: 13px; padding: 5px 24px 5px 8px; }
+body.gd-pixel .touch-sim-menu .touch-sim-caller select { width: 130px; }
+body.gd-pixel .touch-sim-menu button { font-size: 13px; padding: 6px 12px; }
+
+/* Notices and break banners. */
+body.gd-pixel :is(.touch-sim-notice, .touch-break-banner) {
+  margin: 0;
+  border: 3px solid var(--gd-border-strong);
+  background: var(--gd-surface);
+  box-shadow: var(--gd-shadow);
+  border-radius: 0;
+  color: var(--gd-text);
+}
+body.gd-pixel .touch-sim-notice { padding: 8px 14px; font-size: 13px; }
+body.gd-pixel .touch-sim-notice > span { font-size: 13px; color: var(--gd-text-2); }
+body.gd-pixel .touch-break-banner { padding: 12px 16px; border-color: var(--gd-warn); }
+body.gd-pixel .touch-break-banner.final { border-color: var(--gd-accent); background: var(--gd-surface-strong); }
+body.gd-pixel .touch-break-banner b { font-family: var(--gd-display) !important; font-size: 20px; color: var(--gd-text); }
+body.gd-pixel .touch-break-banner span { font-size: 13px; color: var(--gd-text-2); }
+body.gd-pixel .touch-break-banner button { font-size: 14px; padding: 10px 16px; background: var(--gd-accent); color: var(--md-ink); }
+
+/* Live layout: field card and call sheet. */
+body.gd-pixel .touch-live-grid { grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; }
+body.gd-pixel :is(.touch-broadcast, .touch-calls) {
+  background: var(--md-panel);
+  border: 3px solid var(--gd-border-strong);
+  border-radius: 0;
+  box-shadow: var(--gd-shadow);
+}
+body.gd-pixel .touch-broadcast-heading { padding: 8px 12px; background: var(--gd-bg-2); border-bottom: 2px solid var(--gd-border); }
+body.gd-pixel .touch-broadcast-heading > b { font-size: 13px; color: var(--gd-text-2); }
+body.gd-pixel .touch-broadcast-heading label { font-size: 0; }
+body.gd-pixel .touch-broadcast-heading select { width: 96px; font-size: 12px; padding: 4px 22px 4px 6px; }
+body.gd-pixel .touch-match-actions { padding: 10px 12px !important; gap: 10px; background: var(--md-panel); border-top: 0; }
+body.gd-pixel .touch-match-actions button { font-size: 14px; font-weight: 700; padding: 10px 14px; }
+body.gd-pixel .touch-match-actions button small { font-size: 12px; color: inherit; opacity: 0.75; }
+body.gd-pixel .touch-match-actions .touch-snap { background: var(--gd-accent); color: var(--md-ink); box-shadow: none; font-size: 15px; letter-spacing: 0.04em; }
+body.gd-pixel .touch-match-actions .secondary { background: var(--gd-surface-strong); color: var(--gd-text); }
+body.gd-pixel .touch-field-key { padding: 0 12px 8px; font-size: 11px; color: var(--gd-text-3); background: var(--md-panel); line-height: 1.4; }
+body.gd-pixel .touch-broadcast .live-field { margin: 4px 14px 14px; }
+
+/* 3D toolbar: one tidy row of compact pixel controls. */
+body.gd-pixel .touch-broadcast .stadium-toolbar { gap: 6px 8px; padding: 6px 12px; background: var(--gd-bg-2); border-top: 2px solid var(--gd-border); border-bottom: 2px solid var(--gd-border); }
+body.gd-pixel .touch-broadcast .stadium-toolbar .tag { font-size: 11px; padding: 2px 6px; background: transparent; color: var(--gd-good); border: 2px solid currentColor; }
+body.gd-pixel .touch-broadcast .stadium-toolbar label { font-size: 12px; color: var(--gd-text-2); }
+body.gd-pixel .touch-broadcast .stadium-toolbar select { font-size: 12px; width: 120px; padding: 3px 20px 3px 6px; }
+body.gd-pixel .touch-broadcast .stadium-toolbar button { font-size: 12px; padding: 4px 8px; }
+body.gd-pixel .touch-broadcast .stadium-toolbar button.link { font-size: 12px; color: var(--gd-text-2); }
+body.gd-pixel .sim-options-pop > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  font-size: 12px !important;
+  font-weight: 700;
+  color: var(--gd-text);
+  background: var(--gd-surface-strong);
+  border: 2px solid var(--md-ink, #05070d);
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.35), 3px 3px 0 var(--px-ink);
+  user-select: none;
+}
+body.gd-pixel .sim-options-pop[open] > summary { background: var(--gd-accent); color: var(--px-ink); }
+body.gd-pixel .sim-options-panel {
+  background: var(--gd-surface-strong) !important;
+  border: 3px solid var(--gd-border-strong) !important;
+  box-shadow: var(--gd-shadow) !important;
+  padding: 12px !important;
+  color: var(--gd-text);
+}
+body.gd-pixel .sim-opt > span { font-size: 13px; color: var(--gd-text); }
+body.gd-pixel .sim-opt-head b { font-family: var(--gd-display) !important; font-size: 16px; }
+
+/* In-view overlays keep the broadcast look but use readable sizes. */
+body.gd-pixel .touch-broadcast .stadium-caption { font-size: 13px; background: rgba(5, 7, 13, 0.88); border: 2px solid var(--gd-border-strong); }
+body.gd-pixel .touch-broadcast .play-transport { font-size: 12px; background: rgba(5, 7, 13, 0.88); border-top: 2px solid var(--gd-border); }
+body.gd-pixel .touch-broadcast .play-transport :is(button, label, select, #play-phase) { font-size: 12px; }
+body.gd-pixel .touch-broadcast .play-transport select { width: 64px; }
+
+/* Sideline advice and the booth sit side by side under the field. */
+body.gd-pixel .touch-feed-row { border-top: 2px solid var(--gd-border); }
+body.gd-pixel .touch-coordinator { padding: 12px 14px; background: transparent; border: 0; border-right: 2px solid var(--gd-border); }
+body.gd-pixel .touch-coordinator > span { border: 2px solid var(--gd-border-strong); background: var(--gd-bg-2); color: var(--gd-accent); width: 30px; height: 30px; }
+body.gd-pixel .touch-coordinator p { font-size: 13px; line-height: 1.5; color: var(--gd-text-2); margin-top: 4px; }
+body.gd-pixel .touch-booth { padding: 12px 14px; background: transparent; }
+body.gd-pixel .touch-booth > div { flex-wrap: wrap; gap: 6px 12px; }
+body.gd-pixel .touch-booth button.link { font-size: 12px; color: var(--gd-accent); }
+body.gd-pixel .touch-booth > p { font-size: 13px; line-height: 1.5; color: var(--gd-text); margin-top: 6px; }
+body.gd-pixel .touch-mini-stats { background: var(--gd-bg-2); border-top: 2px solid var(--gd-border); }
+body.gd-pixel .touch-mini-stats > div { padding: 10px 8px; border-right: 2px solid var(--gd-border); }
+body.gd-pixel .touch-mini-stats b { font-family: var(--gd-display) !important; font-size: 20px; color: var(--gd-text); }
+body.gd-pixel .touch-mini-stats b span { color: var(--gd-text-3); }
+body.gd-pixel .touch-mini-stats small { margin-top: 2px; }
+
+/* Call sheet: compact two-column play cards so the whole sheet fits beside the field. */
+body.gd-pixel .touch-calls { top: 72px; overflow: visible; }
+body.gd-pixel .touch-panel-heading { padding: 10px 12px; background: var(--gd-bg-2); border-bottom: 2px solid var(--gd-border); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+body.gd-pixel .touch-panel-heading > b { margin: 0; font-size: 12px; color: var(--gd-accent); white-space: nowrap; }
+body.gd-pixel .touch-call-formation { grid-template-columns: minmax(0, 1fr) 104px; padding: 10px 12px; gap: 8px; }
+body.gd-pixel :is(.touch-call-formation, .touch-playcaller) label, body.gd-pixel .touch-call-formation label { font-size: 12px; color: var(--gd-text-2); font-weight: 700; }
+body.gd-pixel .touch-call-formation select { font-size: 13px; padding: 6px 22px 6px 8px; margin-top: 4px; }
+body.gd-pixel .touch-play-grid { gap: 8px; padding: 0 12px 10px; }
+body.gd-pixel .touch-play:not(.link) {
+  min-height: 0;
+  padding: 8px 40px 8px 9px;
+  gap: 2px;
+  background: var(--gd-bg-2);
+  color: var(--gd-text);
+  border: 2px solid var(--gd-border-strong) !important;
+  box-shadow: 3px 3px 0 var(--px-ink) !important;
+}
+body.gd-pixel .touch-play:not(:disabled):hover { border-color: var(--gd-accent) !important; background: var(--gd-surface-strong); }
+body.gd-pixel .touch-play.selected { border-color: var(--gd-accent) !important; background: var(--gd-surface-strong); box-shadow: inset 0 0 0 2px var(--gd-accent), 3px 3px 0 var(--px-ink) !important; }
+body.gd-pixel .touch-play.selected::after { content: "✓"; top: auto; bottom: 6px; right: 8px; font-size: 12px; color: var(--gd-accent); }
+body.gd-pixel .touch-play svg { position: absolute; top: 7px; right: 6px; width: 30px; height: 18px; margin: 0; }
+body.gd-pixel .touch-play svg path { stroke: var(--gd-text-2); stroke-width: 6; shape-rendering: crispEdges; }
+body.gd-pixel .touch-play svg circle { fill: var(--gd-text-2); }
+body.gd-pixel .touch-play.selected svg path { stroke: var(--gd-accent); }
+body.gd-pixel .touch-play.selected svg circle { fill: var(--gd-accent); }
+body.gd-pixel .touch-play b { font-size: 13px; line-height: 1.25; color: var(--gd-text); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+body.gd-pixel .touch-play small {
+  font-size: 11px !important;
+  line-height: 1.3;
+  color: var(--gd-text-3);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+body.gd-pixel .touch-play.special-play { border-style: dashed !important; }
+body.gd-pixel .touch-tempo { padding: 10px 12px; border-top: 2px solid var(--gd-border); display: grid; gap: 6px; }
+body.gd-pixel .touch-tempo > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 2px solid var(--gd-border-strong); }
+body.gd-pixel .touch-tempo button:not(.link) { border: 0 !important; border-right: 2px solid var(--gd-border) !important; box-shadow: none !important; background: var(--gd-bg-2); color: var(--gd-text-2); font-size: 12px; font-weight: 700; padding: 6px 4px; }
+body.gd-pixel .touch-tempo button:last-child { border-right: 0 !important; }
+body.gd-pixel .touch-tempo button.active { background: var(--gd-accent); color: var(--px-ink); }
+body.gd-pixel .touch-playcaller { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 12px 10px; margin: 0; font-size: 12px; font-weight: 700; color: var(--gd-text-2); }
+body.gd-pixel .touch-playcaller select { width: 150px; margin: 0; font-size: 13px; padding: 5px 22px 5px 8px; }
+body.gd-pixel .touch-open-lineup { margin: 0 12px 12px; width: calc(100% - 24px); font-size: 13px; padding: 8px 10px; justify-content: center; }
+
+/* Match centre. */
+body.gd-pixel .touch-centre-grid { gap: 16px; }
+body.gd-pixel .touch-centre-grid .panel-head h2 { font-size: 18px; }
+body.gd-pixel .touch-centre-grid .panel-head > span { font-size: 12px; color: var(--gd-text-3); }
+body.gd-pixel .touch-event-feed { max-height: 460px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--gd-border-strong) var(--gd-bg-2); }
+body.gd-pixel .touch-event-feed::-webkit-scrollbar { width: 8px; }
+body.gd-pixel .touch-event-feed::-webkit-scrollbar-track { background: var(--gd-bg-2); }
+body.gd-pixel .touch-event-feed::-webkit-scrollbar-thumb { background: var(--gd-border-strong); }
+body.gd-pixel .touch-event-feed > div { border-bottom: 2px solid var(--gd-border); }
+body.gd-pixel .touch-event-feed time { font-size: 12px; color: var(--gd-text-3); font-variant-numeric: tabular-nums; }
+body.gd-pixel .touch-event-feed p { font-size: 13px; line-height: 1.5; color: var(--gd-text-2); }
+body.gd-pixel .touch-event-feed .key-moment { border-left: 4px solid var(--gd-accent); }
+body.gd-pixel .touch-event-feed .key-moment p { color: var(--gd-text); }
+body.gd-pixel .touch-event-feed .key-moment time { color: var(--gd-accent); }
+body.gd-pixel .touch-stat-comparison > div > span { font-size: 13px; }
+body.gd-pixel .touch-stat-comparison small { font-size: 12px; color: var(--gd-text-2); }
+body.gd-pixel .touch-stat-comparison b { font-family: var(--gd-display) !important; font-size: 16px; color: var(--gd-text); }
+body.gd-pixel .touch-stat-comparison > div > i { height: 8px; background: var(--gd-bg-2); border: 2px solid var(--px-ink); border-radius: 0; }
+body.gd-pixel .touch-stat-comparison em { background: var(--gd-accent); border-radius: 0; }
+body.gd-pixel .touch-period-grid { border: 2px solid var(--gd-border); background: var(--gd-bg-2); }
+body.gd-pixel .touch-period-grid b { font-size: 13px; color: var(--gd-text); }
+
+/* Pregame. */
+body.gd-pixel .touch-pregame { display: grid; gap: 16px; }
+body.gd-pixel .touch-prematch-hero {
+  border: 3px solid var(--gd-border-strong);
+  border-radius: 0;
+  box-shadow: var(--gd-shadow);
+  background:
+    linear-gradient(90deg, var(--home, var(--team)) 0 10px, transparent 10px calc(100% - 10px), var(--away, var(--team)) calc(100% - 10px)),
+    var(--gd-surface);
+  margin: 0;
+}
+body.gd-pixel .touch-prematch-hero::after { display: none; }
+body.gd-pixel .touch-prematch-teams h2 { font-size: 30px; color: var(--gd-text); }
+body.gd-pixel .touch-prematch-teams > div > span { font-size: 12px; color: var(--gd-text-2); letter-spacing: 0.08em; }
+body.gd-pixel .touch-vs { font-family: "Press Start 2P", var(--gd-display) !important; font-size: 26px; color: var(--gd-warn); }
+body.gd-pixel .touch-vs > small { font-family: var(--gd-body) !important; font-size: 11px; color: var(--gd-text-3); letter-spacing: 0.1em; }
+body.gd-pixel .touch-match-readiness { border-top: 2px solid var(--gd-border); background: var(--gd-bg-2); font-size: 13px; color: var(--gd-text-2); }
+body.gd-pixel .touch-match-readiness b { font-family: var(--gd-display) !important; font-size: 18px; color: var(--gd-text); }
+body.gd-pixel .touch-entry-grid { gap: 16px; margin: 0; }
+body.gd-pixel .touch-entry-card:not(.link) {
+  border: 3px solid var(--gd-border-strong) !important;
+  border-radius: 0;
+  background: var(--gd-surface);
+  box-shadow: var(--gd-shadow) !important;
+  color: var(--gd-text);
+}
+body.gd-pixel .touch-entry-card:not(:disabled):hover { border-color: var(--gd-accent) !important; background: var(--gd-surface-strong); }
+body.gd-pixel .touch-entry-card.featured { border-color: var(--gd-accent) !important; background: var(--gd-surface-strong); }
+body.gd-pixel .touch-entry-card h3 { font-family: var(--gd-display) !important; font-size: 22px; color: var(--gd-text); }
+body.gd-pixel .touch-entry-card p { font-size: 13px; line-height: 1.5; color: var(--gd-text-2); }
+body.gd-pixel .touch-entry-card > b { font-size: 13px; color: var(--gd-accent); }
+body.gd-pixel .touch-entry-card > svg { color: var(--gd-accent); }
+body.gd-pixel .touch-preparation-row, body.gd-pixel .touch-last-game {
+  margin: 0;
+  border: 3px solid var(--gd-border-strong);
+  border-radius: 0;
+  background: var(--gd-surface);
+  box-shadow: var(--gd-shadow);
+}
+body.gd-pixel .touch-preparation-row h3 { font-family: var(--gd-display) !important; font-size: 18px; }
+body.gd-pixel .touch-preparation-row p { font-size: 13px; color: var(--gd-text-2); }
+body.gd-pixel .touch-last-game summary { font-size: 13px; font-weight: 700; }
+body.gd-pixel .touch-no-match { border: 3px solid var(--gd-border-strong); border-radius: 0; background: var(--gd-surface); box-shadow: var(--gd-shadow); }
+
+/* Lineup board (tab and dialog). */
+body.gd-pixel .touch-lineup { border-radius: 0; }
+body.gd-pixel .touch-segments button:not(.link) { box-shadow: none !important; font-size: 13px; }
+body.gd-pixel .touch-segments button.active { background: var(--gd-accent) !important; color: var(--px-ink) !important; }
+body.gd-pixel .touch-lineup-toolbar > span { font-size: 12px; color: var(--gd-text-2); }
+body.gd-pixel .touch-lineup-note, body.gd-pixel .touch-bench-foot { font-size: 12px; color: var(--gd-text-3); }
+body.gd-pixel .touch-reserve-list { scrollbar-width: thin; scrollbar-color: var(--gd-border-strong) var(--gd-bg-2); }
+body.gd-pixel .touch-reserve-list b { font-size: 13px; }
+body.gd-pixel .touch-reserve-list small { font-size: 11px; }
+
+/* ---------- Narrower windows ---------- */
+@media (max-width: 1200px) {
+  body.gd-pixel .touch-live-grid { grid-template-columns: minmax(0, 1fr) 290px; }
+  body.gd-pixel .touch-scoreboard { grid-template-columns: minmax(0, 1fr) 140px minmax(0, 1fr); }
+  body.gd-pixel .touch-score-team b { font-size: 18px; }
+  body.gd-pixel .touch-score-team > .touch-score-num { font-size: 26px; }
+  body.gd-pixel .touch-score-clock b { font-size: 18px; }
+  body.gd-pixel .touch-call-formation { grid-template-columns: 1fr; }
+  .touch-feed-row { grid-template-columns: 1fr; }
+  body.gd-pixel .touch-coordinator { border-right: 0; border-bottom: 2px solid var(--gd-border); }
+}
+@media (max-width: 980px) {
+  body.gd-pixel .touch-live-grid { grid-template-columns: 1fr; }
+  body.gd-pixel .touch-calls { position: static; }
+  body.gd-pixel .touch-play-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body.gd-pixel .touch-score-team > .team-logo { width: 40px; height: 40px; }
+  body.gd-pixel .touch-timeouts { margin-left: 0; }
+}
+body.gd-pixel .touch-booth b { white-space: nowrap; }
+body.gd-pixel .touch-broadcast .stadium-toolbar:has(+ .live-field) { padding: 6px 12px; }
+body.gd-pixel .touch-sim-notice .link { font-size: 13px; }
+body.gd-pixel .touch-lineup-player > b { font-size: 11px; }
+body .touch-sim-menu[hidden] { display: none !important; }
