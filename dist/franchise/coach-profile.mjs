@@ -176,3 +176,32 @@ export function applyCoach(s, p) {
   };
   return s;
 }
+
+// Career setup (role, background, archetype) is fixed once the career is created. The only
+// in-career route to a different role is a career event: accepting a job offer or a promotion.
+export const CAREER_SETUP_LOCKED =
+  "Your role, background and archetype were set when this career began. Start a new career, or accept a job offer, to take a different role.";
+export function careerSetupLocked() {
+  return Error(CAREER_SETUP_LOCKED);
+}
+const LOCKED_FIELDS = ["role", "origin", "background", "archetype"];
+const HEX = /^#[0-9a-f]{6}$/i;
+// Appearance stays editable mid-career: it is cosmetic and never feeds results.
+export function updateCareerAppearance(s, changes = {}) {
+  if (!changes || typeof changes !== "object")
+    throw Error("Choose a valid coach appearance.");
+  if (LOCKED_FIELDS.some((k) => Object.hasOwn(changes, k)))
+    throw careerSetupLocked();
+  const extra = Object.keys(changes).filter((k) => k !== "avatar");
+  if (extra.length) throw Error("Only the coach's appearance can be changed.");
+  const { shirt, skin } = changes.avatar || {};
+  if (!HEX.test(shirt || "") || !HEX.test(skin || ""))
+    throw Error("Choose a valid coach appearance.");
+  const c = s.franchise.career;
+  c.avatar = { ...(c.avatar || {}), shirt, skin };
+  if (s.franchise.userCoach?.appearance) {
+    s.franchise.userCoach.appearance.jacket = shirt;
+    s.franchise.userCoach.appearance.skin = skin;
+  }
+  return s;
+}

@@ -95,7 +95,7 @@ assert(tradeBlockers(s, { partner: partner(s), give: [s.roster[3].id], get: [own
 s.franchise.role = "HC";
 assert(!tradeBlockers(s, { partner: partner(s), give: [ownedPicks(s, s.team)[0].id], get: [ownedPicks(s, partner(s))[0].id] }).some((b) => /front office/.test(b.reason)));
 s.franchise.role = "OC";
-assert(tradeBlockers(s, { partner: partner(s), give: [ownedPicks(s, s.team)[0].id], get: [ownedPicks(s, partner(s))[0].id] }).some((b) => /offensive coordinator, trades and roster moves are handled by the front office/.test(b.reason) && /Coach career/.test(b.fix)));
+assert(tradeBlockers(s, { partner: partner(s), give: [ownedPicks(s, s.team)[0].id], get: [ownedPicks(s, partner(s))[0].id] }).some((b) => /offensive coordinator, trades and roster moves are handled by the front office/.test(b.reason) && /set when the career began/.test(b.fix)));
 
 // The suggested package covers our own estimate of what they want.
 s = fresh();

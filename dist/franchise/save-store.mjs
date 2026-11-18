@@ -84,6 +84,51 @@ export class CareerStore {
       tx.onerror = () => reject(tx.error);
     });
   }
+  // Permanently removes a career (payload and metadata) in one transaction. If it was the active
+  // career, the most recently played remaining non-archived career becomes active; with none
+  // left the active setting is cleared. Resolves to { active } — the active id afterwards.
+  async delete(id) {
+    const metadata = await this.read("metadata", id),
+      payload = await this.read("careers", id);
+    if (!metadata && !payload) throw Error("Career not found.");
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(
+        ["careers", "metadata", "settings"],
+        "readwrite",
+      );
+      let active = null;
+      try {
+        const settings = tx.objectStore("settings"),
+          meta = tx.objectStore("metadata");
+        tx.objectStore("careers").delete(id);
+        meta.delete(id);
+        settings.get("active").onsuccess = (e) => {
+          const current = e.target.result?.value ?? null;
+          if (current !== id) {
+            active = current;
+            return;
+          }
+          meta.getAll().onsuccess = (r) => {
+            const next = r.target.result
+              .filter((m) => m.id !== id && !m.archived)
+              .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+            active = next?.id ?? null;
+            if (active) settings.put({ id: "active", value: active });
+            else settings.delete("active");
+          };
+        };
+      } catch (error) {
+        tx.abort();
+        reject(error);
+        return;
+      }
+      tx.oncomplete = () => resolve({ active });
+      tx.onerror = () =>
+        reject(tx.error || Error("Career could not be deleted."));
+      tx.onabort = () =>
+        reject(tx.error || Error("Career deletion was interrupted."));
+    });
+  }
   async archive(id, archived = true) {
     const metadata = await this.read("metadata", id);
     if (!metadata) throw Error("Career not found.");

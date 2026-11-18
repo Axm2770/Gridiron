@@ -18,6 +18,8 @@ import { installPlayerUI } from "./player-ui.mjs";
 import { installOfficeUI } from "./office-ui.mjs";
 import { officeCounts, ensureOffice } from "./newsroom.mjs";
 import { installCareerManager } from "./career-manager.mjs";
+import { careerSetupLocked, updateCareerAppearance } from "./coach-profile.mjs";
+import { coachAppearance, coachPixelAvatar } from "./coach-avatar.mjs";
 import { installNavigationUI } from "./navigation-ui.mjs";
 import { installDevelopmentUI } from "./development-ui.mjs";
 import { installCareerScenes } from "./career-scenes.mjs";
@@ -237,14 +239,10 @@ function action(name, ...args) {
           W.buySkill(s, ...args);
           break;
         case "role":
-          if (!S.ROLES[args[0]]) throw Error("Unknown career role.");
-          s.franchise.role = args[0];
-          s.coach.calling = ["Owner", "HC", "OC", "DC"].includes(args[0])
-            ? "Manual"
-            : "Head coach";
-          break;
+          // Locked once the career exists; job offers change it through career-jobs.
+          throw careerSetupLocked();
         case "profile":
-          Object.assign(s.franchise.career, args[0]);
+          updateCareerAppearance(s, args[0]);
           break;
         case "directive":
           if (!Object.hasOwn(s.franchise.directives, args[0]))
@@ -477,7 +475,7 @@ function careerView() {
     club = f.clubs[state.team];
   return `<div class="two">${panel(
     "Your career",
-    `<div class="coach-card"><div class="coach-portrait" style="background:${esc(c.avatar?.shirt || "#314b60")};color:${esc(c.avatar?.skin || "#e0b18c")}">♟</div><div><h2>${esc(state.coach.name)}</h2><p class="subtitle">${esc(c.origin)} · ${esc(c.archetype)}</p></div></div><label>Career role<select onchange="F.action('role',this.value)">${choice(Object.keys(S.ROLES), f.role)}</select></label><p class="subtitle">${esc((S.ROLES[f.role] || []).join(" · "))}</p><div class="f-form-grid"><label>Background<select id="career-origin">${choice(["Former Player", "Analytics Guru", "College Innovator"], c.origin)}</select></label><label>Archetype<select id="career-archetype">${choice(["Offensive Guru", "Defensive Genius", "Development Wizard", "Cap Strategist"], c.archetype)}</select></label><label>Avatar shirt<input type="color" id="career-shirt" value="${c.avatar?.shirt || "#314b60"}"></label><label>Avatar skin<input type="color" id="career-skin" value="${c.avatar?.skin || "#e0b18c"}"></label></div>${button("Save profile", "F.action('profile',{origin:document.getElementById('career-origin').value,archetype:document.getElementById('career-archetype').value,avatar:{shirt:document.getElementById('career-shirt').value,skin:document.getElementById('career-skin').value}})")}<div class="kv"><span>Reputation / development XP</span><b>${c.reputation} / ${c.xp}</b></div>${["OC", "DC"].includes(f.role) ? button("Interview for a head coach role", "F.action('interview')") : ""}${Object.entries(
+    `<div class="coach-card"><div class="coach-portrait coach-portrait-pixel">${coachPixelAvatar(coachAppearance(state), { label: state.coach.name + " avatar" })}</div><div><h2>${esc(state.coach.name)}</h2><p class="subtitle">${esc(S.ROLE_TITLES[f.role] ? S.ROLE_TITLES[f.role][0].toUpperCase() + S.ROLE_TITLES[f.role].slice(1) : f.role)} · ${esc(clubs[state.team][1] + " " + clubs[state.team][2])}</p></div></div><dl class="career-setup-facts"><div><dt>Career role</dt><dd>${esc(S.ROLE_TITLES[f.role] || f.role)}</dd></div><div><dt>Background</dt><dd>${esc(c.origin || "—")}</dd></div><div><dt>Archetype</dt><dd>${esc(c.archetype || "—")}</dd></div></dl><p class="career-setup-note">Chosen when the career began. Start a new career, or accept a job offer, to take a different role.</p><p class="subtitle">${esc((S.ROLES[f.role] || []).join(" · "))}</p><div class="f-form-grid"><label>Avatar shirt<input type="color" id="career-shirt" value="${esc(coachAppearance(state).jacket)}"></label><label>Avatar skin<input type="color" id="career-skin" value="${esc(coachAppearance(state).skin)}"></label></div>${button("Save appearance", "F.action('profile',{avatar:{shirt:document.getElementById('career-shirt').value,skin:document.getElementById('career-skin').value}})")}<div class="kv"><span>Reputation / development XP</span><b>${c.reputation} / ${c.xp}</b></div>${["OC", "DC"].includes(f.role) ? button("Interview for a head coach role", "F.action('interview')") : ""}${Object.entries(
       c.skills,
     )
       .map(

@@ -12,6 +12,47 @@ import {
 } from "./coach-profile.mjs";
 import { saveMetadata, parseCareerSave, careerId } from "./save-store.mjs";
 import { CharacterStage } from "./character-stage.mjs";
+import { coachBadge, coachPixelAvatar } from "./coach-avatar.mjs";
+import { TEAM_COLORS } from "../presentation/team-colors.mjs";
+const ROLE_NAMES = {
+  HC: "Head coach",
+  GM: "General manager",
+  OC: "Offensive coordinator",
+  DC: "Defensive coordinator",
+  Owner: "Owner",
+};
+const clubName = (team) =>
+  clubs[team] ? clubs[team][1] + " " + clubs[team][2] : "Franchise";
+const seasonText = (m) =>
+  m.year +
+  " · " +
+  (m.phase === "season"
+    ? "Week " + (Number(m.week) + 1)
+    : nice(m.phase || "preseason"));
+const playedText = (t) => {
+  const d = new Date(t),
+    now = new Date();
+  if (!t || !Number.isFinite(d.getTime())) return "—";
+  const mins = Math.round((now - d) / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return mins + " min ago";
+  if (d.toDateString() === now.toDateString())
+    return (
+      "Today, " +
+      d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    );
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: d.getFullYear() === now.getFullYear() ? undefined : "numeric",
+  });
+};
+// Close an open career-card menu when a click lands outside it.
+if (typeof document !== "undefined")
+  document.addEventListener("click", (e) => {
+    for (const menu of document.querySelectorAll(".cl-menu[open]"))
+      if (!menu.contains(e.target)) menu.open = false;
+  });
 const nice = (s) =>
   String(s)
     .replace(/([A-Z])/g, " $1")
@@ -38,7 +79,7 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     wizard = null,
     wizardStep = 0,
     avatar = null,
-    archived = false,
+    archiveOpen = false,
     importCandidate = null;
   const disposeAvatar = () => {
     avatar?.dispose();
@@ -134,13 +175,7 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     notify();
     const identity = document.querySelector(".sidebar-bottom");
     if (identity)
-      identity.innerHTML = `<button class="coach-identity-button" onclick="Career.profile()" aria-label="View your head coach profile"><span class="avatar">${esc(
-        state.coach.name
-          .split(" ")
-          .slice(0, 2)
-          .map((x) => x[0])
-          .join(""),
-      )}</span><span>${esc(state.coach.name)}<small>${esc(state.franchise.role)}</small></span></button>`;
+      identity.innerHTML = `<button class="coach-identity-button" onclick="Career.profile()" aria-label="View your head coach profile"><span class="avatar coach-avatar-slot">${coachBadge(state.coach.name, state.franchise.userCoach?.appearance || (state.franchise.career?.avatar ? { skin: state.franchise.career.avatar.skin, jacket: state.franchise.career.avatar.shirt } : null))}</span><span>${esc(state.coach.name)}<small>${esc(state.franchise.role)}</small></span></button>`;
     const club = document.querySelector(".workspace-club");
     if (club) {
       club.title = "Careers and coach profiles";
@@ -152,14 +187,26 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     originalRender();
     renderHeader();
   };
+  // Career library: header, a responsive grid of career cards and a collapsible archive.
+  const card = (m, isArchived) => {
+    const current = m.id === currentId,
+      id = esc(m.id),
+      name = esc(m.name),
+      role = ROLE_NAMES[m.role] || m.role || "Head coach",
+      menuItems = isArchived
+        ? `<button type="button" role="menuitem" onclick="Career.exportCareer('${id}')">Export</button><button type="button" role="menuitem" class="cl-danger" onclick="Career.remove('${id}')">Delete…</button>`
+        : `<button type="button" role="menuitem" onclick="Career.rename('${id}')">Rename</button><button type="button" role="menuitem" onclick="Career.exportCareer('${id}')">Export</button>${current ? '<button type="button" role="menuitem" onclick="Career.branch()">Save as a copy</button>' : ""}<button type="button" role="menuitem" onclick="Career.archive('${id}',true)" ${current ? 'disabled title="Load another career before archiving this one"' : ""}>Archive</button><button type="button" role="menuitem" class="cl-danger" onclick="Career.remove('${id}')">Delete…</button>`;
+    return `<article class="cl-card${current ? " is-active" : ""}${isArchived ? " is-archived" : ""}" style="--club:${esc(TEAM_COLORS[m.team] || "#3b6cc8")}" aria-label="${name}${current ? " (active career)" : ""}"><div class="cl-card-top"><div class="cl-logo">${logo(m.team)}</div><div class="cl-card-id"><h4 title="${name}">${name}</h4><p title="${esc(clubName(m.team))}">${esc(clubName(m.team))}</p></div>${current ? '<span class="cl-badge">Active</span>' : isArchived ? '<span class="cl-badge cl-badge-muted">Archived</span>' : ""}</div><div class="cl-coach"><span class="cl-coach-art">${coachPixelAvatar(m.avatar, { seed: m.id })}</span><div><b title="${esc(m.coach)}">${esc(m.coach)}</b><small>${esc(role)}</small></div></div><dl class="cl-stats"><div><dt>Season</dt><dd>${esc(seasonText(m))}</dd></div><div><dt>Record</dt><dd>${esc(m.record || "0–0")}</dd></div><div><dt>Last played</dt><dd><time datetime="${esc(new Date(m.updatedAt || 0).toISOString())}">${esc(playedText(m.updatedAt))}</time></dd></div></dl><div class="cl-card-actions">${isArchived ? `<button class="small" onclick="Career.archive('${id}',false)">Restore</button>` : `<button class="small" onclick="Career.load('${id}')">${current ? "Resume" : "Load"} <span aria-hidden="true">→</span></button>`}<details class="cl-menu"><summary class="cl-menu-button" aria-label="More actions for ${name}">More <span aria-hidden="true">▾</span></summary><div class="cl-menu-list" role="menu">${menuItems}</div></details></div></article>`;
+  };
   const showHome = async () => {
     disposeAvatar();
     const list = store ? await store.list() : [],
-      rows = list.filter((m) => !!m.archived === archived);
+      rows = list.filter((m) => !m.archived),
+      old = list.filter((m) => m.archived);
     modal(
-      `<div class="career-home"><div class="career-home-top"><span class="eyebrow">GRIDIRON DIRECTOR · CAREER LIBRARY</span>${currentId ? '<button class="icon-button" aria-label="Close career library" onclick="closeModal()">×</button>' : ""}</div><div class="career-home-hero"><div><h2>Your sideline.<br><em>Your story.</em></h2><p>A different coach. A different franchise. A new way to leave your mark.</p></div><div class="career-home-actions"><button onclick="Career.new()">＋ Create a new career</button><label class="secondary import-career-button">Import a career<input type="file" accept=".json" onchange="Career.importFile(this)"></label></div></div>${window.careerLoadError ? `<p class="career-error">The previous active career could not be opened: ${esc(window.careerLoadError)}. Other saved careers are available below.</p>` : ""}${!store ? `<p class="career-error">${esc(window.careerStorageError || "Career storage is unavailable.")} Enable site storage to keep separate careers. You can export the current browser career below.</p><button onclick="F.downloadSave()">Export current career</button>` : ""}<div class="career-list-heading"><h3>${archived ? "Archived careers" : "Your careers"} <small>${rows.length}</small></h3><button class="link" onclick="Career.archived()">${archived ? "Show active careers" : "Archived careers"}</button></div><div class="career-save-list">${rows.map((m) => `<article class="career-save-card ${m.id === currentId ? "current" : ""}"><div class="career-save-club">${logo(m.team)}</div><div class="career-save-title"><h3>${esc(m.name)}</h3><p>${esc(m.coach)} <span>·</span> ${esc(clubs[m.team]?.[2] || "Franchise")} <span>·</span> ${esc(m.role || "HC")}</p><small>${m.year} · ${m.phase === "season" ? "Week " + (m.week + 1) : nice(m.phase)} · ${esc(m.record)} <i>•</i> ${new Date(m.updatedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</small></div><div class="career-save-actions">${archived ? `<button class="small" onclick="Career.archive('${m.id}',false)">Restore</button>` : `<button class="small" onclick="Career.load('${m.id}')">${m.id === currentId ? "Resume career" : "Load career"} →</button><button class="secondary small" onclick="Career.rename('${m.id}')" aria-label="Rename ${esc(m.name)}">Rename</button><button class="subtle small" onclick="Career.archive('${m.id}',true)" ${m.id === currentId ? 'disabled title="Load another career before archiving this one"' : ""}>Archive</button>`}</div></article>`).join("") || `<div class="career-empty"><span>◇</span><h3>${archived ? "No archived careers" : "The first chapter is yours."}</h3><p>${archived ? "Archived careers remain recoverable here." : "Create your head coach, choose a franchise, and build your football career."}</p></div>`}</div><div class="career-home-footer"><p>Each career keeps its own coach, league, match progress and autosave.</p>${currentId ? '<button class="secondary small" onclick="Career.branch()">Save as a separate career</button><button class="secondary small" onclick="Career.export()">Export active career</button>' : ""}</div></div>`,
+      `<div class="cl"><header class="cl-head"><div class="cl-title"><span class="eyebrow">Gridiron Director</span><h2 id="cl-title">Career library</h2><p>Every career keeps its own coach, league and autosave on this device.</p></div><div class="cl-head-actions"><label class="cl-import" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.querySelector('input').click()}">Import<input type="file" accept=".json,application/json" tabindex="-1" onchange="Career.importFile(this)"></label><button onclick="Career.new()">＋ New career</button>${currentId ? '<button class="cl-close" aria-label="Close career library" onclick="closeModal()">×</button>' : ""}</div></header>${window.careerLoadError ? `<p class="cl-alert">The previous active career could not be opened: ${esc(window.careerLoadError)}. Other saved careers are available below.</p>` : ""}${!store ? `<div class="cl-alert"><p>${esc(window.careerStorageError || "Career storage is unavailable.")} Enable site storage to keep separate careers. You can export the current browser career.</p><button class="small" onclick="F.downloadSave()">Export current career</button></div>` : ""}<section class="cl-section" aria-labelledby="cl-active-heading"><div class="cl-section-head"><h3 id="cl-active-heading">Your careers <small>${rows.length}</small></h3></div>${rows.length ? `<div class="cl-grid">${rows.map((m) => card(m, false)).join("")}</div>` : `<div class="cl-empty"><div class="cl-empty-art" aria-hidden="true">${coachPixelAvatar(null)}</div><h3>The first chapter is yours.</h3><p>Create your coach, choose one of 32 franchises and start building a legacy.</p><button onclick="Career.new()">＋ Create a career</button></div>`}</section>${old.length ? `<details class="cl-archive" ${archiveOpen ? "open" : ""} ontoggle="Career.archived(this.open)"><summary><span>Archived careers</span> <small>${old.length}</small></summary><p class="cl-archive-note">Archived careers stay saved. Restore one to play it again.</p><div class="cl-grid">${old.map((m) => card(m, true)).join("")}</div></details>` : ""}</div>`,
     );
-    document.getElementById("modal").classList.add("career-modal");
+    document.getElementById("modal").classList.add("career-modal", "cl-modal");
   };
   const mountAvatar = () => {
     disposeAvatar();
@@ -168,6 +215,23 @@ export async function installCareerManager({ views, isBusy, initialize }) {
       avatar = new CharacterStage(host, { appearance: wizard.appearance });
       window.CoachPreview = { rotate: (d) => avatar?.rotate(d) };
     }
+  };
+  const downloadCareer = (name, data) => {
+    const file = {
+        format: "GridironCareer",
+        version: 2,
+        name: name || "Gridiron career",
+        state: data,
+      },
+      url = URL.createObjectURL(
+        new Blob([JSON.stringify(file)], { type: "application/json" }),
+      ),
+      a = document.createElement("a");
+    a.href = url;
+    a.download =
+      (name || "gridiron-career").replace(/[^a-z0-9_-]/gi, "-") + ".json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const field = (label, key, type = "text", extra = "") =>
     `<label>${label}<input type="${type}" value="${esc(wizard[key])}" ${extra} oninput="Career.change('${key}',this.value)"></label>`;
@@ -465,9 +529,68 @@ export async function installCareerManager({ views, isBusy, initialize }) {
         toast(e.message);
       }
     },
-    archived() {
-      archived = !archived;
-      showHome();
+    archived(open) {
+      archiveOpen = typeof open === "boolean" ? open : !archiveOpen;
+    },
+    async exportCareer(id) {
+      if (!id || id === currentId) return Career.export();
+      try {
+        const record = await store.get(id),
+          meta = await store.read("metadata", id);
+        if (!record) throw Error("Career not found.");
+        downloadCareer(meta?.name, JSON.parse(record.payload));
+      } catch (e) {
+        toast("Export failed: " + e.message);
+      }
+    },
+    async remove(id) {
+      try {
+        const m = await store.read("metadata", id);
+        if (!m) throw Error("Career not found.");
+        const current = id === currentId;
+        modal(
+          `<div class="career-small-modal cl-confirm" role="alertdialog" aria-labelledby="cl-delete-title" aria-describedby="cl-delete-desc"><span class="eyebrow">Delete career</span><h2 id="cl-delete-title">Delete “${esc(m.name)}”?</h2><div class="cl-confirm-card">${logo(m.team)}<div><b>${esc(m.coach)} · ${esc(clubName(m.team))}</b><small>${esc(seasonText(m))} · ${esc(m.record || "0–0")}</small></div></div><p id="cl-delete-desc">This permanently removes the career and its autosave from this device. <b>It can’t be undone.</b>${current ? " This is the career you are playing now; your most recent other career opens instead." : ""}</p><p>Export a backup first if you might want it back.</p><div class="modal-actions"><button class="secondary" onclick="Career.open()">Cancel</button><button class="secondary" onclick="Career.exportCareer('${esc(id)}')">Export first</button><button class="cl-danger-button" onclick="Career.confirmDelete('${esc(id)}')">Delete permanently</button></div></div>`,
+        );
+        document.querySelector("#modal .cl-confirm .secondary")?.focus();
+      } catch (e) {
+        toast(e.message);
+      }
+    },
+    async confirmDelete(id) {
+      if (!safe()) return;
+      try {
+        const deletingCurrent = id === currentId;
+        if (deletingCurrent) {
+          // Drop pending autosaves of the career being deleted.
+          clearTimeout(timer);
+          timer = null;
+          dirty = false;
+          await writeChain.catch(() => {});
+        } else await flush();
+        const meta = await store.read("metadata", id),
+          { active } = await store.delete(id);
+        // Never resurrect an old browser save once the player manages careers.
+        await store.setting("legacyMigrated", true).catch(() => {});
+        const gone = `Deleted “${meta?.name || "career"}”.`;
+        if (deletingCurrent) {
+          currentId = null;
+          currentMeta = null;
+          lastPayload = null;
+          status = "saved";
+          render();
+          if (active) {
+            await Career.load(active);
+            if (currentId === active) {
+              toast(gone + " Loaded " + (currentMeta?.name || "your next career") + ".");
+              return;
+            }
+          }
+        }
+        await showHome();
+        toast(gone);
+      } catch (e) {
+        toast("Could not delete career: " + e.message);
+      }
     },
     branch() {
       modal(
@@ -494,24 +617,10 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     async export() {
       try {
         await flush();
-        const file = {
-            format: "GridironCareer",
-            version: 2,
-            name: currentMeta?.name || state.coach.name,
-            state: JSON.parse(serializeCareer(state)),
-          },
-          url = URL.createObjectURL(
-            new Blob([JSON.stringify(file)], { type: "application/json" }),
-          ),
-          a = document.createElement("a");
-        a.href = url;
-        a.download =
-          (currentMeta?.name || "gridiron-career").replace(
-            /[^a-z0-9_-]/gi,
-            "-",
-          ) + ".json";
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        downloadCareer(
+          currentMeta?.name || state.coach.name,
+          JSON.parse(serializeCareer(state)),
+        );
       } catch (e) {
         toast(e.message);
       }
@@ -570,14 +679,17 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     disposeAvatar();
     document
       .getElementById("modal")
-      .classList.remove("career-modal", "wizard-modal");
+      .classList.remove("career-modal", "wizard-modal", "cl-modal");
   });
   try {
     if (store) {
       if (currentId) {
         currentMeta = await store.read("metadata", currentId);
         lastPayload = (await store.get(currentId))?.payload;
-      } else if (window.__gridironHadLegacy) {
+      } else if (
+        window.__gridironHadLegacy &&
+        !(await store.read("settings", "legacyMigrated"))?.value
+      ) {
         currentId = careerId();
         currentMeta = saveMetadata(state, {
           id: currentId,
@@ -586,6 +698,7 @@ export async function installCareerManager({ views, isBusy, initialize }) {
         await store.put(currentId, serializeCareer(state), currentMeta, {
           active: true,
         });
+        await store.setting("legacyMigrated", true);
       }
     }
   } catch (e) {

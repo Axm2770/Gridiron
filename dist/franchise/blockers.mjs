@@ -10,7 +10,7 @@ const AREA_WORDS = { roster: "trades and roster moves", finance: "contracts", sc
 
 export function roleBlocker(s, area) {
   if (allowed(s, area)) return null;
-  return { reason: `As ${ROLE_TITLES[s.franchise.role] || s.franchise.role}, ${AREA_WORDS[area] || area} are handled by the front office.`, fix: "Switch your career role to Head coach, GM or Owner in Coach career to do it yourself." };
+  return { reason: `As ${ROLE_TITLES[s.franchise.role] || s.franchise.role}, ${AREA_WORDS[area] || area} are handled by the front office.`, fix: "Your career role was set when the career began. Start a new career, or accept a job offer as Head coach, GM or Owner, to do it yourself." };
 }
 
 export function rosterLimit(s) {

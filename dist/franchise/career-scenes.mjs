@@ -141,7 +141,7 @@ export function installCareerScenes({
         type === "staff" &&
         !["coach", "offense", "defense"].some((a) => S.allowed(state, a))
       ) {
-        toast("Tactical briefings are the coaching staff’s call in your role. Change your career role in Coach career to lead them.");
+        toast("Tactical briefings are the coaching staff’s call in your role. Your career role was set when the career began; start a new career or accept a job offer to lead them.");
         return;
       }
       if (!S.allowed(state, "media")) {
