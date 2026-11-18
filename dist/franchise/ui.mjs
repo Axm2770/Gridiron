@@ -26,7 +26,7 @@ import { installNavigationUI } from "./navigation-ui.mjs";
 import { installDevelopmentUI } from "./development-ui.mjs";
 import { installCareerScenes } from "./career-scenes.mjs";
 import { configureRatings, ensureCareerRatings } from "./ratings.mjs";
-import { installMatchdaySim } from "./matchday-sim.mjs";
+import { installMatchdaySim, roundJob } from "./matchday-sim.mjs";
 import * as S from "./state.mjs";
 import * as C from "./contracts.mjs";
 import * as P from "./personnel.mjs";
@@ -906,6 +906,8 @@ matchSetting = function (k, v) {
     return;
   }
   previous.matchSetting(k, v);
+  // Marks the call as picked for the coming snap (see play-calling.mjs manualCall).
+  if (k === "call" && state.live?.call === v) state.live.callSerial = state.live.plays || 0;
 };
 F.depth = function () {
   if (!(can("coach") || can("roster"))) {
@@ -1056,27 +1058,7 @@ async function settleRound({ live = null } = {}) {
       });
       continue;
     }
-    jobs.push({
-      a: g.a,
-      b: g.b,
-      home: structuredClone(S.roster(state, g.a)),
-      away: structuredClone(S.roster(state, g.b)),
-      seed:
-        (state.year * 19009 +
-          state.week * 137 +
-          g.a * 79 +
-          g.b * 31 +
-          (state.franchise.postseason?.round || 0) * 991) >>>
-        0,
-      userTeam: state.team,
-      directives: state.franchise.directives,
-      settings: {
-        otMode: state.franchise.rules.overtime,
-        touchback: state.franchise.rules.touchback || 25,
-      },
-      live:
-        live && g.a === live.a && g.b === live.b ? structuredClone(live) : null,
-    });
+    jobs.push(roundJob(state, g, { live }));
   }
   let simulated = jobs.length ? await workerGames(jobs) : [];
   results.push(...simulated);

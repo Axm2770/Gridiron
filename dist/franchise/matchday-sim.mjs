@@ -8,6 +8,31 @@ export const periodLabel = (m) =>
     : m.halftime
       ? "Halftime"
       : `${m.quarter > 4 ? "OT " + (m.quarter - 4) : "Q" + m.quarter} ${Math.floor(m.clock / 60)}:${String(m.clock % 60).padStart(2, "0")}`;
+// The fast-worker job for one fixture of the round being settled (calendar and holiday sims).
+export function roundJob(s, g, { live = null } = {}) {
+  return {
+    a: g.a,
+    b: g.b,
+    home: structuredClone(S.roster(s, g.a)),
+    away: structuredClone(S.roster(s, g.b)),
+    seed:
+      (s.year * 19009 +
+        s.week * 137 +
+        g.a * 79 +
+        g.b * 31 +
+        (s.franchise.postseason?.round || 0) * 991) >>>
+      0,
+    userTeam: s.team,
+    directives: s.franchise.directives,
+    // The play style applies to every simulated game, as the game plan promises.
+    tactics: { style: s.coach?.style },
+    settings: {
+      otMode: s.franchise.rules.overtime,
+      touchback: s.franchise.rules.touchback || 25,
+    },
+    live: live && g.a === live.a && g.b === live.b ? structuredClone(live) : null,
+  };
+}
 export function applyMatchSegment(state, result) {
   if (
     !state.live ||

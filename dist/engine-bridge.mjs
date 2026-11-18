@@ -4,6 +4,14 @@ import { applyExecution } from "./engine/rules.mjs";
 import { commentaryFor, CommentaryDirector } from "./engine/commentary.mjs";
 import { BroadcastVoice } from "./engine/voice.mjs";
 import { random } from "./engine/random.mjs";
+import {
+  manualCall,
+  staffDecision,
+  withPossessionTempo,
+  SPECIAL_CALLS,
+  DEFAULT_CALL,
+  LIVE_FITNESS_FLOOR,
+} from "./franchise/play-calling.mjs";
 import { captionAllowed, installSimOptions, simOptions } from "./presentation/sim-options.mjs";
 const grouped = (players, team) => {
   let groups = {};
@@ -72,7 +80,14 @@ resolveSnap = function () {
       state.coach.calling === "Manual" &&
       role !== "GM" &&
       !(role === "DC" && own),
-    call = own && manual ? m.call : coachCall(m);
+    // A selected call repeats on early downs; punts, field goals and fourth downs need a fresh pick.
+    // Staff calls are shared with the fast worker so live and simulated games score alike.
+    call =
+      (own && manual && manualCall(m)) ||
+      staffDecision(m, {
+        style: own ? state.coach.style : "Balanced",
+        directives: own ? state.franchise?.directives : {},
+      });
   let coverage = own
     ? ["Cover 2", "Cover 3", "Quarters", "Man coverage"][Math.floor(rng() * 4)]
     : m.defCall;
@@ -140,12 +155,21 @@ resolveSnap = function () {
     team: clubs[team][2],
     score: [...m.score],
   };
-  state.live = applyExecution(m, execution, clubs[team][0]);
+  state.live = withPossessionTempo(m, own, (x) =>
+    applyExecution(x, execution, clubs[team][0]),
+  );
+  // Special teams are one snap: the sheet returns to the base call for the next series.
+  if (own && SPECIAL_CALLS.includes(state.live.call)) state.live.call = DEFAULT_CALL;
   window.franchiseRecordExecution?.(execution, team);
   state.live.commentary = commentaryFor(execution);
+  // Only the players on the field tire, and only within reason. Draining every starter on every
+  // snap (offense and defense alike) left a live-coached team at 45% condition by halftime and
+  // for the weeks after, while opponents stayed fresh.
+  const onField = new Set(execution.actors.map((a) => a.id));
   for (let p of state.roster) {
-    if (p.starter && !p.injury) p.fitness = Math.max(45, p.fitness - 0.6);
-    else p.fitness = Math.min(100, p.fitness + 0.4);
+    const fitness = p.fitness ?? 100;
+    if (onField.has(p.id) && !p.injury) p.fitness = Math.max(LIVE_FITNESS_FLOOR, fitness - 0.3);
+    else p.fitness = Math.min(100, fitness + 0.4);
   }
   if (state.live.finished || state.live.halftime) pauseAuto();
   return state.live.last;

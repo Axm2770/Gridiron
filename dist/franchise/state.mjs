@@ -3,6 +3,7 @@ import {
   validateCareerSystems,
 } from "./career-systems.mjs";
 import { ensureRecordBook } from "./records.mjs";
+import { repairLiveCall, repairLiveFatigue } from "./play-calling.mjs";
 import { newgenIdentity } from "./newgens.mjs";
 import { random, clamp } from "../engine/random.mjs";
 export const MILLION = 100000000;
@@ -93,6 +94,9 @@ export function migrate(s) {
   if (s.franchise?.version === 1) {
     ensureCareerSystems(s);
     ensureRecordBook(s);
+    // 0.28 saves could keep a punt or field goal selected, which repeated on every snap.
+    if (s.live) repairLiveCall(s.live);
+    if (!s.live || s.live.finished) repairLiveFatigue(s);
     return s;
   }
   let f = {
@@ -144,6 +148,7 @@ export function migrate(s) {
       halftime: true,
     },
     preparation: { intensity: 50, familiarity: 50 },
+    repairs: { liveFatigue: true },
     calendar: { day: 200, stage: "Regular season", leagueYear: s.year },
     taxRate: Array.from({ length: 32 }, (_, i) => (i % 5) * 0.015),
     debug: false,

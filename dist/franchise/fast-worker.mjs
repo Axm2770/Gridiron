@@ -6,6 +6,7 @@ import {
   resumeSimulatedHalftime,
 } from "../engine/sim-targets.mjs";
 import { applyExecution } from "../engine/rules.mjs";
+import { manualCall, staffDecision, withPossessionTempo } from "./play-calling.mjs";
 function grouped(players, team) {
   let g = {};
   for (let p of sortForLineup(players, team)) (g[p.pos] ??= []).push(p);
@@ -53,45 +54,25 @@ export function simulateGame(job) {
     ...job.home.map((p) => [p.id, job.a]),
     ...job.away.map((p) => [p.id, job.b]),
   ]);
+  // Halftime directives belong to the user's club; CPU-vs-CPU games never inherit them.
+  const userGame = m.a === job.userTeam || m.b === job.userTeam;
   while (!plan.reached(m, plays) && plays < 500) {
     if (m.halftime) {
       resumeSimulatedHalftime(m, {
-        delegate: job.directives?.halftime,
+        delegate: userGame && job.directives?.halftime,
         userTeam: job.userTeam,
       });
       if (plan.reached(m, plays)) break;
     }
-    let own = (m.poss === 0 ? m.a : m.b) === job.userTeam,
-      late = m.quarter === 4 && m.clock < 180,
-      losing = m.score[m.poss] < m.score[1 - m.poss],
+    const own = (m.poss === 0 ? m.a : m.b) === job.userTeam,
       directive = own ? job.directives : {},
-      call =
-        m.down === 4
-          ? late && losing && m.spot < 60
-            ? "Quick pass"
-            : m.spot >= 60
-              ? "Field goal"
-              : "Punt"
-          : directive?.feedRB && m.plays % 3 !== 0
-            ? "Inside run"
-            : directive?.protectQB
-              ? "Quick pass"
-              : m.plays % 3 === 0
-                ? "Inside run"
-                : "Quick pass";
-    const tactics = job.tactics || {};
-    if (own && tactics.calling === "Manual" && m.call) call = m.call;
-    else if (
-      own &&
-      m.down !== 4 &&
-      !directive?.protectQB &&
-      !directive?.feedRB
-    ) {
-      if (tactics.style === "Run-first")
-        call = m.plays % 5 < 3 ? "Inside run" : "Play action";
-      if (tactics.style === "Vertical offense")
-        call = m.plays % 3 === 0 ? "Inside run" : "Deep pass";
-    }
+      tactics = job.tactics || {};
+    let call =
+      (own && tactics.calling === "Manual" && manualCall(m)) ||
+      staffDecision(m, {
+        style: own ? tactics.style : "Balanced",
+        directives: directive,
+      });
     if (
       own &&
       directive?.rookies &&
@@ -227,7 +208,9 @@ export function simulateGame(job) {
       team: job.labels?.[m.poss] || "Team " + (team + 1),
       score: [...m.score],
     };
-    m = applyExecution(m, exec, job.labels?.[m.poss] || "Team " + (team + 1));
+    m = withPossessionTempo(m, own, (x) =>
+      applyExecution(x, exec, job.labels?.[x.poss] || "Team " + (team + 1)),
+    );
     if (m.events[0]?.highlight) highlights.unshift({ ...m.events[0] });
     lastExecution = exec;
     delete m.last.execution;
