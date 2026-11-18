@@ -1806,3 +1806,8 @@ body.gd-pixel .nw :is(.nw-tile, .nw-role, .nw-opt, .nw-step, .nw-seg button):not
   .nw-release-art { width: 160px; }
   .nw-hint { display: none; }
 }
+
+/* Press conferences and other story scenes in a dialog: the stage scales with the window so the
+   question and every answer stay on screen without scrolling. */
+#modal .career-cutscene .cinema-stage,
+#modal .career-cutscene .cinema-stage.scene-volume { height: clamp(180px, 30vh, 350px); }
