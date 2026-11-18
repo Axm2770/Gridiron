@@ -4,6 +4,8 @@ import * as BM from "./board-meetings.mjs";
 import * as G from "./game-plan.mjs";
 import { lockerReport } from "./locker-room.mjs";
 import { icon } from "./presentation.mjs";
+import { activeDilemma, resolveDilemma } from "./depth-systems.mjs";
+import { pixelFace } from "../ui/pixel-face.mjs";
 
 // Boardroom, Tactics (the legacy "Game plan" view) and Locker room.
 const arg = (v) => esc(JSON.stringify(v));
@@ -21,7 +23,8 @@ const cause = (c) => `<li class="${c.tone || ""}">${esc(c.text)}</li>`;
 export function installFrontOfficeUI({ views, isBusy }) {
   if (!document.querySelector('link[href="front-office.css"]'))
     document.head.insertAdjacentHTML("beforeend", '<link rel="stylesheet" href="front-office.css">');
-  let lockerFilter = "All";
+  let lockerFilter = "All",
+    lockerPage = 0;
   function mutate(fn, done) {
     if (isBusy()) {
       toast("Wait for the simulation to finish.");
@@ -121,18 +124,68 @@ export function installFrontOfficeUI({ views, isBusy }) {
   }
 
   /* ---------------------------------------------------------- locker room */
+  // Morale-first pixel room: meters, the leadership group, open situations and promises, then a
+  // paged grid of every player's mood with a way to talk to him. Styles live in people.css.
+  const LR_PAGE = 12;
+  const lrBlocks = (v, n = 20, tone = "", max = 100) =>
+    `<span class="pp-blocks big ${tone}" aria-hidden="true">${Array.from({ length: n }, (_, i) => `<i class="${i < Math.round((Math.max(0, Math.min(max, v)) / max) * n) ? "on" : ""}"></i>`).join("")}</span>`;
   function lockerView() {
+    if (typeof document !== "undefined" && document.querySelector && !document.querySelector('link[href="people.css"]'))
+      document.head?.insertAdjacentHTML?.("beforeend", '<link rel="stylesheet" href="people.css">');
     const r = lockerReport(state),
-      total = r.players.length || 1,
-      list = r.players.filter((p) => (lockerFilter === "Unhappy" ? p.concern : lockerFilter === "Starters" ? p.starter : true));
-    const kpis = `<div class="fo-kpis">${kpi("TEAM MORALE", r.teamMorale + "%", `${r.pulseLabel} · squad average ${r.avgMorale}%`, toneFor(r.teamMorale, 70, 55), r.teamMorale)}${kpi("CHEMISTRY", r.chemistry, `Weekly morale ${r.moraleModifier > 0 ? "+" : ""}${r.moraleModifier}`, toneFor(r.chemistry, 65, 50), r.chemistry)}${kpi("DRAMA", r.drama, r.drama >= 55 ? "Eroding chemistry" : "Under control", r.drama >= 55 ? "bad" : r.drama >= 35 ? "warn" : "good", r.drama)}${kpi("LEADERSHIP", r.leadership, "Top three leaders", toneFor(r.leadership, 65, 45), r.leadership)}${kpi("UNHAPPY", r.unhappy.length, r.unhappy.length ? "Need your attention" : "Nobody unsettled", r.unhappy.length > 4 ? "bad" : r.unhappy.length ? "warn" : "good")}</div>`;
-    const spread = `<div class="fo-spread">${Object.entries(r.counts).map(([k, n]) => (n ? `<i class="${B_TONE[k]}" style="flex:${n}" title="${k}: ${n}">${n}</i>` : "")).join("")}</div><div class="fo-legend">${Object.entries(r.counts).map(([k, n]) => `<span class="${B_TONE[k]}"><i></i>${k} ${n}</span>`).join("")}</div>`;
-    const attention = r.unhappy.length
-      ? `<div class="fo-attention">${r.unhappy.slice(0, 6).map((p) => `<article class="fo-person ${p.tone}"><div class="fo-person-head"><b>${esc(p.name)}</b><small>${p.pos} · ${p.ovr} OVR</small><strong>${p.morale}%</strong></div><ul class="fo-causes">${p.causes.map(cause).join("") || "<li>No single cause recorded</li>"}</ul><button class="secondary small" onclick="F.meeting(${arg(p.id)})">Meet player</button></article>`).join("")}</div>`
-      : '<p class="fo-note">Every player is at least content. Keep it that way.</p>';
-    const leaders = `<div class="fo-leaders">${r.leaders.map((p) => `<div class="fo-leader"><b>${esc(p.name)}</b><small>${p.pos} · leadership ${p.leadership}</small>${meter(p.morale, p.tone)}<span>${p.morale}% morale</span></div>`).join("")}</div>`;
-    const table = `<div class="fo-filter">${["All", "Unhappy", "Starters"].map((f) => `<button class="${lockerFilter === f ? "active" : ""}" onclick="FrontOffice.locker(${arg(f)})">${f}</button>`).join("")}</div><div class="fo-table"><table><thead><tr><th>PLAYER</th><th>MORALE</th><th>MOOD</th><th>TRUST</th><th>WHY</th><th></th></tr></thead><tbody>${list.map((p) => `<tr><td><button class="link" onclick="W.player(${arg(p.id)},${state.team})">${esc(p.name)}</button><small>${p.pos} · ${p.ovr}${p.starter ? " · starter" : ""}</small></td><td class="fo-cell-meter">${meter(p.morale, p.tone)}<b>${p.morale}</b></td><td>${chip(p.mood, p.tone)}</td><td>${p.trust}</td><td class="fo-why">${esc(p.causes[0]?.text || "—")}</td><td><button class="secondary small" onclick="F.meeting(${arg(p.id)})">Meet</button></td></tr>`).join("")}</tbody></table></div>`;
-    return `<div class="fo-page">${kpis}<div class="fo-grid">${card("Morale across the squad", spread + `<label class="fo-label">What is moving the room</label><ul class="fo-causes">${r.teamCauses.map(cause).join("")}</ul>`, "", "fo-span-2")}${card("Leaders", leaders, `<button class="link" onclick="W.open('Conversations')">Conversations →</button>`)}</div>${card(`Needs attention <span class="fo-count">${r.unhappy.length}</span>`, attention)}${card("Squad morale", table)}</div>`;
+      dilemma = activeDilemma(state),
+      lastCall = state.franchise.depth?.dilemmas?.find((d) => d.status === "resolved"),
+      promises = state.franchise.cinema?.promises || [],
+      open = promises.filter((p) => !p.done),
+      closed = promises.filter((p) => p.done).slice(-3).reverse(),
+      filters = [
+        ["All", "Everyone", r.players.length],
+        ["Unhappy", "Needs attention", r.unhappy.length],
+        ["Starters", "Starters", r.players.filter((p) => p.starter).length],
+      ],
+      list = r.players.filter((p) => (lockerFilter === "Unhappy" ? p.concern : lockerFilter === "Starters" ? p.starter : true)),
+      pages = Math.max(1, Math.ceil(list.length / LR_PAGE));
+    lockerPage = Math.max(0, Math.min(lockerPage, pages - 1));
+    const shown = list.slice(lockerPage * LR_PAGE, lockerPage * LR_PAGE + LR_PAGE),
+      dramaTone = r.drama >= 55 ? "bad" : r.drama >= 35 ? "warn" : "good",
+      face = (p, size) => pixelFace(state.roster.find((x) => x.id === p.id) || p, { size, team: state.team }),
+      tone = (v, g, w) => toneFor(v, g, w);
+    const gauge = (label, value, sub, t, v) =>
+      `<div class="lr-meter ${t}"><span class="lr-meter-top"><small>${label}</small><b>${value}</b></span>${lrBlocks(v, 20, t)}<em>${sub}</em></div>`;
+    const meters = `<section class="pp-panel lr-meters">${gauge("TEAM MORALE", r.teamMorale + "%", `${esc(r.pulseLabel)} · players average ${r.avgMorale}%`, tone(r.teamMorale, 70, 55), r.teamMorale)}${gauge("CHEMISTRY", Math.round(r.chemistry), `Adds ${r.moraleModifier > 0 ? "+" : ""}${r.moraleModifier} morale a week`, tone(r.chemistry, 65, 50), r.chemistry)}${gauge("DRAMA", Math.round(r.drama), r.drama >= 55 ? "Eroding chemistry · lower is better" : "Under control · lower is better", dramaTone, r.drama)}${gauge("LEADERSHIP", r.leadership, "Top three leaders' average", tone(r.leadership, 65, 45), r.leadership)}<div class="lr-spread-wrap"><span class="lr-spread-label"><small>MOOD OF ${r.players.length} PLAYERS</small><b class="${r.unhappy.length > 4 ? "bad" : r.unhappy.length ? "warn" : "good"}">${r.unhappy.length ? r.unhappy.length + " need attention" : "Nobody unsettled"}</b></span><div class="lr-spread">${Object.entries(r.counts)
+      .map(([k, n]) => (n ? `<i class="${B_TONE[k] || "ok"}" style="flex:${n}" title="${k}: ${n}">${n}</i>` : ""))
+      .join("")}</div><div class="lr-legend">${Object.entries(r.counts)
+      .map(([k, n]) => `<span class="${B_TONE[k] || "ok"}"><i></i>${k} <b>${n}</b></span>`)
+      .join("")}</div></div></section>`;
+    const leaders = `<section class="pp-panel lr-leaders"><div class="pp-panel-head"><h3>Leadership group</h3><small>Captains set the tone</small></div>${r.leaders
+      .map(
+        (p, i) =>
+          `<div class="lr-leader ${p.tone || "ok"}">${face(p, 40)}<span class="lr-id"><button class="link lr-name" onclick="W.player(${arg(p.id)},${state.team})">${esc(p.name)}</button><small><em class="pp-pos">${p.pos}</em>${i < 3 ? "Captain" : "Leader"} · leadership ${p.leadership}</small></span><span class="lr-leader-mood"><b>${p.morale}%</b><small>${p.mood}</small></span><button class="secondary small" onclick="CI.open('player',${arg(p.id)})">Talk</button></div>`,
+      )
+      .join("")}</section>`;
+    const situation = dilemma
+      ? `<div class="lr-dilemma"><span class="pp-chip bad">Decision needed</span><b>${esc(dilemma.title)}</b><p>${esc(dilemma.body)}</p><div class="lr-choices">${dilemma.choices.map((ch) => `<button class="secondary small" onclick="FrontOffice.dilemma(${arg(dilemma.id)},${arg(ch.id)})">${esc(ch.label)}</button>`).join("")}</div></div>`
+      : `<div class="lr-dilemma calm"><span class="pp-chip good">No open situation</span>${lastCall ? `<p>Last call: <b>${esc(lastCall.title)}</b> · ${esc(lastCall.outcome)}</p>` : "<p>Dressing-room situations appear here after games. Your call moves morale, drama and chemistry.</p>"}</div>`;
+    const room = `<section class="pp-panel lr-room"><div class="pp-panel-head"><h3>What is moving the room</h3><button class="link lr-more" onclick="CI.open('team')">Team meeting →</button></div><ul class="lr-causes">${r.teamCauses.map((c) => `<li class="${c.tone || ""}">${esc(c.text)}</li>`).join("")}</ul>${situation}</section>`;
+    const promiseRow = (p) =>
+      `<li class="${p.done ? "done" : p.dueNow ? "due" : ""}"><span><b>${esc(p.name)}</b><small>${esc(p.type)} · promised week ${(p.week ?? 0) + 1}</small></span>${
+        p.done
+          ? `<em class="pp-chip ${/review|kept/i.test(p.outcome || "") ? "good" : "bad"}">${esc(p.outcome || "Closed")}</em>`
+          : `${p.dueNow ? '<em class="pp-chip warn">Review now</em>' : `<em class="pp-chip">Due wk ${p.due + 1}</em>`}<button class="secondary small" onclick="CI.open('player',${arg(p.playerId)})">Meet</button>`
+      }</li>`;
+    const shownPromises = [...open.slice(0, 4), ...closed].slice(0, 5);
+    const promiseCard = `<section class="pp-panel lr-promises"><div class="pp-panel-head"><h3>Promises</h3><small>${open.length} open</small></div>${
+      shownPromises.length
+        ? `<ul class="lr-promise-list">${shownPromises.map(promiseRow).join("")}</ul>`
+        : '<p class="pp-none">No promises on record. Promising a role review in a conversation adds one here; meet the player by the due week to keep it.</p>'
+    }<button class="link lr-more" onclick="W.open('Conversations')">All conversations →</button></section>`;
+    const card = (p) =>
+      `<article class="lr-card ${p.tone || "ok"}"><div class="lr-card-top">${face(p, 44)}<span class="lr-id"><button class="link lr-name" onclick="W.player(${arg(p.id)},${state.team})">${esc(p.name)}</button><small><em class="pp-pos">${p.pos}</em>${p.ovr} OVR${p.starter ? " · starter" : ""}</small></span><span class="lr-mood">${p.mood}</span></div><div class="lr-card-meter"><span>Morale</span>${lrBlocks(p.morale, 10, p.tone || "")}<b>${p.morale}</b></div><div class="lr-card-meter"><span>Trust</span>${lrBlocks(p.trust, 10, "", 99)}<b>${p.trust}</b></div><p class="lr-why ${p.causes[0]?.tone || ""}" title="${esc(p.causes.map((c) => c.text).join(" · "))}">${esc(p.causes[0]?.text || "—")}</p><div class="lr-card-actions"><button class="small" onclick="CI.open('player',${arg(p.id)})">Talk</button><button class="secondary small" title="A quick one-on-one: support, challenge or clarify his role" onclick="F.meeting(${arg(p.id)})">Quick word</button></div></article>`;
+    const range = list.length ? `${lockerPage * LR_PAGE + 1}–${Math.min(list.length, (lockerPage + 1) * LR_PAGE)} of ${list.length} players` : "0 players";
+    const grid = `<section class="pp-panel lr-squad"><div class="pp-panel-head"><h3>Player moods</h3><small>Lowest morale first · one conversation per player each week</small></div><div class="pp-bar"><div class="pp-seg" role="group" aria-label="Filter players">${filters
+      .map(([k, label, n]) => `<button class="${lockerFilter === k ? "on" : ""}" aria-pressed="${lockerFilter === k}" onclick="FrontOffice.locker(${arg(k)})">${label} <small>${n}</small></button>`)
+      .join("")}</div></div><div class="lr-grid">${shown.map(card).join("") || '<p class="pp-none">Every player is at least content. Keep it that way.</p>'}</div><div class="pp-pager"><span>${range}</span><span>Page ${lockerPage + 1} / ${pages}</span><button class="secondary small" ${lockerPage ? "" : "disabled"} onclick="FrontOffice.lockerPage(-1)">Previous</button><button class="secondary small" ${lockerPage + 1 < pages ? "" : "disabled"} onclick="FrontOffice.lockerPage(1)">Next</button></div></section>`;
+    return `<div class="pp-page lr-page">${meters}<div class="lr-row">${leaders}${room}${promiseCard}</div>${grid}</div>`;
   }
   const B_TONE = { Happy: "good", Content: "", Unsettled: "warn", Unhappy: "bad" };
 
@@ -152,8 +205,14 @@ export function installFrontOfficeUI({ views, isBusy }) {
       }, "Counters added to the game plan."),
     locker: (f) => {
       lockerFilter = f;
+      lockerPage = 0;
       render();
     },
+    lockerPage: (d) => {
+      lockerPage = Math.max(0, lockerPage + d);
+      render();
+    },
+    dilemma: (id, choice) => mutate((s) => resolveDilemma(s, id, choice), (r) => `Decision made: ${r.outcome}`),
   };
   views.Boardroom = boardView;
   views["Locker room"] = lockerView;
