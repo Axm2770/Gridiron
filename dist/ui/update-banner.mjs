@@ -1,6 +1,8 @@
 // Desktop update banner: a compact bar in the corner that reflects the updater's state. The
 // desktop shell checks GitHub Releases on launch and every few hours; this only renders and
-// forwards the player's choices (install, reload, open the release page, dismiss).
+// forwards the player's choices (install, reload, open the release page, dismiss). While the
+// startup update's full-screen loader is up (body.gd-updating, ui/update-loader.mjs) it stays
+// hidden, and it repaints when the loader closes.
 const MB = 1024 * 1024;
 // Header-bar label above the message (pixel kit look; ui/dialogs.css).
 const KICKER = { info: "Game update", good: "Update ready", warn: "Update needs you" };
@@ -38,7 +40,7 @@ export function installUpdateBanner(api) {
   let status = api.status();
   const render = () => {
     const key = `${status.phase}:${status.latest}`,
-      v = dismissed === key ? null : view(status);
+      v = dismissed === key || document.body.classList.contains("gd-updating") ? null : view(status);
     bar.hidden = !v;
     if (!v) return;
     bar.dataset.tone = v.tone;
@@ -60,5 +62,10 @@ export function installUpdateBanner(api) {
     status = next;
     render();
   });
+  window.addEventListener("gd-update-loader-closed", () => {
+    status = api.status();
+    render();
+  });
   render();
+  return { render };
 }

@@ -61,8 +61,16 @@ try {
   assert.equal(s.phase, "available");
   assert.equal(s.files, 2, "only the changed and new files are downloaded");
   requests = [];
+  const seen = [];
+  u.onChange((x) => seen.push({ ...x }));
   s = await u.download();
   assert.equal(s.phase, "ready", s.message);
+  // The startup loader shows download → install with file and byte counts.
+  const stages = seen.filter((x) => x.phase === "downloading").map((x) => x.stage);
+  assert.equal(stages[0], "download");
+  assert.equal(stages.at(-1), "install");
+  assert.equal(seen.filter((x) => x.phase === "downloading").at(-1).doneFiles, 2);
+  assert(seen.some((x) => x.downloadedBytes > 0), "downloaded bytes are reported");
   assert.equal(requests.filter((r) => r.includes("raw.githubusercontent.com")).length, 2);
   const root = u.root();
   assert.notEqual(root, packaged);
@@ -75,7 +83,9 @@ try {
   // Next launch keeps serving the verified update and reports up to date.
   u = make(serve());
   assert.equal(await u.init(), root);
-  assert.equal((await u.check()).phase, "up-to-date");
+  s = await u.check();
+  assert.equal(s.phase, "up-to-date");
+  assert.match(s.releaseUrl, /releases\/tag\/v1\.1\.0/, "the 'Updated to' card can link to the notes after a restart");
 
   // A newer full install supersedes downloaded content.
   u = make(serve(), "1.2.0");
@@ -87,7 +97,7 @@ try {
   assert.equal((await u.check()).phase, "available");
   s = await u.download();
   assert.equal(s.phase, "error");
-  assert.match(s.message, /verification/);
+  assert.match(s.message, /verification\. Your game is unchanged\.$/, "one full stop between the reason and the reassurance");
   assert.equal(u.root(), packaged);
 
   // Content that never reports healthy is rolled back after two launches.
@@ -129,6 +139,9 @@ const main = await readFile("desktop/main.cjs", "utf8"),
   workflow = await readFile(".github/workflows/desktop.yml", "utf8");
 assert(main.includes("appResponse(request,updater.root())"), "the protocol serves the active content root");
 assert(main.includes("fromGame(event)"), "update IPC only accepts the game window");
+assert(main.includes("ipcMain.handle('updates:startup-check'") && preload.includes("updates:startup-check"), "the game runs the launch check itself");
+assert(main.includes("updatesOff=smoke||process.env.GRIDIRON_NO_UPDATES==='1'") && main.includes("if(updatesOff)return{...updater.status(),phase:'disabled'}"), "smoke tests and GRIDIRON_NO_UPDATES skip the launch update");
+assert(main.includes("if(!startupCheckAsked)updater.check()"), "the shell doesn't repeat the game's launch check");
 assert(!preload.includes("require('node:"), "the preload exposes no Node APIs");
 assert(workflow.includes("content-manifest.json"), "releases publish the update manifest");
 console.log("PASS: in-game updates — delta download, hash verification, CRLF-safe hashing, rollback, shell gating and host allow-list.");
