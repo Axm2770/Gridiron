@@ -20,6 +20,9 @@ export const EVENT_KINDS = [
   "PressConference",
   "CoachingMove",
   "LockerRoomDilemma",
+  "Combine",
+  "HallOfFame",
+  "Honors",
 ];
 
 const MAX_EVENTS = 240;

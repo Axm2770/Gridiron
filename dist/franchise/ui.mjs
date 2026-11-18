@@ -4,6 +4,7 @@ import {ensureCalendar} from './calendar-core.mjs';
 import { recordDecision, capturePreseason } from "./career-systems.mjs";
 import { configureCareerHistory } from "./records.mjs";
 import { installExpansionUI } from "./expansion-ui.mjs";
+import { installCeremoniesUI } from "./ceremonies-ui.mjs";
 import { migrateImmersion } from "./immersion.mjs";
 import { installStaffUI } from "./staff-ui.mjs";
 import { ensureStaff } from "./staff.mjs";
@@ -1455,6 +1456,7 @@ import("./presentation.mjs")
     installScoutCard({ isBusy: () => busy });
     installStaffUI({ views, isBusy: () => busy });
     installExpansionUI({ views, isBusy: () => busy, heritage });
+    installCeremoniesUI({ views });
     installCalendarUI({views,initialize,isBusy:()=>busy,setBusy:value=>busy=value,settleRound});
     installFrontOfficeUI({ views, isBusy: () => busy });
     await installCareerManager({ views, isBusy: () => busy, initialize });

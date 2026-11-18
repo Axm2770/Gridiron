@@ -677,6 +677,12 @@ export function conversationStageSVG(d) {
   return `<svg class="px-conv-art" viewBox="0 0 ${W} ${H}" shape-rendering="crispEdges" preserveAspectRatio="xMidYMid slice" role="img" aria-label="${escAttr(setting)} conversation">${layer(back, "px-l-wall")}${layer(people, "px-l-body")}</svg>`;
 }
 
+// Other modules add scene kinds here (presentation/ceremony-scenes.mjs: combine, Hall of Fame, honors).
+// A builder returns { kind, name, kicker, headline, sub, svg(), lines? } like the ones below.
+export const SCENE_BUILDERS = {};
+// Drawing helpers shared with those scene modules.
+export { drawHead, drawSuit, drawSuited, drawPlayer, drawTrophy, nightSky, stadium, turf, crowdLayer, flashSVG, confettiLayer, fireworkLayer, layer, sceneSVG, lastName, seedOf, rnd, GOLD };
+
 /* ---------------------------------------------------------- scene copy */
 
 // Converts an arrival event (or a news card, which carries the same fields) into scene data.
@@ -688,6 +694,7 @@ export function sceneData(e, s = gameState()) {
     base = { team, colors, abbr: label.abbr, teamName: label.name, city: label.city };
   const story = storyScene(e, s, base, label);
   if (story) return story;
+  if (SCENE_BUILDERS[e.kind]) return { ...base, ...SCENE_BUILDERS[e.kind](e, s, base, label) };
   if (e.kind === "CoachingMove" || e.type === "coach") {
     const name = e.coachName || e.name || "The new head coach";
     return {
@@ -764,6 +771,13 @@ export function storyArt(a, s = gameState()) {
           : pixelPortrait(card.face, { seed: card.playerId || card.name, colors: d.colors, label: d.name }) + pixelJersey({ colors: d.colors, name: lastName(d.name), number: d.number });
     return `<div class="px-card px-card-${d.kind}" style="${style}"><div class="px-card-art">${art}</div><div class="px-card-copy"><span class="px-kicker">${esc(d.kicker)}</span><b>${esc(d.name)}</b><small>${esc(d.kind === "coach" ? `${d.city} ${d.teamName}` : `#${d.number} · ${card.pos || ""} · ${d.abbr}`)}</small></div><button class="px-watch" onclick="PixelScenes.replay('${esc(a.id)}')" aria-label="Watch the scene: ${esc(d.kicker)}, ${esc(d.name)}">Watch ▸</button></div>`;
   }
+  // Ceremony stories (combine, Hall of Fame, honors) carry a feature payload with its own pixel card.
+  const feature = a?.feature && globalThis.GDFeatureVisuals?.[a.feature.type];
+  if (feature)
+    try {
+      const html = feature(a.feature.data, a, { compact: true });
+      if (html) return html;
+    } catch {}
   const p = a?.playerId && findPlayer(s, a.playerId);
   if (!p) return "";
   const team = Number.isInteger(p.__team) ? p.__team : Number(a.team) || 0;
@@ -801,10 +815,12 @@ export function playPixelScene(event, { duration = 8 } = {}) {
   root.querySelector("h2").textContent = d.headline;
   root.querySelector("p").textContent = d.sub;
   document.body.append(root);
-  const total = (reduced ? 4 : duration) * 1000,
+  const total = (reduced ? Math.max(4, (d.lines?.length || 0) * 2.2) : duration) * 1000,
     bar = root.querySelector(".px-scene-progress i"),
     start = performance.now();
-  let frame = 0;
+  let frame = 0,
+    lineAt = -1;
+  const lines = Array.isArray(d.lines) && d.lines.length ? d.lines : null;
   const close = () => {
     if (!active) return;
     cancelAnimationFrame(frame);
@@ -825,6 +841,11 @@ export function playPixelScene(event, { duration = 8 } = {}) {
   const tick = (now) => {
     const u = Math.min(1, (now - start) / total);
     bar.style.width = `${u * 100}%`;
+    // Optional caption sequence (speeches, envelope reveals): one line per equal slice of the scene.
+    if (lines) {
+      const i = Math.min(lines.length - 1, Math.floor(u * lines.length));
+      if (i !== lineAt) root.querySelector(".px-scene-caption p").textContent = lines[(lineAt = i)];
+    }
     if (u >= 1) return close();
     frame = requestAnimationFrame(tick);
   };

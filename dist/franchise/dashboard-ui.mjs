@@ -445,7 +445,7 @@ export function installDashboard({ views, isBusy }) {
   // Draft room gains two sub-tabs for content that only the old Hub "Draft" tab had.
   const draftRoom = views.Draft;
   views.Draft = () =>
-    `<div class="gd-toolbar fd-draft-tabs">${K.tabs([["room", "Draft room"], ["scouts", "Scout network"], ["pipeline", "Watchlist pipeline"]], draftTab, "Hub2.draftTab('$id')", { label: "Draft room sections" })}</div>${draftTab === "scouts" ? scoutNetwork() : draftTab === "pipeline" ? pipelineTab() : draftRoom()}`;
+    `<div class="gd-toolbar fd-draft-tabs">${K.tabs([["room", "Draft room"], ["scouts", "Scout network"], ["pipeline", "Watchlist pipeline"], ["combine", "Combine"]], draftTab, "Hub2.draftTab('$id')", { label: "Draft room sections" })}</div>${draftTab === "combine" && window.CombineUI ? window.CombineUI.view() : draftTab === "scouts" ? scoutNetwork() : draftTab === "pipeline" ? pipelineTab() : draftRoom()}`;
   // The coaching tree (and decision / press record) lives on Coach career.
   const careerView = views.Career;
   if (careerView) views.Career = () => careerView() + coachingSection();
@@ -475,7 +475,7 @@ export function installDashboard({ views, isBusy }) {
       if (id === "media") window.Hub?.mediaTab?.("Fan network");
     },
     draftTab(id) {
-      draftTab = ["room", "scouts", "pipeline"].includes(id) ? id : "room";
+      draftTab = ["room", "scouts", "pipeline", "combine"].includes(id) ? id : "room";
       render();
     },
     // Kept so old onclick handlers do nothing harmful.

@@ -498,17 +498,17 @@ export function installExpansionUI({ views, isBusy, heritage }) {
             : "Candidates emerge as the season unfolds.",
         )
       }</div>${announced ? `<div class="exp-panel-footer"><button class="secondary small" onclick="Expansion.ballots()">Explore the 50 ballots →</button></div>` : ""}`,
-    )}${!announced ? `<div class="exp-explainer"><b>${locked ? "The regular-season vote is preserved." : "What drives this race?"}</b><p>${locked ? "Playoff results do not alter the sealed ballots. Honors are announced after the championship." : award === "COTY" ? "Wins above the preseason expectation and year-to-year improvement carry the most weight. Team results and the late-season story influence a close race." : award === "MVP" ? "Quarterback production, team record and seeding carry substantial weight. Exceptional seasons at other positions can challenge the field." : "Production and position-specific impact lead the evaluation. Recent performance, reputation and the team story influence close decisions."}</p></div>` : ""}</div>`;
+    )}${!announced ? `<div class="exp-explainer"><b>${locked ? "The regular-season vote is preserved." : "What drives this race?"}</b><p>${locked ? "Playoff results do not alter the sealed ballots. Honors are announced the Thursday before the championship." : award === "COTY" ? "Wins above the preseason expectation and year-to-year improvement carry the most weight. Team results and the late-season story influence a close race." : award === "MVP" ? "Quarterback production, team record and seeding carry substantial weight. Exceptional seasons at other positions can challenge the field." : "Production and position-specific impact lead the evaluation. Recent performance, reputation and the team story influence close decisions."}</p></div>` : ""}</div>`;
   }
   function hofRows() {
     const simulated = (state.franchise.hall || []).map((p) => ({
       ...p,
       category: "Players",
-      teamIds: [p.team],
+      teamIds: p.teamIds || [p.team],
       classYear: p.year,
       role: p.pos,
       stats: p.totals,
-      achievements: (p.awards || []).map((a) => a.year + " " + a.award),
+      achievements: p.achievements || (p.awards || []).map((a) => a.year + " " + a.award),
       bio: `${p.name} retired in ${p.retired}. The career ledger includes all recorded games. ${p.inducted ? "Enshrined in" : "Eligible for"} the Hall of Fame in ${p.year}.`,
       historical: false,
     }));

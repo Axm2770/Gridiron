@@ -21,6 +21,10 @@ export const SCENES = {
   ClutchFinish: { priority: 60, major: false, duration: 6.5 },
   LockerRoomDilemma: { priority: 50, major: false, duration: 6 },
   PressConference: { priority: 40, major: false, duration: 5 },
+  // League ceremonies (ceremonies.mjs) always play as pixel scenes (presentation/ceremony-scenes.mjs).
+  HallOfFame: { priority: 85, major: true, duration: 13, pixel: true },
+  Honors: { priority: 75, major: true, duration: 11, pixel: true },
+  Combine: { priority: 55, major: false, duration: 11, pixel: true },
 };
 
 export function cinematicPreference() {
