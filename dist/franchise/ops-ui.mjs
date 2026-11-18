@@ -23,6 +23,7 @@ const e = K.escapeHTML;
 const money = (cents) => `${cents < 0 ? "-" : ""}$${(Math.abs(cents) / S.MILLION).toFixed(Math.abs(cents) >= S.MILLION * 10 ? 1 : 2)}M`;
 const attrName = (k) => k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
 const pct = (x) => `${Math.round(x * 100)}%`;
+let pendingTrade = null; // an accepted trade waiting for the coach's confirmation
 const ui = { training: "plan", market: "builder", draft: "scouting", partner: null, give: [], get: [], classPos: "All", response: null, digest: null, mk: marketFilters() };
 // Market picker filters: one set per trade side and one for the free-agent board.
 function marketFilters() {
@@ -527,6 +528,24 @@ export function installOps({ isBusy }) {
         render();
         return;
       }
+      // Accepted: review before anything moves. Trades can't be undone.
+      pendingTrade = proposal;
+      const name = (id) => {
+          if (String(id).startsWith("pk-")) {
+            const pk = [...ownedPicks(state, state.team), ...ownedPicks(state, proposal.partner)].find((x) => x.id === id);
+            return `<b>${esc(pk ? pickLabel(state, pk) : "Draft pick")}</b> <small>Draft pick</small>`;
+          }
+          const p = state.roster.find((x) => x.id === id) || S.roster(state, proposal.partner).find((x) => x.id === id);
+          return p ? `<b>${esc(p.name)}</b> <small>${esc(p.pos)} · ${p.ovr} OVR</small>` : esc(String(id));
+        },
+        list = (ids) => (ids.length ? ids.map((id) => `<li>${name(id)}</li>`).join("") : "<li>Nothing</li>");
+      modal(`<h2>Confirm trade with the ${esc(club(proposal.partner))}</h2><p>The ${esc(club(proposal.partner))} accepted. Trades are final once confirmed.</p><div class="mk-confirm"><section><h3>You send</h3><ul>${list(proposal.give)}</ul></section><section><h3>You receive</h3><ul>${list(proposal.get)}</ul></section></div><div class="modal-actions"><button type="button" class="secondary" onclick="closeModal()">Cancel</button><button type="button" onclick="Ops.confirmTrade()">Confirm trade</button></div>`);
+    },
+    confirmTrade() {
+      const proposal = pendingTrade;
+      pendingTrade = null;
+      closeModal();
+      if (!proposal || isBusy()) return;
       mutate((s) => executeTrade(s, proposal), (r) => {
         ui.give = [];
         ui.get = [];

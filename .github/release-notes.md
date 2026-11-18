@@ -29,30 +29,57 @@ Every file in this release was built by GitHub Actions from this tag, passed the
 
 If you have 0.24.1 or later, the game offers this update in-game: choose **Download now**, then **Restart now**. Your careers are untouched. On 0.23.0 or earlier, download this version once from this page.
 
-## New in 0.30.0: deeper tactics, club profiles and automatic updates
+## New in 0.31.0: the combine, awards night, the Hall of Fame and a real newspaper
 
-### Automatic updates
+### New events
+- **Scouting Combine:** every prospect runs the 40, 10-yard split, bench, vertical, broad jump, 3-cone and shuttle. Results narrow your scouting ranges and move draft stock. Draft room has a Combine tab, profiles show a combine card, and a pixel cutscene shows a prospect racing the stopwatch.
+- **Awards night:** MVP, Offensive and Defensive Player of the Year, both Rookie of the Year awards, Comeback Player, Coach of the Year (which can be you) and the All-Pro team, with a pixel ceremony when your club is involved and trophy cards in Records.
+- **Hall of Fame:** finalists in January, a class of 4–8 elected on awards night, and enshrinement in July with a gold-jacket ceremony when the inductee played for your club. Records gets "Class of" plaques.
+
+### News you can read
+- Every story opens as a full article: headline, byline, several paragraphs, pull quotes and related stories. Use Previous and Next or the arrow keys to move between them.
+- Match reports have a pixel scoreboard, quarter-by-quarter scoring, team stat bars and top performers. Player, trade, injury and league stories get their own visuals.
+- New coverage: player and team milestones, records, streaks, your coaching milestones, the trade deadline, free agency, the draft, the playoff field, awards and the champion.
+
+### Inbox cards
+- Messages are now pixel cards: "what changed" lists with meters and the right colours (more drama is bad), press transcripts with the reporter's question and your answers, injury, trade and signing cards, scouting reports, board meetings, final scores and practice reports. Older messages are converted too.
+- The career library header is cleaner.
+
+### Clearer values everywhere
+- Boardroom targets show progress bars, status chips, cap bars and pips instead of grey text, with no more "on pace for 0.0" before the season starts. The same style is used in the Organization hub, club and player profiles, Medical, Development, Scouting and the Locker room.
+
+### Lineup
+- One reliable lineup board for Squad, Tactics and matchday: no overlapping cards, a pixel field, player chips with faces and colour-coded OVR, click, drag or keyboard to swap, Undo, and a side panel that compares replacements with your starter.
+
+### Polish and fixes
+- New postgame report with a scoreboard, quarter scores, stat bars and key plays.
+- Trades now ask you to confirm before players move.
+- Compact panel headers, tidier breadcrumbs and footer, readable free-agent reasons, healed injured-reserve players shown as fit, and many smaller layout fixes.
+
+## Also new in 0.30
+
+#### Automatic updates
 - From the next release on, the desktop app updates itself when it starts: it saves your career, downloads and checks the update behind a pixel loading screen, then reopens your career. A card tells you what version you're on now.
 - Turn it off in Settings (Update automatically when the game starts). Updates found mid-session still wait for you, so a match is never interrupted.
 
-### Tactics, NFL style
+#### Tactics, NFL style
 - Four tabs: Base plan, Situational, Advanced and Scheme fit.
 - Pick a scheme family (West Coast, Air Raid, Spread RPO, Wide zone, Erhardt-Perkins, Power gap), personnel, formation, front, coverage shell and blitz rate, each with a meter for how well your roster fits it.
 - Situational packages for 3rd down, red zone, goal line and the two-minute drill, and a 4th-down chart (conservative, balanced, aggressive).
 - Run and pass concepts, tempo, man vs zone, press vs off and run fits, with a plain-English explanation of every term.
 - Opponent analysis now shows how their tendencies match up with your plan. Every choice feeds the sim, and scores stay realistic.
 
-### Club profiles
+#### Club profiles
 - Click any team's logo or name anywhere, or search for it, to open its profile: leadership, identity, top players, roster and depth chart, schedule, history and titles, stadium and finances, and a Trade with button.
 
-### Fix it in one click
+#### Fix it in one click
 - Warnings and blockers now lead with a bold headline. Where the game suggests a fix, a button does it (release, restructure, waive, move to the practice squad, quick-sim) or takes you to the right screen.
 
-### Clearer screens
+#### Clearer screens
 - Inbox messages are laid out in pixel sections with bullet markers and coloured chips.
 - The Locker room's "What is moving the room" uses cards with meters, chips and win/loss pips.
 
-### Matchday
+#### Matchday
 - Weather now depends on the stadium, its roof and the time of year: snow in Green Bay in December, rain in Seattle, always 70°F indoors. It's no longer a dropdown.
 - When the head coach is calling plays, the call sheet is locked until you switch Playcaller to Manual.
 - The top bar shows "Game in progress" during a match instead of "Return to game".

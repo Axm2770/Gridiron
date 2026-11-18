@@ -253,3 +253,10 @@ body.gd-pixel #app .mk-logo img { filter: none !important; }
   #app .mk-fa-table td:first-child, #app .mk-fa-table td.mk-pull, #app .mk-fa-table td.mk-fa-act { grid-column: 1 / -1; }
 }
 
+/* Trade confirmation: what leaves and what arrives, side by side. */
+.mk-confirm { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0 4px; }
+.mk-confirm section { border: 2px solid var(--gd-border); background: var(--gd-bg-2); padding: 8px 10px; }
+.mk-confirm h3 { margin: 0 0 6px; font: 700 12px var(--gd-display); letter-spacing: .08em; text-transform: uppercase; color: var(--gd-text-2); }
+.mk-confirm ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.mk-confirm li small { color: var(--gd-text-3); margin-left: 4px; }
+@media (max-width: 560px) { .mk-confirm { grid-template-columns: 1fr; } }
