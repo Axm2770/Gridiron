@@ -194,3 +194,12 @@ body.gd-pixel .ball-dot {
   box-shadow: inset 0 -2px 0 #5c2f10, 0 0 0 1px #f4f1de44 !important;
 }
 body.gd-pixel .play-overlay { border: 2px solid var(--px-chalk); background: var(--px-ink) !important; font-size: 12px !important; }
+
+/* One scrollbar for the whole game: where a list genuinely scrolls, it gets a slim, square,
+   pixel-style bar instead of the browser default. */
+body.gd-pixel, body.gd-pixel * { scrollbar-width: thin; scrollbar-color: var(--gd-border-strong) var(--gd-bg-2); }
+body.gd-pixel ::-webkit-scrollbar { width: 10px; height: 10px; }
+body.gd-pixel ::-webkit-scrollbar-track { background: var(--gd-bg-2); border-left: 2px solid var(--gd-border); }
+body.gd-pixel ::-webkit-scrollbar-thumb { background: var(--gd-border-strong); border: 2px solid var(--gd-bg-2); border-radius: 0; }
+body.gd-pixel ::-webkit-scrollbar-thumb:hover { background: var(--gd-accent); }
+body.gd-pixel ::-webkit-scrollbar-corner { background: var(--gd-bg-2); }

@@ -174,4 +174,3 @@
   .fo-security { flex-direction: column; align-items: flex-start; }
   .fo-unit { grid-template-columns: 100px 1fr 28px 30px; }
 }
-.ops-value-hint { margin: 0 0 8px; font-size: 12px; color: var(--gd-text-2, #b6bde0); }

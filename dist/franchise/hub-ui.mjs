@@ -18,6 +18,7 @@ import {
 } from "./player-ui.mjs";
 import { heightLabel, paginate } from "./player-catalog.mjs";
 import { icon } from "./presentation.mjs";
+import { draftRoomView } from "./draft-room-ui.mjs";
 import { marketView as opsMarketView, installOps, windowStrip } from "./ops-ui.mjs";
 const fmt = (n, d = 0) =>
   Number.isFinite(n)
@@ -50,6 +51,7 @@ export function installHubUI({ views, isBusy, tradeView }) {
       position: "All",
       pinned: false,
       sort: "estimate",
+      scouted: false,
       page: 1,
     },
     market = {
@@ -80,89 +82,10 @@ export function installHubUI({ views, isBusy, tradeView }) {
     `<div class="hub-pagination"><span>${p.total ? `${p.from}–${p.to} of ${p.total}` : "0 results"}</span><div><button class="secondary small" onclick="Hub.page('${kind}',-1)" ${p.page <= 1 ? "disabled" : ""}>Previous</button><b>${p.page} / ${p.pages}</b><button class="secondary small" onclick="Hub.page('${kind}',1)" ${p.page >= p.pages ? "disabled" : ""}>Next</button></div></div>`;
   const search = (kind, label, value) =>
     `<label class="hub-search">${icon("search")}<input id="hub-${kind}-query" aria-label="${label}" type="search" placeholder="${label}…" value="${esc(value)}" oninput="Hub.filter('${kind}','query',this.value)"></label>`;
-  function draftView() {
-    const f = state.franchise,
-      d = f.draft,
-      pick = d?.picks[d.cursor],
-      own = pick?.team === state.team,
-      needs = teamNeeds(state),
-      rows = draftBoard(state, draft),
-      p = paginate(rows, draft.page, 25),
-      pins = hubPreferences(state).board.filter((id) =>
-        state.prospects.some((p) => p.id === id),
-      );
-    draft.page = p.page;
-    const picks =
-      d?.picks
-        .map((p, i) => ({ ...p, index: i }))
-        .filter((p) => p.team === state.team) || [];
-    return (
-      hero(
-        "RECRUITMENT / DRAFT CONTROL",
-        own
-          ? "You are on the clock."
-          : pick
-            ? `${esc(clubs[pick.team][2])} on the clock.`
-            : d
-              ? "Your class is taking shape."
-              : "Build the next generation.",
-        pick
-          ? `Round ${pick.round} · Overall pick ${d.cursor + 1}. CPU selections advance to your next turn.`
-          : "Scout the class, pin your targets and plan around your roster needs.",
-        `<strong>${d ? d.cursor : "7"}<small>${d ? "PICKS COMPLETED" : "ROUNDS"}</small></strong>${state.phase === "offseason" ? action(d ? "Draft opened" : "Open seven-round draft", "F.action('draftStart')", "scout") : chip("Opens in the offseason", "purple")}${pick ? action("Explore trade down", "F.action('tradeDown')", "scout", true) : ""}`,
-        "draft-hero",
-      ) +
-      stats([
-        ["SCOUTING POINTS", f.scoutPoints, "Replenished each week"],
-        ["PINNED TARGETS", pins.length, "Your board, saved with this career"],
-        [
-          "PRIVATE VISITS",
-          `${f.visits.length} / 30`,
-          "Build confidence before selecting",
-        ],
-        [
-          "YOUR PICKS",
-          d ? picks.filter((p) => p.index >= d.cursor).length : "Pending",
-          "Current draft · remaining",
-        ],
-      ]) +
-      `<div class="hub-draft-layout"><div>${panel(
-        "Prospect board",
-        `<div class="hub-toolbar">${search("draft", "Search prospects or colleges", draft.query)}<select aria-label="Draft position" onchange="Hub.filter('draft','position',this.value)">${options(["All", ...new Set(S.POS)], draft.position)}</select><select aria-label="Draft sorting" onchange="Hub.filter('draft','sort',this.value)">${options(
-          [
-            ["estimate", "Scouted ability"],
-            ["need", "Team need"],
-            ["confidence", "Report confidence"],
-            ["board", "My board order"],
-          ],
-          draft.sort,
-        )}</select><button class="secondary small ${draft.pinned ? "selected" : ""}" aria-pressed="${draft.pinned}" onclick="Hub.filter('draft','pinned',${!draft.pinned})">★ My board</button></div><div class="hub-table-scroll"><table><thead><tr><th>PRIORITY / PROSPECT</th><th>POS</th><th>ABILITY RANGE</th><th>REPORT</th><th>SIZE</th><th>FIT / ACTION</th></tr></thead><tbody>${p.rows.map((x) => `<tr class="${x.pinned ? "pinned-row" : ""}"><td><div class="hub-player-line"><button class="hub-pin ${x.pinned ? "selected" : ""}" aria-label="${x.pinned ? "Unpin" : "Pin"} ${esc(x.p.name)}" aria-pressed="${x.pinned}" onclick="Hub.pin(${arg(x.p.id)})">${x.pinned ? "★" : "☆"}</button>${name(x.p, -2)}</div>${x.pinned ? `<div class="hub-order">Priority ${pins.indexOf(x.p.id) + 1} <button class="link" aria-label="Move ${esc(x.p.name)} up board" onclick="Hub.rank(${arg(x.p.id)},-1)">↑</button><button class="link" aria-label="Move ${esc(x.p.name)} down board" onclick="Hub.rank(${arg(x.p.id)},1)">↓</button></div>` : ""}</td><td>${positionBadge(x.p)}</td><td><b class="hub-range">${x.ratingLabel}</b><small>Potential ${x.potentialLabel}</small></td><td>${x.confidence}%${meter(x.confidence, "blue")}<button class="link" onclick="Recruit.report(${arg(x.p.id)})">View report</button></td><td>${heightLabel(x.p)}<small>${x.p.weight ? fmt(x.p.weight) + " lb" : "Weight unrecorded"}</small></td><td>${chip(x.need?.urgency || "Review", x.need?.urgency === "Need" ? "amber" : "")}<br>${own ? action("Select player", `F.action('draftPick',${arg(x.p.id)})`, "scout") : chip("Not on your clock")}</td></tr>`).join("") || `<tr><td colspan="6">No prospects match. Clear the filters or unselect My board.</td></tr>`}</tbody></table></div>${pager("draft", p)}`,
-      )}</div><aside class="hub-side-stack">${panel(
-        "Roster priorities",
-        `<div class="hub-needs">${needs
-          .slice(0, 6)
-          .map(
-            (n) =>
-              `<button onclick="Hub.filter('draft','position','${n.pos}')"><span>${positionBadge({ pos: n.pos })}<b>${n.urgency}</b><small>${n.available}/${n.target} available</small></span><strong>${n.best || "—"}<small>BEST OVR</small></strong></button>`,
-          )
-          .join("")}</div>`,
-      )}${panel("Your draft capital", d ? `<div class="hub-pick-strip">${picks.map((p) => `<div class="${p.index < d.cursor ? "used" : ""}"><b>R${p.round}</b><span>#${p.index + 1}</span>${chip(p.index < d.cursor ? "Selected" : "Owned", p.index >= d.cursor ? "blue" : "")}</div>`).join("") || "<p>No selections owned.</p>"}</div>` : '<div class="hub-pad"><p>The order is set when the offseason draft opens. Future selections are tracked in the League office.</p><button class="link" onclick="W.open(\'League\')">View future picks →</button></div>')}${panel(
-        "Latest selections",
-        `<div class="hub-selection-log">${
-          (d?.log || [])
-            .slice(-8)
-            .reverse()
-            .map(
-              (l) =>
-                `<div>${logo(l.team)}<span><b>${esc(l.name)}</b><small>Round ${l.round} · ${l.pos} · ${clubs[l.team][0]}</small></span></div>`,
-            )
-            .join("") ||
-          "<p>No selections yet. Your reports and pinned board remain available all season.</p>"
-        }</div>`,
-      )}</aside></div><div class="hub-bottom-note"><p>Ranges preserve scouting uncertainty. Team needs compare available depth and visible ability; they are guidance, not a guarantee.</p>${state.phase === "offseason" ? action("Begin next season", "F.newSeason()") : ""}</div>`
-    );
-  }
-  views.Draft = () => windowStrip(["draft", "trade"]) + draftView();
+  // The Draft room itself lives in draft-room-ui.mjs; the board filters stay here for Hub.filter/page.
+  const draftView = () => draftRoomView({ filters: draft, busy: isBusy });
+  // The war-room header carries the draft window; the strip keeps the trade window beside it.
+  views.Draft = () => windowStrip(["trade"]) + draftView();
   // One market workspace for the sidebar and the Hub tab: windows, trade builder, offers, free agents.
   if (!window.Ops) installOps({ isBusy });
   views.Market = () =>

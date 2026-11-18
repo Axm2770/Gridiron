@@ -229,7 +229,8 @@ for (const key of ["Draft", "Market", "Club", "Archives", "News"]) {
   assert(html.length > (key === "News" ? 100 : 500), key + " should render");
 }
 assert(views.Draft().includes("data-player-id="));
-assert(views.Draft().includes("1–" + Math.min(25, s.prospects.length) + " of"));
+// The Draft room big board pages 12 prospects at a time (draft-room-ui.mjs BOARD_PAGE).
+assert(views.Draft().includes("1–" + Math.min(12, s.prospects.length) + " of"));
 assert(views.Market().includes("ops-windows") && /Trade deadline|Trading reopens|Offseason trading/.test(views.Market()), "the market states the trade and free-agency windows");
 assert(globalThis.calendar().includes("hub-fixture-grid"));
 Hub.scheduleScope("Results");
