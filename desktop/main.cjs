@@ -26,19 +26,28 @@ function launchDetached(command,args){spawn(command,args,{detached:true,stdio:'i
 const updater=createUpdater({packagedRoot:path.join(__dirname,'..','dist'),shellDir:__dirname,userData:app.getPath('userData'),appVersion:app.getVersion(),fetch:(url,options)=>net.fetch(url,options),log,appInstall:appInstallTarget(),extract:extractZip,launch:launchDetached});
 // Hands off to the install helper, then quits so it can replace the app and relaunch it.
 let installingApp=false;
-function restartIntoAppUpdate(){if(installingApp)return;installingApp=true;updater.installApp().then(started=>{if(started)app.quit();else installingApp=false;}).catch(error=>{installingApp=false;log('Updater install: '+error.message);});}
+function restartIntoAppUpdate(){if(installingApp)return;installingApp=true;updater.installApp().then(started=>{if(started)app.quit();else{installingApp=false;installFailed();}}).catch(error=>{installingApp=false;log('Updater install: '+error.message);installFailed();});}
+function installFailed(){mainWindow?.webContents.send('updates:status',{...updater.status(),phase:'error',message:"The update couldn't start installing. Close and reopen Gridiron Director to try again; your career is saved."});}
 let healthTimer=null;
+// Smoke tests and GRIDIRON_NO_UPDATES=1 never check, download or install anything.
+const updatesOff=smoke||process.env.GRIDIRON_NO_UPDATES==='1';
+let startupCheckAsked=false;
 const fromGame=event=>event.sender===mainWindow?.webContents;
 updater.onChange(status=>mainWindow?.webContents.send('updates:status',status));
 ipcMain.on('updates:status',event=>{event.returnValue=updater.status();});
 ipcMain.handle('updates:check',event=>fromGame(event)?updater.check():null);
+// The game asks once per page load, as it starts, so it can update before the player begins.
+ipcMain.handle('updates:startup-check',event=>{if(!fromGame(event))return null;if(updatesOff)return{...updater.status(),phase:'disabled'};startupCheckAsked=true;return updater.check();});
 ipcMain.handle('updates:download',event=>fromGame(event)?updater.download():null);
 ipcMain.on('updates:reload',event=>{if(!fromGame(event))return;if(updater.appUpdateStaged()){restartIntoAppUpdate();return;}armHealthCheck();mainWindow.reload();});
 ipcMain.on('updates:ready',event=>{if(fromGame(event)){clearTimeout(healthTimer);updater.markHealthy().catch(error=>log('Updater: '+error.message));}});
-ipcMain.on('updates:open-release',event=>{if(fromGame(event))safeExternal(updater.status().releaseUrl);});
+ipcMain.on('updates:open-release',event=>{if(fromGame(event))safeExternal(updater.status().releaseUrl||'https://github.com/Axm2770/Gridiron/releases/tag/v'+updater.status().current);});
 // New content must boot and call ready within 45s, or it is rolled back to the packaged game.
 function armHealthCheck(){clearTimeout(healthTimer);healthTimer=setTimeout(async()=>{if(!updater.isUnverified())return;log('Updater: new content did not report ready; rolling back.');await updater.rollback('The update did not start correctly, so the installed version was restored.');mainWindow?.reload();},45000);}
-function scheduleUpdateChecks(){if(smoke||process.env.GRIDIRON_NO_UPDATES==='1')return;setTimeout(()=>updater.check(),8000);setInterval(()=>updater.check(),6*60*60*1000);}
+// The game normally runs the launch check itself (updates:startup-check); this fallback covers
+// a game page that never asks (it failed to load or predates the launch check). Later checks
+// only offer the banner.
+function scheduleUpdateChecks(){if(updatesOff)return;setTimeout(()=>{if(!startupCheckAsked)updater.check();},20000);setInterval(()=>updater.check(),6*60*60*1000);}
 function safeExternal(url){try{const parsed=new URL(url);if(parsed.protocol==='https:')shell.openExternal(parsed.href);}catch{}}
 function createWindow(){
  mainWindow=new BrowserWindow({width:1440,height:960,minWidth:900,minHeight:650,title:'Gridiron Director',backgroundColor:'#101723',show:!smoke,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,allowRunningInsecureContent:false,preload:path.join(__dirname,'preload.cjs')}});

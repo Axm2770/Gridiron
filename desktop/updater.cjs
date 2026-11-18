@@ -212,11 +212,12 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
         if (size > expected.size) throw Error('The download is larger than expected.');
         hash.update(value);
         await file.write(value);
-        set({ progress: Math.min(99, Math.floor((size / expected.size) * 100)) });
+        set({ progress: Math.min(99, Math.floor((size / expected.size) * 100)), downloadedBytes: size });
       }
     } finally {
       await file.close().catch(() => {});
     }
+    set({ stage: 'verify' });
     if (size !== expected.size || hash.digest('hex') !== expected.sha256) throw Error('The download failed verification.');
   }
 
@@ -309,7 +310,7 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
         latest = String(release.tag_name || '').replace(/^v/, '');
       if (!asset || !latest || compareVersions(latest, current) <= 0) {
         pending = null;
-        set({ phase: 'up-to-date', latest: latest || current, checkedAt: Date.now() });
+        set({ phase: 'up-to-date', latest: latest || current, releaseUrl: release.html_url || state.releaseUrl, checkedAt: Date.now() });
         return state;
       }
       const manifest = validateManifest(await get(asset.browser_download_url, 'json'));
@@ -342,11 +343,12 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
     const { manifest, pkg, url } = pending,
       zip = path.join(appUpdateDir, pkg.name),
       extracted = path.join(appUpdateDir, 'extracted');
-    set({ phase: 'downloading', progress: 0 });
+    set({ phase: 'downloading', stage: 'download', progress: 0, downloadedBytes: 0, doneFiles: 0 });
     try {
       await fs.rm(appUpdateDir, { recursive: true, force: true });
       await fs.mkdir(extracted, { recursive: true });
       await downloadTo(url, zip, pkg);
+      set({ stage: 'install', doneFiles: 1 });
       await extract(zip, extracted);
       await fs.rm(zip, { force: true });
       const source = await findApp(extracted);
@@ -358,7 +360,7 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
     } catch (error) {
       await fs.rm(appUpdateDir, { recursive: true, force: true });
       log('Updater app download: ' + error.message);
-      set({ phase: 'error', message: `The update couldn't be downloaded: ${error.message}. Your game is unchanged.` });
+      set({ phase: 'error', message: `The update couldn't be downloaded: ${error.message.replace(/\.$/, '')}. Your game is unchanged.` });
     }
     return state;
   }
@@ -390,10 +392,11 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
       base = root(),
       target = path.join(contentDir, manifest.version),
       staging = target + '.staging';
-    set({ phase: 'downloading', progress: 0 });
+    set({ phase: 'downloading', stage: 'download', progress: 0, downloadedBytes: 0, doneFiles: 0 });
     try {
       await fs.rm(staging, { recursive: true, force: true });
-      let done = 0;
+      let done = 0,
+        bytesDone = 0;
       for (const [rel, f] of Object.entries(manifest.files)) {
         const dest = path.join(staging, ...rel.split('/'));
         await fs.mkdir(path.dirname(dest), { recursive: true });
@@ -403,9 +406,12 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
           const bytes = await get(`https://raw.githubusercontent.com/${repo}/${encodeURIComponent(tag)}/dist/${rel.split('/').map(encodeURIComponent).join('/')}`, 'bytes');
           if (bytes.length > MAX_FILE || contentHash(rel, bytes) !== f.sha256) throw Error(`Downloaded ${rel} failed verification.`);
           await fs.writeFile(dest, bytes);
-          set({ progress: Math.round((++done / Math.max(1, changed.length)) * 100) });
+          bytesDone += bytes.length;
+          set({ progress: Math.round((++done / Math.max(1, changed.length)) * 100), doneFiles: done, downloadedBytes: bytesDone });
         }
       }
+      // Every file was hash-checked as it arrived; now the verified copy becomes the active game.
+      set({ stage: 'install' });
       await fs.writeFile(path.join(staging, 'content-manifest.json'), JSON.stringify(manifest));
       await fs.rm(target, { recursive: true, force: true });
       await fs.rename(staging, target);
@@ -419,7 +425,7 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
     } catch (error) {
       await fs.rm(staging, { recursive: true, force: true });
       log('Updater download: ' + error.message);
-      set({ phase: 'error', message: `The update couldn't be installed: ${error.message}. Your game is unchanged.` });
+      set({ phase: 'error', message: `The update couldn't be installed: ${error.message.replace(/\.$/, '')}. Your game is unchanged.` });
     }
     return state;
   }

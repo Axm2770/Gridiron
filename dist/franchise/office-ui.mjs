@@ -556,7 +556,16 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     return analysisView({ tab: analysisTab, selected, query: compareQuery });
   };
   function settingsInterface() {
-    return `<div class="settings-section"><label class="settings-row"><span><b>Pixel theme</b><small>Square pixel panels, hard shadows and a pixel-art field with clear, readable text. Off restores the classic look.</small></span><input type="checkbox" aria-label="Pixel theme" ${document.body.classList.contains("gd-pixel") ? "checked" : ""} onchange="Office.pixel(this.checked)"></label><label class="settings-row"><span><b>Table density</b><small>More space or more players on screen.</small></span><select aria-label="Interface density" onchange="Office.density(this.value)">${opts(["comfortable", "compact"], document.body.dataset.density || "comfortable")}</select></label><label class="settings-row"><span><b>Reduce scene motion</b><small>Quieter cutscenes and static interface transitions.</small></span><input type="checkbox" aria-label="Reduce scene motion" ${document.body.classList.contains("reduce-motion") ? "checked" : ""} onchange="Office.motion(this.checked)"></label><div class="settings-row"><span><b>Keyboard shortcuts</b><small>⌘K / Ctrl+K opens global player and screen search. Escape closes dialogs.</small></span><button class="secondary" onclick="W.command()">Open search</button></div></div>`;
+    return `<div class="settings-section"><label class="settings-row"><span><b>Pixel theme</b><small>Square pixel panels, hard shadows and a pixel-art field with clear, readable text. Off restores the classic look.</small></span><input type="checkbox" aria-label="Pixel theme" ${document.body.classList.contains("gd-pixel") ? "checked" : ""} onchange="Office.pixel(this.checked)"></label><label class="settings-row"><span><b>Table density</b><small>More space or more players on screen.</small></span><select aria-label="Interface density" onchange="Office.density(this.value)">${opts(["comfortable", "compact"], document.body.dataset.density || "comfortable")}</select></label><label class="settings-row"><span><b>Reduce scene motion</b><small>Quieter cutscenes and static interface transitions.</small></span><input type="checkbox" aria-label="Reduce scene motion" ${document.body.classList.contains("reduce-motion") ? "checked" : ""} onchange="Office.motion(this.checked)"></label><div class="settings-row"><span><b>Keyboard shortcuts</b><small>⌘K / Ctrl+K opens global player and screen search. Escape closes dialogs.</small></span><button class="secondary" onclick="W.command()">Open search</button></div>${autoUpdateRow()}</div>`;
+  }
+  // Desktop app only (ui/update-loader.mjs reads the same key at launch).
+  function autoUpdateRow() {
+    if (!window.gridironUpdates) return "";
+    let on = true;
+    try {
+      on = localStorage.getItem("gridiron-auto-update") !== "false";
+    } catch {}
+    return `<label class="settings-row"><span><b>Update automatically when the game starts</b><small>Saves your career, installs the new version and reopens it before you play. Updates found later wait in the corner.</small></span><input type="checkbox" aria-label="Update automatically when the game starts" ${on ? "checked" : ""} onchange="Office.autoUpdate(this.checked)"></label>`;
   }
   function settingsAudio() {
     const b = window.broadcast,
@@ -893,6 +902,11 @@ export function installOfficeUI({ views, isBusy, getSection }) {
         localStorage.setItem("gridiron-reduce-motion", String(v));
       } catch {}
       render();
+    },
+    autoUpdate(v) {
+      try {
+        localStorage.setItem("gridiron-auto-update", v ? "true" : "false");
+      } catch {}
     },
     volume(v) {
       window.matchAudio.setVolume(v);

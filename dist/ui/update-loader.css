@@ -1,0 +1,237 @@
+/* Desktop startup update: the full-screen pixel loading page (dialog.gd-uload) and the
+   "Updated to vX.Y.Z" card shown after the restart (dialog.gd-uload-done). Loaded on demand by
+   ui/update-loader.mjs. Both are top-layer dialogs so nothing in the game can be used meanwhile. */
+
+dialog.gd-uload,
+body.gd-pixel dialog.gd-uload {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 16px;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  background: var(--gd-bg) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--gd-text);
+  font: 14px/1.45 var(--gd-body);
+}
+dialog.gd-uload:not([open]) { display: none; }
+/* The game page behind keeps its scroll position but shows no scrollbar while the loader is up. */
+html:has(> body.gd-updating), body.gd-updating { overflow: hidden !important; }
+dialog.gd-uload::backdrop { background: var(--gd-bg); }
+
+/* Dark pixel night sky: a 4px dither plus two stepped glow bands. */
+.gd-uload-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, transparent 0 62%, color-mix(in srgb, var(--gd-accent) 7%, transparent) 62% 74%, color-mix(in srgb, var(--gd-accent) 12%, transparent) 74% 100%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 4px, transparent 4px 8px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 4px, transparent 4px 8px),
+    var(--gd-bg);
+}
+
+.gd-uload-card {
+  position: relative;
+  width: min(640px, 100%);
+  background: var(--gd-surface);
+  border: 3px solid var(--gd-border-strong);
+  box-shadow: 6px 6px 0 var(--px-ink, #05070d);
+}
+.gd-uload-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 14px;
+  background: var(--gd-surface-strong);
+  border-bottom: 3px solid var(--gd-border-strong);
+}
+:is(.gd-uload, .gd-uload-done) .gd-uload-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 700 11px var(--gd-body) !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gd-accent);
+  white-space: nowrap;
+}
+.gd-uload-kicker i { width: 9px; height: 9px; background: currentColor; box-shadow: 0 0 0 2px var(--px-ink, transparent); animation: gd-uload-blink 1s steps(2, jump-none) infinite; }
+.gd-uload[data-tone="warn"] .gd-uload-kicker { color: var(--gd-warn); }
+.gd-uload[data-tone="warn"] .gd-uload-kicker i { animation: none; }
+.gd-uload-versions { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--gd-text-3); font-size: 12px; }
+:is(.gd-uload, .gd-uload-done) .gd-uload-versions b {
+  padding: 2px 7px;
+  border: 2px solid var(--gd-border-strong);
+  background: var(--gd-bg-2);
+  color: var(--gd-text-2);
+  font: 700 12px var(--gd-body) !important;
+  white-space: nowrap;
+}
+:is(.gd-uload, .gd-uload-done) .gd-uload-versions b:last-child { border-color: var(--gd-accent); color: var(--gd-accent); }
+
+.gd-uload-body { display: grid; gap: 14px; padding: 18px 20px 20px; }
+.gd-uload h1.gd-uload-title {
+  margin: 0;
+  font: 700 clamp(22px, 3.2vw, 30px) / 1.1 var(--gd-display) !important;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--gd-text);
+  overflow-wrap: anywhere;
+}
+.gd-uload[data-tone="warn"] .gd-uload-title { color: var(--gd-warn); }
+
+/* Pixel field: scrolling turf and yard lines under a running back (steps() keeps it chunky). */
+.gd-uload-field {
+  position: relative;
+  height: 88px;
+  overflow: hidden;
+  border: 3px solid var(--px-ink, #05070d);
+  background: var(--px-turf-a, #2f8a3c);
+}
+.gd-uload-turf {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 60px, var(--px-chalk, #f4f1de) 60px 64px),
+    repeating-linear-gradient(90deg, var(--px-turf-a, #2f8a3c) 0 32px, var(--px-turf-b, #287a34) 32px 64px);
+  background-size: 128px 100%;
+  animation: gd-uload-turf 0.8s steps(8) infinite;
+}
+.gd-uload-turf::after {
+  /* Hash marks along the bottom of the strip. */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, rgba(244, 241, 222, 0.65) 0 4px, transparent 4px 16px);
+}
+.gd-uload-runner {
+  position: absolute;
+  left: calc(50% - 35px);
+  bottom: 6px;
+  width: 70px;
+  height: 70px;
+  overflow: hidden;
+  animation: gd-uload-bob 0.4s steps(2) infinite;
+}
+.gd-uload-sheet { width: 400%; height: 100%; animation: gd-uload-run 0.48s steps(4) infinite; }
+.gd-uload-sheet svg { display: block; width: 100%; height: 100%; }
+.gd-uload[data-tone="warn"] :is(.gd-uload-turf, .gd-uload-runner, .gd-uload-sheet) { animation-play-state: paused; }
+
+/* Chunky segmented progress bar. */
+.gd-uload-meter { display: flex; align-items: center; gap: 12px; }
+.gd-uload-segs {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  gap: 3px;
+  padding: 4px;
+  min-width: 0;
+  background: var(--gd-bg-2);
+  border: 3px solid var(--gd-border-strong);
+}
+.gd-uload-segs i { height: 16px; background: var(--gd-border); }
+.gd-uload-segs i.on { background: var(--gd-accent); box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.22); }
+.gd-uload[data-tone="warn"] .gd-uload-segs i.on { background: var(--gd-warn); }
+:is(.gd-uload, .gd-uload-done) .gd-uload-pct {
+  min-width: 4.2em;
+  text-align: right;
+  font: 400 14px/1 "Press Start 2P", var(--gd-display) !important;
+  color: var(--gd-text);
+}
+
+.gd-uload-steps { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.gd-uload-steps li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  padding: 3px 8px 3px 4px;
+  color: var(--gd-text-3);
+}
+.gd-uload-steps li[data-state="active"] { background: var(--gd-bg-2); color: var(--gd-text); box-shadow: inset 3px 0 0 var(--gd-accent); }
+.gd-uload-steps li[data-state="done"] { color: var(--gd-text-2); }
+.gd-uload-steps li[data-state="error"] { background: var(--gd-bg-2); color: var(--gd-warn); box-shadow: inset 3px 0 0 var(--gd-warn); }
+:is(.gd-uload, .gd-uload-done) .gd-uload-glyph {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--gd-border);
+  font: 700 11px/1 var(--gd-body) !important;
+}
+li[data-state="done"] .gd-uload-glyph { border-color: var(--gd-good); background: var(--gd-good); color: var(--px-ink, #05070d); }
+li[data-state="active"] .gd-uload-glyph { border-color: var(--gd-accent); color: var(--gd-accent); animation: gd-uload-blink 0.8s steps(2, jump-none) infinite; }
+li[data-state="error"] .gd-uload-glyph { border-color: var(--gd-warn); background: var(--gd-warn); color: var(--px-ink, #05070d); }
+.gd-uload-label { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gd-uload-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.gd-uload-steps small { font-size: 12px; color: var(--gd-text-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+li[data-state="active"] small { color: var(--gd-text-2); }
+
+.gd-uload-tip { display: flex; gap: 10px; align-items: baseline; margin: 0; padding-top: 12px; border-top: 3px dotted var(--gd-border); color: var(--gd-text-2); font-size: 13px; }
+:is(.gd-uload, .gd-uload-done) .gd-uload-tip span { flex: none; padding: 1px 6px; background: var(--gd-accent); color: var(--px-ink, #05070d); font: 700 11px var(--gd-body) !important; letter-spacing: 0.08em; text-transform: uppercase; }
+.gd-uload-tip em { font-style: normal; }
+.gd-uload-error { margin: 0; padding: 10px 12px; border: 2px solid var(--gd-warn); background: var(--gd-bg-2); color: var(--gd-text); font-size: 13.5px; line-height: 1.5; }
+.gd-uload-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.gd-uload-actions button { min-height: 38px; }
+
+/* ------------------------------------------------ "Updated to vX.Y.Z" card after the restart */
+dialog.gd-uload-done,
+body.gd-pixel dialog.gd-uload-done {
+  width: min(440px, calc(100vw - 32px));
+  padding: 0 0 14px;
+  overflow: hidden;
+  background: var(--gd-surface) !important;
+  border: 3px solid var(--gd-border-strong) !important;
+  box-shadow: 6px 6px 0 var(--px-ink, #05070d) !important;
+  color: var(--gd-text);
+}
+.gd-uload-done .gd-uload-kicker { color: var(--gd-good); }
+.gd-uload-done-body { display: flex; align-items: center; gap: 14px; padding: 16px 16px 12px; }
+.gd-uload-done-art { flex: none; width: 56px; height: 56px; overflow: hidden; border: 3px solid var(--px-ink, #05070d); background: var(--px-turf-a, #2f8a3c); }
+.gd-uload-done .gd-uload-done-body h2 { margin: 0 0 4px; font: 700 22px/1.1 var(--gd-display) !important; color: var(--gd-text); }
+.gd-uload-done .gd-uload-done-body p { margin: 0; font-size: 13.5px; color: var(--gd-text-2); }
+.gd-uload-done .gd-uload-actions { padding: 0 16px; }
+.gd-uload-timer { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: var(--gd-good); transform-origin: left; animation: gd-uload-timer linear forwards; }
+.gd-uload-done:hover .gd-uload-timer { animation-play-state: paused; }
+
+@keyframes gd-uload-run { to { transform: translateX(-100%); } }
+@keyframes gd-uload-turf { to { background-position: -128px 0, -128px 0; } }
+@keyframes gd-uload-bob { 50% { transform: translateY(-3px); } }
+@keyframes gd-uload-blink { 50% { opacity: 0.25; } }
+@keyframes gd-uload-timer { to { transform: scaleX(0); } }
+
+/* Reduce motion: a still frame of the runner, no blinking, no scrolling turf. */
+body.reduce-motion :is(.gd-uload, .gd-uload-done) *,
+body.reduce-motion :is(.gd-uload, .gd-uload-done) *::after { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  :is(.gd-uload, .gd-uload-done) *,
+  :is(.gd-uload, .gd-uload-done) *::after { animation: none !important; }
+}
+
+/* Big screens: scale the card up so it doesn't float tiny in a 1440p window. */
+@media (min-width: 1800px) and (min-height: 1000px) { .gd-uload-card { zoom: 1.25; } }
+@media (min-width: 2300px) and (min-height: 1300px) { .gd-uload-card { zoom: 1.5; } }
+/* Narrow windows: tighter padding, versions drop under the kicker. */
+@media (max-width: 560px) {
+  .gd-uload-bar { flex-wrap: wrap; gap: 6px; }
+  .gd-uload-body { padding: 14px; gap: 12px; }
+  .gd-uload-field { height: 72px; }
+  .gd-uload-runner { width: 56px; height: 56px; left: calc(50% - 28px); }
+  .gd-uload-steps li { grid-template-columns: 22px minmax(0, 1fr); }
+  .gd-uload-steps small { grid-column: 2; white-space: normal; }
+  .gd-uload-actions button { flex: 1 1 auto; }
+}
+@media (max-height: 640px) { .gd-uload-field { height: 60px; } .gd-uload-runner { width: 48px; height: 48px; left: calc(50% - 24px); } }

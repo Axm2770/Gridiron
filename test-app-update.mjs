@@ -90,8 +90,12 @@ try {
 
   served = winZip;
   await u.check();
+  const stages = [];
+  const stop = u.onChange((x) => x.phase === "downloading" && stages.at(-1) !== x.stage && stages.push(x.stage));
   s = await u.download();
+  stop();
   assert.equal(s.phase, "ready", s.message);
+  assert.deepEqual(stages, ["download", "verify", "install"], "the startup loader sees each app-update stage");
   assert.equal(s.kind, "app");
   assert(u.appUpdateStaged());
   // While an update waits for the restart, periodic checks leave it alone.
