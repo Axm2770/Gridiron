@@ -22,6 +22,7 @@ import { icon } from "./presentation.mjs";
 import { csvText } from "./analysis.mjs";
 import { locate, scoutRange } from "./scouting.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
+import * as SV from "../ui/status-visual.mjs";
 // The scouting desk: search + filter bar, paged pixel result rows, the shortlist and the scout
 // desk (assignments and filed reports). Styles: people.css (layout) over recruitment.css.
 const PAGE_SIZES = [12, 25, 50];
@@ -406,11 +407,11 @@ export function installRecruitmentUI({ views, isBusy, snapshot, reference }) {
     const scoutRows = scouts
       .map((s) => {
         const job = requests.find((r) => r.scout === s.name);
-        return `<li class="${job ? "busy" : ""}"><span class="sc-led" aria-hidden="true"></span><span class="sc-scout"><b>${esc(s.name)}</b><small>${s.region ? esc(s.region) + " · " : ""}${Number.isFinite(s.skill) ? "skill " + s.skill : "scout"}</small></span>${job ? `<button class="link sc-job" onclick="Recruit.report('${job.playerId}')"><b>${esc(job.name)}</b><small>Report due ${esc(job.due)}</small></button>` : '<span class="pp-chip good">Available</span>'}</li>`;
+        return `<li class="${job ? "busy" : ""}"><span class="sc-led" aria-hidden="true"></span><span class="sc-scout"><b>${esc(s.name)}</b>${Number.isFinite(s.skill) ? `<span class="sv-mini">${s.region ? `<small>${esc(s.region)}</small>` : ""}${SV.meter(s.skill, 100, { cells: 8, tone: SV.toneFor(s.skill, 75, 55), label: `Skill ${s.skill}` })}<b>${s.skill}</b></span>` : `<small>${s.region ? esc(s.region) + " · " : ""}scout</small>`}</span>${job ? `<button class="link sc-job" onclick="Recruit.report('${job.playerId}')"><b>${esc(job.name)}</b><small>Report due ${esc(job.due)}</small></button>` : '<span class="pp-chip good">Available</span>'}</li>`;
       })
       .join("");
     const extra = requests.filter((r) => !scouts.some((s) => s.name === r.scout));
-    return `<div class="pp-panel-head"><h3>Scout desk</h3><small>${requests.length} / ${scouts.length} on assignment</small></div><ul class="sc-list sc-scouts">${scoutRows}${extra.map((r) => `<li class="busy"><span class="sc-led"></span><span class="sc-scout"><b>${esc(r.scout)}</b><small>scout</small></span><button class="link sc-job" onclick="Recruit.report('${r.playerId}')"><b>${esc(r.name)}</b><small>Report due ${esc(r.due)}</small></button></li>`).join("")}</ul><span class="pp-label">Filed reports</span>${
+    return `<div class="pp-panel-head"><h3>Scout desk</h3><span class="sv-mini">${SV.pips(requests.length, scouts.length, { tone: "accent", mark: false, label: `${requests.length} of ${scouts.length} scouts on assignment` })}<b>${requests.length}/${scouts.length}</b><small>on assignment</small></span></div><ul class="sc-list sc-scouts">${scoutRows}${extra.map((r) => `<li class="busy"><span class="sc-led"></span><span class="sc-scout"><b>${esc(r.scout)}</b><small>scout</small></span><button class="link sc-job" onclick="Recruit.report('${r.playerId}')"><b>${esc(r.name)}</b><small>Report due ${esc(r.due)}</small></button></li>`).join("")}</ul><span class="pp-label">Filed reports</span>${
       recent.length
         ? `<ul class="sc-list sc-filed">${recent.map((r) => `<li><button class="link sc-job" onclick="Recruit.report('${r.playerId}')"><b>${esc(r.name)}</b><small>${esc(r.date)}</small></button><span class="sc-conf">${r.from}% <i>→</i> <b>${r.to}%</b></span></li>`).join("")}</ul>`
         : '<p class="sc-hint">Open a player and request a report. Each report narrows his rating ranges; it arrives in your Inbox.</p>'

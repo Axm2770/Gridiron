@@ -44,6 +44,8 @@ export const FACILITIES = {
   },
 };
 export const BUDGET_STEP = 5 * MILLION;
+// Win pace is shown (as a number) only after this many games; before that it is noise.
+export const PACE_READY_GAMES = 4;
 const RESERVE = 80 * MILLION;
 const clamp = (n, a = 0, b = 100) => Math.max(a, Math.min(b, n));
 
@@ -133,8 +135,10 @@ export function boardOverview(s) {
       value:
         pace === null
           ? "No games yet"
-          : `On pace for ${pace.toFixed(1)} wins (${gap >= 0 ? "+" : ""}${gap.toFixed(1)})`,
-      tone: pace === null ? "" : gap >= 0 ? "good" : gap > -2 ? "warn" : "bad",
+          : played < PACE_READY_GAMES
+            ? `${team.w}–${team.l}${team.t ? "–" + team.t : ""} · pace after ${PACE_READY_GAMES} games`
+            : `On pace for ${pace.toFixed(1)} wins (${gap >= 0 ? "+" : ""}${gap.toFixed(1)})`,
+      tone: pace === null || played < PACE_READY_GAMES ? "" : gap >= 0 ? "good" : gap > -2 ? "warn" : "bad",
     },
   ];
   const objectives = [

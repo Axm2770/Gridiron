@@ -9,6 +9,7 @@ import { DAYS, BLOCKS, TEMPLATES, DRILLS, POSITION_MOVES, ensureTraining, weekPl
 import { ensurePlayerRatings } from "./ratings.mjs";
 import { movePlayer } from "./personnel.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
+import * as SV from "../ui/status-visual.mjs";
 import { pageOf } from "./market-view.mjs";
 import { ROOM_PAGE, LOG_PAGE, JOINTS, WEAR_RISK, CONDITION_RISK, ROOM_FILTERS, ROOM_SORTS, roomEntries, filterRoom, roomCounts, squadHealth, returnWeek, practiceLoad, intensityBand, INTENSITY_BANDS, unitReadiness, medicalLog } from "./medical-view.mjs";
 
@@ -230,7 +231,7 @@ function physioPanel(d) {
   const cards = pool
     .map((x) => {
       const afford = cash >= x.salary;
-      return `<div class="mt-hire"><span class="mt-staff-tag">PT</span><div class="mt-staff-main"><b>${e(x.name)}</b><small>Recovery ${x.recovery} ${delta(x.recovery, d.physio.recovery)} · Prevention ${x.prevention} ${delta(x.prevention, d.physio.prevention)}</small></div><button class="small ${x.recovery + x.prevention > d.physio.recovery + d.physio.prevention ? "" : "secondary"}" ${afford ? "" : 'disabled title="The club cannot cover this salary"'} onclick="Ops.physio('${x.id}')">Hire · ${money(x.salary)}</button></div>`;
+      return `<div class="mt-hire"><span class="mt-staff-tag">PT</span><div class="mt-staff-main"><b>${e(x.name)}</b><span class="sv-mini-stack">${[["Recovery", x.recovery, d.physio.recovery], ["Prevention", x.prevention, d.physio.prevention]].map(([l, v, cur]) => `<span class="sv-mini"><small>${l}</small>${SV.meter(v, 100, { cells: 6, tone: SV.toneFor(v, 75, 55), label: `${l} ${v}` })}<b>${v}</b>${delta(v, cur)}</span>`).join("")}</span></div><button class="small ${x.recovery + x.prevention > d.physio.recovery + d.physio.prevention ? "" : "secondary"}" ${afford ? "" : 'disabled title="The club cannot cover this salary"'} onclick="Ops.physio('${x.id}')">Hire · ${money(x.salary)}</button></div>`;
     })
     .join("");
   return panel("Physio market", pool.length ? `<div class="mt-hires">${cards}</div><p class="mk-note">Hiring replaces your lead physio. Cash ${money(cash)}. New candidates each year.</p>` : `<p class="mk-none">No candidates left this year. New physios become available next season.</p>`, { cls: "mt-physio" });

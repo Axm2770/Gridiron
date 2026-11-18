@@ -15,6 +15,7 @@ import { pixelFace } from "../ui/pixel-face.mjs";
 import { staffBust } from "./fo-pixel.mjs";
 import { coachAppearance } from "./coach-avatar.mjs";
 import { teamColors } from "../presentation/pixel-art.mjs";
+import * as SV from "../ui/status-visual.mjs";
 
 const OFFENSE = ["QB", "RB", "WR", "TE", "OL"],
   DEFENSE = ["DL", "LB", "CB", "S"],
@@ -372,10 +373,10 @@ export function installClubProfile({ heritage = null } = {}) {
     const r = m.record,
       st = m.standing,
       cap = m.finances.cap,
-      tiles = `<div class="gp-tiles">${tile("Record", r.text, `${r.played} played · ${r.pf}–${r.pa} points`, r.w > r.l ? "good" : r.l > r.w ? "bad" : "")}${tile("Standing", st.rank ? ordinal(st.rank) : "—", `${h(m.division)}${st.seed ? ` · seed ${st.seed}` : ""}`, st.rank === 1 ? "good" : "")}${tile("Point diff", `${r.diff > 0 ? "+" : ""}${r.diff}`, m.streak ? `Streak ${m.streak}` : "No streak yet", r.diff > 0 ? "good" : r.diff < 0 ? "bad" : "")}${tile("Cap room", money(cap.room), `${money(cap.used)} of ${money(cap.limit)} used`, cap.room < 0 ? "bad" : "accent")}</div>`;
+      tiles = `<div class="gp-tiles">${tile("Record", r.text, `${r.played} played · ${r.pf}–${r.pa} points`, r.w > r.l ? "good" : r.l > r.w ? "bad" : "")}${tile("Standing", st.rank ? ordinal(st.rank) : "—", `${h(m.division)}${st.seed ? ` · seed ${st.seed}` : ""}`, st.rank === 1 ? "good" : "")}${tile("Point diff", `${r.diff > 0 ? "+" : ""}${r.diff}`, m.streak ? `Streak ${m.streak}` : "No streak yet", r.diff > 0 ? "good" : r.diff < 0 ? "bad" : "")}${tile("Cap room", money(cap.room), `${SV.money(cap.used / S.MILLION, cap.limit / S.MILLION, { label: `${money(cap.used)} of ${money(cap.limit)} used` })}${money(cap.used)} of ${money(cap.limit)} used`, cap.room < 0 ? "bad" : "accent")}</div>`;
     const person = (c, label, size = 44) =>
       c
-        ? `<div class="cp-person">${staffBust(c, { size, team: m.team, appearance: c.userControlled ? coachAppearance(state) : null })}<span><small>${label}</small><b>${h(c.name)}</b><em>${h(c.scheme || "")}${c.personality ? ` · ${h(c.personality)}` : ""}${Number.isFinite(c.rating) ? ` · ${c.rating} ability` : ""}</em></span></div>`
+        ? `<div class="cp-person">${staffBust(c, { size, team: m.team, appearance: c.userControlled ? coachAppearance(state) : null })}<span><small>${label}</small><b>${h(c.name)}</b><em>${h(c.scheme || "")}${c.personality ? ` · ${h(c.personality)}` : ""}</em></span>${Number.isFinite(c.rating) ? `<strong class="sv-rate ${SV.toneFor(c.rating, 75, 60)}" title="${c.rating} ability"><b>${c.rating}</b><small>ABL</small></strong>` : ""}</div>`
         : `<div class="cp-person cp-vacant"><span class="cp-bust-empty" aria-hidden="true">?</span><span><small>${label}</small><b>Vacant</b><em>Appointment pending</em></span></div>`;
     const o = m.owner,
       leadership = panel(

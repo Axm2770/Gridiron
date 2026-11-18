@@ -1,0 +1,107 @@
+/* Status visuals (ui/status-visual.mjs): block meters with target ticks, status chips with pixel
+   glyphs, pip counts, cap bars and bold display numbers. They replace plain grey value text in
+   lists and table cells. Tokens only; square in the pixel theme, gently rounded in classic. */
+
+.sv-meter, .sv-pips, .sv-money, .sv-chip, .sv-num, .sv-metric { --sv-tone: var(--gd-accent); }
+:is(.sv-meter, .sv-pips, .sv-money, .sv-chip, .sv-num).good { --sv-tone: var(--gd-good); }
+:is(.sv-meter, .sv-pips, .sv-money, .sv-chip, .sv-num).warn { --sv-tone: var(--gd-warn); }
+:is(.sv-meter, .sv-pips, .sv-money, .sv-chip, .sv-num).bad { --sv-tone: var(--gd-bad); }
+:is(.sv-meter, .sv-pips, .sv-money, .sv-chip, .sv-num).pending { --sv-tone: var(--gd-text-2); }
+:is(.sv-meter, .sv-pips, .sv-money, .sv-chip, .sv-num).neutral { --sv-tone: var(--gd-text-2); }
+
+/* Block meter: whole squares, a tall tick after the target cell, a notch under the pace cell. */
+.sv-meter { display: inline-flex; gap: 2px; align-items: center; padding: 3px 0 5px; vertical-align: middle; min-width: 0; }
+.sv-meter i { position: relative; flex: 0 0 auto; width: 8px; height: 10px; background: var(--gd-bg); box-shadow: inset 0 0 0 1px var(--gd-border-strong); }
+.sv-meter i.on { background: var(--sv-tone); box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.28); }
+.sv-meter i.tgt::after { content: ""; position: absolute; top: -4px; bottom: -4px; right: -2px; width: 2px; background: var(--gd-text); }
+.sv-meter i.pace::before { content: ""; position: absolute; left: 1px; right: 1px; bottom: -5px; height: 3px; background: var(--gd-text); }
+.sv-meter.wide { display: flex; } .sv-meter.wide i { flex: 1 1 0; width: auto; }
+
+/* Status chip with a 7×7 glyph. */
+.sv-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 1px 7px; border: 2px solid var(--sv-tone); background: color-mix(in srgb, var(--sv-tone) 12%, transparent); color: var(--sv-tone); font: 700 11px/16px var(--gd-body); letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; border-radius: var(--gd-radius-sm, 0); }
+.sv-chip > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sv-chip.pending, .sv-chip.neutral { border-style: dashed; background: transparent; }
+.sv-glyph { flex: 0 0 auto; width: 9px; height: 9px; }
+
+/* Pips: one square per unit; the needed count ends with a marker, extras glow. */
+.sv-pips { display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; }
+.sv-pips i { position: relative; width: 11px; height: 11px; background: var(--gd-bg); box-shadow: inset 0 0 0 2px var(--gd-border-strong); }
+.sv-pips i.on { background: var(--sv-tone); box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.28); }
+.sv-pips i.over:not(.on) { box-shadow: inset 0 0 0 1px var(--gd-border); opacity: 0.6; }
+.sv-pips i.need::after { content: ""; position: absolute; top: -3px; bottom: -3px; right: -3px; width: 2px; background: var(--gd-text); }
+.sv-pips b { font: 700 11px var(--gd-body); color: var(--gd-text-2); margin-left: 2px; }
+
+/* Cap bar: used fill on a track whose empty part (room) is hatched. */
+.sv-money { position: relative; display: block; width: 100%; height: 10px; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gd-good) 35%, transparent) 0 3px, transparent 3px 6px), var(--gd-bg); box-shadow: inset 0 0 0 2px var(--gd-border-strong); }
+.sv-money i { position: absolute; inset: 0 auto 0 0; background: var(--sv-tone); box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.28); }
+.sv-money.bad { background: var(--gd-bg); }
+
+/* Bold number + small label. */
+.sv-num { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; color: var(--gd-text); }
+.sv-num b, body.gd-pixel .sv-num b { font: 700 18px/1 var(--gd-display) !important; letter-spacing: 0.02em; color: inherit; }
+.sv-num.good b, .sv-num.warn b, .sv-num.bad b { color: var(--sv-tone); }
+.sv-num small { font: 700 11px/1 var(--gd-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--gd-text-3); }
+
+/* A value slot: headline row over a visual, right-aligned in its cell. */
+.sv-metric { display: inline-flex; flex-direction: column; align-items: stretch; gap: 3px; min-width: 0; max-width: 100%; }
+.sv-metric-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.sv-metric-head .sv-chip { flex: 0 1 auto; min-width: 0; }
+.sv-metric .sv-cap { font: 600 11px var(--gd-body); color: var(--gd-text-3); white-space: nowrap; }
+.sv-metric.sv-status { align-items: flex-end; }
+.sv-metric.sv-status .sv-metric-head { justify-content: flex-end; }
+
+/* Key/value rows that hold a visual on the right (Organization hub, dialogs). */
+.sv-kv { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto); align-items: center; gap: 10px; min-height: 30px; padding: 4px 0; border-bottom: 1px dashed var(--gd-border); }
+.sv-kv:last-child { border-bottom: 0; }
+.sv-kv > span:first-child { font-size: 13px; color: var(--gd-text-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sv-kv > .sv-metric { width: 190px; }
+.sv-mini { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 11.5px; color: var(--gd-text-3); }
+.sv-mini small { font: 700 11px var(--gd-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--gd-text-3); }
+.sv-mini b, body.gd-pixel .sv-mini b { font: 700 14px/1 var(--gd-display) !important; color: var(--gd-text); }
+.sv-mini .sv-meter i { width: 6px; height: 8px; }
+.sv-mini .sv-delta { font: 700 11px var(--gd-body); }
+.sv-mini .sv-delta.good { color: var(--gd-good); } .sv-mini .sv-delta.bad { color: var(--gd-bad); }
+
+/* Visuals inside stat tiles (gp-tile, fp-tile, fo-kpi captions). */
+:is(.gp-tile, .fp-tile, .fo-kpi) > span > .sv-money { margin: 3px 0 4px; }
+:is(.gp-tile, .fp-tile, .fo-kpi) > span > .sv-pips { margin: 2px 6px 2px 0; }
+
+/* Rating box at the end of a person row (club profile leadership). */
+.cp-person:has(> .sv-rate) { grid-template-columns: auto minmax(0, 1fr) auto; }
+.cp-person:has(> .sv-rate) > span:nth-child(2) { display: grid; gap: 1px; min-width: 0; }
+.sv-rate { --sv-tone: var(--gd-accent); display: inline-flex; flex-direction: column; align-items: center; min-width: 38px; padding: 2px 5px; border: 2px solid var(--sv-tone); background: var(--gd-bg); }
+.sv-rate.good { --sv-tone: var(--gd-good); } .sv-rate.warn { --sv-tone: var(--gd-warn); } .sv-rate.bad { --sv-tone: var(--gd-bad); }
+.sv-rate b, body.gd-pixel .sv-rate b { font: 700 16px/1 var(--gd-display) !important; color: var(--sv-tone); }
+.sv-rate small { font: 700 11px/1.1 var(--gd-body); letter-spacing: 0.08em; color: var(--gd-text-3); }
+
+/* Boardroom season targets: each row a pixel card with a state stripe, label left, visual right. */
+#app .sv-targets { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+#app .sv-targets > li { --sv-tone: var(--gd-border-strong); display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, 300px); gap: 14px; align-items: center; padding: 7px 10px 7px 12px; background: var(--gd-bg-2); border: 2px solid var(--gd-border); border-left: 6px solid var(--sv-tone); border-radius: var(--gd-radius-sm, 0); }
+#app .sv-targets > li.good { --sv-tone: var(--gd-good); }
+#app .sv-targets > li.warn { --sv-tone: var(--gd-warn); border-color: color-mix(in srgb, var(--gd-warn) 35%, var(--gd-border)); border-left-color: var(--gd-warn); }
+#app .sv-targets > li.bad { --sv-tone: var(--gd-bad); border-color: color-mix(in srgb, var(--gd-bad) 45%, var(--gd-border)); border-left-color: var(--gd-bad); }
+#app .sv-targets > li.pending { --sv-tone: var(--gd-border-strong); }
+.sv-target-label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sv-target-label > b { font: 600 13.5px/1.3 var(--gd-body); color: var(--gd-text); }
+.sv-target-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sv-tag { font: 700 11px/14px var(--gd-body); letter-spacing: 0.07em; text-transform: uppercase; color: var(--gd-text-3); }
+.sv-tag.req { color: var(--gd-text-2); }
+.sv-targets .sv-metric { width: 100%; }
+.sv-targets .sv-progress .sv-meter, .sv-targets .sv-percent .sv-meter { display: flex; }
+.sv-targets .sv-progress .sv-meter i, .sv-targets .sv-percent .sv-meter i { flex: 1 1 0; width: auto; }
+
+@media (max-width: 1100px) {
+  #app .sv-targets > li { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}
+
+/* Stacked mini meters (physio candidates) and mini readouts inside dense rows. */
+.sv-mini-stack { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sv-mini-stack .sv-mini { gap: 5px; }
+.sv-mini-stack .sv-mini small { flex: 0 0 70px; letter-spacing: 0.03em; }
+.sv-mini-stack .sv-meter i { width: 5px; }
+.sv-mini .sv-chip { font-size: 11px; line-height: 14px; padding: 0 5px; }
+.sv-mini em { font-style: normal; font: 700 11px var(--gd-body); }
+
+/* A number inside a caption line ("3 yrs left", "Cut: $4M dead"): bold display face. */
+.sv-inline-num, body.gd-pixel .sv-inline-num { font: 700 13px/1 var(--gd-display) !important; color: var(--gd-text); }
+.sv-inline-num.bad { color: var(--gd-bad); }

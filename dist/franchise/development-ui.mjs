@@ -6,6 +6,7 @@ import { ensureDevelopment, setDevelopmentPlan, FOCUSES, LOADS } from "./develop
 import { progressionView, attributeLabel } from "./progression-view.mjs";
 import { effectiveAttributes } from "./ratings.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
+import * as SV from "../ui/status-visual.mjs";
 
 const label = (s) => s.replace(/([A-Z])/g, " $1").trim();
 const PAGE = 8;
@@ -125,7 +126,7 @@ export function installDevelopmentUI({ views, isBusy }) {
       v = progressionView(p),
       c = ageCurve(p),
       status = p.injury ? `<span class="dv-avail bad">Injured · ${p.injury}w</span>` : d.rehab ? '<span class="dv-avail warn">Return to play</span>' : '<span class="dv-avail good">Available</span>';
-    return `<div class="dv-row" role="row"><button class="link dv-who" onclick="Dev.player('${p.id}')" aria-label="Open ${esc(p.name)}'s development plan">${pixelFace(p, { size: 38, team: state.team })}<span><b>${esc(p.name)}</b><small><em class="pp-pos">${esc(p.pos)}</em>${p.age} yrs${p.starter ? " · starter" : ""}</small></span></button><div class="dv-prog"><span class="dv-nums"><b>${p.ovr}</b><i>→</i><em>${p.pot}</em></span>${progressTrack(p.ovr, p.pot)}${trend(v)}</div><div class="development-directions">${directionChips(p, 3)}</div><div>${curveStrip(c)}</div><div class="dv-plan"><b>${esc(label(d.focus))}</b><small>${esc(d.load)} load · form ${d.form?.toFixed(1) || "—"}</small></div><div>${status}</div><button class="secondary small" onclick="Dev.player('${p.id}')">Plan ↗</button></div>`;
+    return `<div class="dv-row" role="row"><button class="link dv-who" onclick="Dev.player('${p.id}')" aria-label="Open ${esc(p.name)}'s development plan">${pixelFace(p, { size: 38, team: state.team })}<span><b>${esc(p.name)}</b><small><em class="pp-pos">${esc(p.pos)}</em>${p.age} yrs${p.starter ? " · starter" : ""}</small></span></button><div class="dv-prog"><span class="dv-nums"><b>${p.ovr}</b><i>→</i><em>${p.pot}</em></span>${progressTrack(p.ovr, p.pot)}${trend(v)}</div><div class="development-directions">${directionChips(p, 3)}</div><div>${curveStrip(c)}</div><div class="dv-plan"><b>${esc(label(d.focus))}</b><span class="sv-mini" title="${esc(d.load)} load">${d.load === "Normal" ? "" : SV.chip(d.load, d.load === "Intensive" ? "warn" : "pending")}<small>Form</small>${Number.isFinite(d.form) ? `${SV.meter(d.form, 10, { cells: 5, tone: SV.toneFor(d.form, 7, 5), label: `Form ${d.form.toFixed(1)} of 10` })}<b>${d.form.toFixed(1)}</b>` : "<b>—</b>"}</span></div><div>${status}</div><button class="secondary small" onclick="Dev.player('${p.id}')">Plan ↗</button></div>`;
   }
   function rows() {
     const all = items();
