@@ -503,3 +503,26 @@ body.gd-pixel #app .nw-page .team-logo { filter: none !important; }
   .fd-odds-mid { order: 3; flex-basis: 100%; flex-wrap: wrap; justify-content: center; }
   .fd-match-foot { padding: 10px 12px 12px; }
 }
+
+/* Structured message bodies (ui/message-format.mjs): pixel sections, square bullets, label chips. */
+.mf { display: flex; flex-direction: column; gap: 14px; max-width: 78ch; }
+.mf-p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--gd-text); }
+.mf-lead { font-size: 15px; }
+.mf-section { margin: 0; background: var(--gd-bg-2, rgba(0,0,0,.18)); border: 2px solid var(--gd-border); box-shadow: 3px 3px 0 var(--fd-ink, #05070d); }
+.mf-head { margin: 0; padding: 6px 12px; font: 700 13px/1.2 var(--gd-display); letter-spacing: .08em; text-transform: uppercase; color: var(--gd-text); background: var(--gd-surface-strong, rgba(255,255,255,.06)); border-bottom: 2px solid var(--gd-border); }
+.mf-section > .mf-p { padding: 10px 12px 0; }
+.mf-list { list-style: none; margin: 0; padding: 6px 12px; display: flex; flex-direction: column; }
+.mf-item { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; font-size: 14px; line-height: 1.5; color: var(--gd-text); }
+.mf-item + .mf-item { border-top: 2px dotted var(--gd-border); }
+.mf-item:not(.mf-labelled)::before { content: ""; flex: none; width: 8px; height: 8px; transform: translateY(-1px); background: var(--gd-accent); box-shadow: 2px 2px 0 var(--fd-ink, #05070d); }
+.mf-label { flex: none; min-width: 64px; padding: 2px 8px; text-align: center; font: 700 11px/1.5 var(--gd-display); letter-spacing: .06em; text-transform: uppercase; color: var(--gd-text); border: 2px solid var(--gd-border); background: var(--gd-surface-strong, transparent); }
+.mf-good .mf-label { color: var(--gd-good); border-color: var(--gd-good); }
+.mf-ok .mf-label { color: var(--gd-warn); border-color: var(--gd-warn); }
+.mf-bad .mf-label { color: var(--gd-bad); border-color: var(--gd-bad); }
+.mf-text { min-width: 0; }
+.mf-tag { display: inline-block; margin-left: 8px; padding: 0 6px; font: 700 10px/1.6 var(--gd-display); letter-spacing: .06em; vertical-align: 1px; border: 2px solid var(--gd-border); color: var(--gd-text-3); }
+.mf-num { padding: 0 4px; font: 700 13px var(--gd-display); border: 2px solid currentColor; }
+.mf-pos { color: var(--gd-good); }
+.mf-neg { color: var(--gd-bad); }
+@container (max-width: 520px) { .mf-item.mf-labelled { flex-direction: column; gap: 4px; } }
+@media (max-width: 520px) { .mf-item.mf-labelled { flex-direction: column; gap: 4px; } }

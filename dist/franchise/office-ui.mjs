@@ -1,3 +1,4 @@
+import { formatMessage } from "../ui/message-format.mjs";
 import { scorePill, previewAttributes, miniBio } from "./player-ui.mjs";
 import { playerAwards } from "./player-catalog.mjs";
 import * as S from "./state.mjs";
@@ -18,7 +19,9 @@ import {
 } from "./analysis.mjs";
 import { faceSVG } from "./newgens.mjs";
 import { icon, searchKey } from "./presentation.mjs";
-import { rosterLimit } from "./blockers.mjs";
+import { rosterLimit, rosterSpotFixes } from "./blockers.mjs";
+import { notice } from "../ui/notice.mjs";
+import "./fixes.mjs";
 import { trimPlan } from "./personnel.mjs";
 import { storyArt } from "../presentation/pixel-art.mjs";
 import { heightInches } from "./player-catalog.mjs";
@@ -219,7 +222,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       pending = m.status === "pending",
       options = pending ? decisionOptions(m) : [],
       locked = isBusy() || state.live;
-    return `<article class="message-detail ib-msg"><div class="message-topline ib-msg-top">${badge(m.category)}${m.priority === "urgent" ? badge("Urgent", "danger") : m.priority === "important" ? badge("Important", "amber") : ""}<span>${messageTime(m)}</span><button class="icon-button ib-star ${m.bookmarked ? "positive" : ""}" aria-label="${m.bookmarked ? "Unsave" : "Save"} message" onclick="Office.bookmark('${m.id}')">${m.bookmarked ? "★" : "☆"}</button></div><h2>${esc(m.title)}</h2><div class="message-sender ib-sender">${senderAvatar(m, 44)}<span><b>${esc(m.source)}</b><small>To ${esc(state.coach.name)} · ${esc(state.franchise.role)}</small></span></div><p class="message-copy ib-copy">${esc(m.body)}</p>${
+    return `<article class="message-detail ib-msg"><div class="message-topline ib-msg-top">${badge(m.category)}${m.priority === "urgent" ? badge("Urgent", "danger") : m.priority === "important" ? badge("Important", "amber") : ""}<span>${messageTime(m)}</span><button class="icon-button ib-star ${m.bookmarked ? "positive" : ""}" aria-label="${m.bookmarked ? "Unsave" : "Save"} message" onclick="Office.bookmark('${m.id}')">${m.bookmarked ? "★" : "☆"}</button></div><h2>${esc(m.title)}</h2><div class="message-sender ib-sender">${senderAvatar(m, 44)}<span><b>${esc(m.source)}</b><small>To ${esc(state.coach.name)} · ${esc(state.franchise.role)}</small></span></div><div class="message-copy ib-copy">${formatMessage(m.body)}</div>${
       p
         ? `<div class="message-player ib-player">${playerLink(p, state.team)}<div class="ib-player-meter"><small>Morale</small>${meterBlocks(p.morale ?? 75)}<b>${num(p.morale, 0)}%</b></div><div class="ib-player-meter"><small>Trust</small>${meterBlocks(p.coachTrust ?? 60)}<b>${num(p.coachTrust ?? 60, 0)}%</b></div></div>`
         : m.playerId
@@ -522,7 +525,8 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       over = active - limit;
     if (over <= 0) return "";
     const practice = state.roster.filter((p) => p.status === "practice").length;
-    return `<div class="squad-alert" role="status"><div><b>${over} over the ${limit}-player active limit.</b><small>Games can't be played until you trim. Trim to ${limit} keeps your best player at every position, moves the rest to the practice squad while it has room (${practice} / 16), and releases the remainder.</small></div>${S.allowed(state, "roster") ? `<button onclick="Office.trimPreview()">Trim to ${limit} automatically</button>` : ""}</div>`;
+    const can = S.allowed(state, "roster");
+    return notice({ cls: "squad-alert", tone: "bad", title: `${over} over the ${limit}-player active limit.`, detail: `Games can't be played until you trim. Trim to ${limit} keeps your best player at every position, moves the rest to the practice squad while it has room (${practice} / 16), and releases the remainder.`, actions: can ? [{ label: `Trim to ${limit} automatically`, onclick: "Office.trimPreview()", primary: true }] : [], fixes: can ? rosterSpotFixes(state).filter((f) => f.kind !== "open") : [] });
   };
   views.Roster = () =>
     `${rosterAlert()}${metrics([
@@ -556,7 +560,16 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     return analysisView({ tab: analysisTab, selected, query: compareQuery });
   };
   function settingsInterface() {
-    return `<div class="settings-section"><label class="settings-row"><span><b>Pixel theme</b><small>Square pixel panels, hard shadows and a pixel-art field with clear, readable text. Off restores the classic look.</small></span><input type="checkbox" aria-label="Pixel theme" ${document.body.classList.contains("gd-pixel") ? "checked" : ""} onchange="Office.pixel(this.checked)"></label><label class="settings-row"><span><b>Table density</b><small>More space or more players on screen.</small></span><select aria-label="Interface density" onchange="Office.density(this.value)">${opts(["comfortable", "compact"], document.body.dataset.density || "comfortable")}</select></label><label class="settings-row"><span><b>Reduce scene motion</b><small>Quieter cutscenes and static interface transitions.</small></span><input type="checkbox" aria-label="Reduce scene motion" ${document.body.classList.contains("reduce-motion") ? "checked" : ""} onchange="Office.motion(this.checked)"></label><div class="settings-row"><span><b>Keyboard shortcuts</b><small>⌘K / Ctrl+K opens global player and screen search. Escape closes dialogs.</small></span><button class="secondary" onclick="W.command()">Open search</button></div></div>`;
+    return `<div class="settings-section"><label class="settings-row"><span><b>Pixel theme</b><small>Square pixel panels, hard shadows and a pixel-art field with clear, readable text. Off restores the classic look.</small></span><input type="checkbox" aria-label="Pixel theme" ${document.body.classList.contains("gd-pixel") ? "checked" : ""} onchange="Office.pixel(this.checked)"></label><label class="settings-row"><span><b>Table density</b><small>More space or more players on screen.</small></span><select aria-label="Interface density" onchange="Office.density(this.value)">${opts(["comfortable", "compact"], document.body.dataset.density || "comfortable")}</select></label><label class="settings-row"><span><b>Reduce scene motion</b><small>Quieter cutscenes and static interface transitions.</small></span><input type="checkbox" aria-label="Reduce scene motion" ${document.body.classList.contains("reduce-motion") ? "checked" : ""} onchange="Office.motion(this.checked)"></label><div class="settings-row"><span><b>Keyboard shortcuts</b><small>⌘K / Ctrl+K opens global player and screen search. Escape closes dialogs.</small></span><button class="secondary" onclick="W.command()">Open search</button></div>${autoUpdateRow()}</div>`;
+  }
+  // Desktop app only (ui/update-loader.mjs reads the same key at launch).
+  function autoUpdateRow() {
+    if (!window.gridironUpdates) return "";
+    let on = true;
+    try {
+      on = localStorage.getItem("gridiron-auto-update") !== "false";
+    } catch {}
+    return `<label class="settings-row"><span><b>Update automatically when the game starts</b><small>Saves your career, installs the new version and reopens it before you play. Updates found later wait in the corner.</small></span><input type="checkbox" aria-label="Update automatically when the game starts" ${on ? "checked" : ""} onchange="Office.autoUpdate(this.checked)"></label>`;
   }
   function settingsAudio() {
     const b = window.broadcast,
@@ -893,6 +906,11 @@ export function installOfficeUI({ views, isBusy, getSection }) {
         localStorage.setItem("gridiron-reduce-motion", String(v));
       } catch {}
       render();
+    },
+    autoUpdate(v) {
+      try {
+        localStorage.setItem("gridiron-auto-update", v ? "true" : "false");
+      } catch {}
     },
     volume(v) {
       window.matchAudio.setVolume(v);

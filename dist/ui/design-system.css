@@ -179,6 +179,24 @@ dialog.gd-sheet .gd-sheet-head { display: flex; justify-content: space-between; 
 dialog.gd-sheet .gd-sheet-body { padding: 16px 18px; max-height: 70vh; overflow: auto; }
 
 .gd-empty { color: var(--gd-text-3); font-size: 12px; padding: 6px 0; }
+
+/* ---------- notices (ui/notice.mjs): bold headline, lighter detail, fix buttons ---------- */
+.gd-notices { display: flex; flex-direction: column; gap: 8px; margin: 0 0 10px; }
+.gd-notices-label { margin: 0; font: 700 11px var(--gd-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gd-text-3); }
+.gd-notice { --tone: var(--gd-warn); display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px 10px; align-items: start; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent); border-radius: var(--gd-radius-sm); background: color-mix(in srgb, var(--tone) 9%, var(--gd-surface)); color: var(--gd-text); text-align: left; }
+.gd-notice-bad { --tone: var(--gd-bad); }
+.gd-notice-info { --tone: var(--gd-accent); }
+.gd-notice-good { --tone: var(--gd-good); }
+.gd-notice-icon { display: grid; place-items: center; width: 22px; height: 22px; margin-top: 1px; background: var(--tone); color: var(--gd-bg); font: 700 14px/1 var(--gd-display); border-radius: var(--gd-radius-sm); }
+.gd-notice-text { display: grid; gap: 3px; min-width: 0; }
+.gd-notice-text > b { font: 700 13.5px/1.35 var(--gd-body); color: var(--gd-text); overflow-wrap: anywhere; }
+.gd-notice-text > span { font: 400 12.5px/1.45 var(--gd-body); color: var(--gd-text-2); overflow-wrap: anywhere; }
+.gd-notice-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.gd-notice-actions .gd-btn { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.gd-notice-empty { --tone: var(--gd-text-3); }
+.gd-fix-who { margin: 0 0 10px; color: var(--gd-text-2); font-size: 13px; }
+#toast > b { display: block; font-weight: 700; }
+#toast > span { display: block; margin-top: 2px; font-weight: 400; opacity: 0.85; }
 @media (prefers-reduced-motion: reduce) { .gd-meter-track i, .gd-momentum i { transition: none; } }
 
 /* ---------- front office: medical, training, market, draft ---------- */
@@ -266,9 +284,8 @@ dialog.gd-sheet .gd-sheet-body { padding: 16px 18px; max-height: 70vh; overflow:
 .scout-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .scout-action { display: flex; flex-direction: column; gap: 4px; max-width: 280px; }
 .scout-action small { font-size: 11px; color: var(--gd-text-2); }
-.neg-blockers { padding: 10px 12px; margin-bottom: 12px; border-radius: 9px; border: 1px solid rgba(255, 107, 107, 0.4); background: rgba(255, 107, 107, 0.08); }
-.neg-blockers p { margin: 6px 0 0; font-size: 13px; }
-.neg-blockers span { color: #a6b4bf; }
+.neg-blockers { margin-bottom: 12px; }
+.neg-notice { margin-bottom: 12px; }
 @media (max-width: 640px) { .scout-card header { grid-template-columns: 1fr auto; } .scout-card header > :first-child { display: none; } }
 .ops-asset { grid-template-columns: 18px minmax(0, 1fr) auto auto; }
 
@@ -279,3 +296,8 @@ dialog.gd-sheet .gd-sheet-body { padding: 16px 18px; max-height: 70vh; overflow:
 #app th.sortable[aria-sort="descending"]::after { content: " ▼"; color: var(--gd-accent); font-size: 0.8em; }
 #app .table-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 8px; }
 #app .table-tools small { color: var(--gd-text-3); }
+.gd-notice + .gd-notice { margin-top: 8px; }
+:is(.lu-notice, .touch-notice, .fp-notice, .staff-live-note) { margin: 0 0 10px; }
+.cl-notice { margin: 0 0 12px; }
+.staff-issue-notice { margin-top: 10px; }
+.fd-attention { margin: 0; } .fd-attention .gd-notices { margin: 0; } .fp-cap-notice { margin: 0 0 12px; }

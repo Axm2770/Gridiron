@@ -63,6 +63,7 @@ K.empty("No moves yet.");
 - **Status**: `K.chip(text, "good" | "warn" | "bad")` (classes `gd-chip gd-good` etc.); colour is never the only signal, so always add a word.
 - **Empty states** say what will appear and when ("Signings appear here after the first market day").
 - **Blocked actions** say why and how to fix it (see `franchise/blockers.mjs`).
+- **Notices** (warnings, blockers, errors, hints): use `ui/notice.mjs`, never a long single-weight sentence. `notice({ title, detail, tone, actions, fixes })` renders a bold headline (the problem) over a lighter detail line (the explanation) and buttons; `blockerNotice(b)` / `noticeList(list, { label })` render blockers; `textNotice(err.message)` turns a thrown error into a notice and adds buttons for advice like "in Contracts" or "on the Squad screen". Every proposed fix gets a button: blockers return structured `fixes` (`release`, `restructure`, `practice`, `waive`, `open`, `quicksim`, `matchday`, `dealRemove`, `freeAgents`) that `franchise/fixes.mjs` runs. Costly fixes confirm first with their cap effect (dead money, cap freed) and go through `F.action`, which re-renders so the blocker list updates. Toasts use the same voice (first sentence bold).
 
 ## Navigation conventions
 
@@ -77,6 +78,7 @@ K.empty("No moves yet.");
 - Layout: `main` clips horizontal overflow (the sidebar is fixed, so a sideways-scrolling page used to slide under it), content is centred at max 1800px on wide screens, and below 900px the sidebar becomes the slide-in menu (`W.mobile()`). Wide tables scroll inside their own panel on phones, never the page.
 - Add a line of help for every new route to `SCREEN_HELP` in `ui/tutorial-content.mjs`. `test-tutorials.mjs` fails if a sidebar route has none.
 - Player names link to the player hub: `W.player(id, team)`.
+- Club names and crests link to the club profile: `W.club(team)` (`franchise/club-profile.mjs`, styles in `club.css`). Logos carry `data-club`, and a crest or a cell whose text is exactly a club name (or its abbreviation beside its logo) is linked automatically outside buttons; inside your own buttons call `W.club(t)` or use `clubLink(t, label)`. Ctrl+K finds clubs by city, nickname or abbreviation.
 
 ## Glossary tooltips
 

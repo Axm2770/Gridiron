@@ -1,3 +1,4 @@
+import { engineWeather } from "./weather.mjs";
 import { sortForLineup } from "./lineup.mjs";
 import { simulateExecution } from "../engine/execution.mjs";
 import {
@@ -6,7 +7,14 @@ import {
   resumeSimulatedHalftime,
 } from "../engine/sim-targets.mjs";
 import { applyExecution } from "../engine/rules.mjs";
-import { manualCall, staffDecision, withPossessionTempo } from "./play-calling.mjs";
+import { manualCall, withPossessionTempo, offenseSnap, defenseSnap, onsideKick, snapRoll, matchPersonnel, counterStyle } from "./play-calling.mjs";
+// Game-plan inputs for one snap override the original defaults (see play-calling.mjs).
+const withSnap = (input, snap) => Object.assign(input, snap);
+// Scheme fit: a small rating change for the user's players by position (tactics.mjs schemeBoost).
+function fitted(players, boost) {
+  if (!boost) return players;
+  return players.map((p) => (boost[p.pos] ? { ...p, ovr: Math.max(1, Math.min(99, p.ovr + boost[p.pos])) } : p));
+}
 function grouped(players, team) {
   let g = {};
   for (let p of sortForLineup(players, team)) (g[p.pos] ??= []).push(p);
@@ -33,6 +41,7 @@ export function simulateGame(job) {
           [0, 0],
         ],
         tempo: "Normal",
+        weather: job.weather || "Clear",
         stats: [
           { yards: 0, pass: 0, rush: 0, first: 0, turnovers: 0, plays: 0 },
           { yards: 0, pass: 0, rush: 0, first: 0, turnovers: 0, plays: 0 },
@@ -49,7 +58,11 @@ export function simulateGame(job) {
     lastExecution,
     highlights = [],
     decisions = [];
-  const teams = [grouped(job.home, job.a), grouped(job.away, job.b)];
+  const boost = job.tactics?.boost,
+    teams = [
+      grouped(job.a === job.userTeam ? fitted(job.home, boost) : job.home, job.a),
+      grouped(job.b === job.userTeam ? fitted(job.away, boost) : job.away, job.b),
+    ];
   const ownership = new Map([
     ...job.home.map((p) => [p.id, job.a]),
     ...job.away.map((p) => [p.id, job.b]),
@@ -67,12 +80,31 @@ export function simulateGame(job) {
     const own = (m.poss === 0 ? m.a : m.b) === job.userTeam,
       directive = own ? job.directives : {},
       tactics = job.tactics || {};
-    let call =
-      (own && tactics.calling === "Manual" && manualCall(m)) ||
-      staffDecision(m, {
-        style: own ? tactics.style : "Balanced",
+    // The user's defense follows the game plan unless he is calling a live game by hand.
+    const userDefends = !own && (m.poss === 0 ? m.b : m.a) === job.userTeam,
+      byHand = tactics.calling === "Manual" && !!job.live,
+      gamePlan = own || (userDefends && !byHand) ? tactics.plan : null,
+      manual = own && tactics.calling === "Manual" && manualCall(m),
+      o = offenseSnap(m, {
+        style: own ? tactics.style : gamePlan ? counterStyle(gamePlan) : "Balanced",
         directives: directive,
+        plan: own ? gamePlan : null,
       });
+    let call = manual || o.call;
+    const formation = own ? (o.fixed && !manual ? o.formation : m.offense || o.formation) : "Shotgun spread",
+      snapInputs = own
+        ? {
+            formation,
+            personnel: o.fixed && !manual ? o.personnel : m.personnel || o.personnel,
+            ...(!manual && o.scheme ? { scheme: o.scheme } : {}),
+          }
+        : gamePlan
+          ? defenseSnap(m, { plan: gamePlan, defCall: m.defCall, front: m.defense || tactics.front || "Nickel", shell: m.shell || "2-High" })
+          : {};
+    // The opponent's staff answers the user's personnel and formation with its own front.
+    if (own) Object.assign(snapInputs, matchPersonnel(snapInputs.formation, snapInputs.personnel));
+    delete snapInputs.pkg;
+    const before = m;
     if (
       own &&
       directive?.rookies &&
@@ -96,7 +128,7 @@ export function simulateGame(job) {
         (m.engine.nextSeed ?? m.engine.seed + Math.imul(serial, 2654435761)) >>>
         0;
     delete m.engine.nextSeed;
-    let exec = simulateExecution({
+    let exec = simulateExecution(withSnap({
       seed: playSeed,
       playId: `quick-${m.engine.seed}-${serial}`,
       spot: m.spot,
@@ -110,11 +142,11 @@ export function simulateGame(job) {
       front: !own ? m.defense || "Nickel" : "Nickel",
       personnel: own ? m.personnel || "11" : "11",
       shell: !own ? m.shell || "2-High" : "2-High",
-      weather: m.weather || "Clear",
+      weather: engineWeather(m.weather),
       offensePlayers: teams[m.poss],
       defensePlayers: teams[1 - m.poss],
       capture: false,
-    });
+    }, snapInputs));
     let team = m.poss === 0 ? m.a : m.b,
       r = exec.result,
       q = exec.actors[0],
@@ -187,7 +219,7 @@ export function simulateGame(job) {
       id: `${m.engine.seed}:${serial}`,
       team,
       call,
-      formation: own ? m.offense || "Shotgun spread" : "Shotgun spread",
+      formation,
       down: m.down,
       toGo: m.toGo,
       spot: m.spot,
@@ -208,9 +240,13 @@ export function simulateGame(job) {
       team: job.labels?.[m.poss] || "Team " + (team + 1),
       score: [...m.score],
     };
-    m = withPossessionTempo(m, own, (x) =>
-      applyExecution(x, exec, job.labels?.[x.poss] || "Team " + (team + 1)),
+    m = withPossessionTempo(
+      m,
+      own,
+      (x) => applyExecution(x, exec, job.labels?.[x.poss] || "Team " + (team + 1)),
+      own && !manual ? o.tempo : undefined,
     );
+    if (own && gamePlan) onsideKick(before, m, before.poss, gamePlan.onside, snapRoll(before, 31));
     if (m.events[0]?.highlight) highlights.unshift({ ...m.events[0] });
     lastExecution = exec;
     delete m.last.execution;

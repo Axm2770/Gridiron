@@ -1,6 +1,9 @@
 import * as S from "./state.mjs";
 import * as Staff from "./staff.mjs";
 import { complianceReport } from "./compliance.mjs";
+import { notice } from "../ui/notice.mjs";
+import { issueFixes, liveFixes } from "./blockers.mjs";
+import "./fixes.mjs";
 import * as fp from "./fo-pixel.mjs";
 import { staffBust, ensureFrontDeskStyles } from "./fo-pixel.mjs";
 import { coachAppearance } from "./coach-avatar.mjs";
@@ -158,7 +161,7 @@ export function installStaffUI({ views, isBusy }) {
       kicker: "LEAGUE OFFICE",
       title: r.ok ? "Registered and ready" : "Registration requires attention",
       extra: fp.chip(r.ok ? "Ready" : r.issues.length + " issues", r.ok ? "good" : "bad"),
-      body: `<p class="fp-note">Calendar advancement checks your cap ledger, contracts and roster designations.</p>${fp.stackBar([{ pct: share, tone: "live", label: "Cap used" }, { pct: 100 - share, tone: "room", label: "Cap room" }])}<div class="fp-tiles">${fp.tile("Cap room", cash(r.cap.room), "", { tone: r.cap.room < 0 ? "bad" : "good" })}${fp.tile("Active", `${r.counts.active} / ${r.limit}`, "", { meter: fp.blocks(r.counts.active, r.limit, 10, r.counts.active > r.limit ? "bad" : "") })}${fp.tile("Practice", `${r.counts.practice} / 16`, "", { meter: fp.blocks(r.counts.practice, 16, 8, r.counts.practice > 16 ? "bad" : "") })}</div>${r.issues.map((i) => `<button class="staff-compliance-issue fp-issue" onclick="W.open(${arg(i.route)})"><span><small>${esc(i.area)}</small><b>${esc(i.message)}</b></span><span>Resolve →</span></button>`).join("") || `<div class="fp-clearance"><span>✓ Salary cap</span><span>✓ Contracts</span><span>✓ Roster designations</span></div>`}`,
+      body: `<p class="fp-note">Calendar advancement checks your cap ledger, contracts and roster designations.</p>${fp.stackBar([{ pct: share, tone: "live", label: "Cap used" }, { pct: 100 - share, tone: "room", label: "Cap room" }])}<div class="fp-tiles">${fp.tile("Cap room", cash(r.cap.room), "", { tone: r.cap.room < 0 ? "bad" : "good" })}${fp.tile("Active", `${r.counts.active} / ${r.limit}`, "", { meter: fp.blocks(r.counts.active, r.limit, 10, r.counts.active > r.limit ? "bad" : "") })}${fp.tile("Practice", `${r.counts.practice} / 16`, "", { meter: fp.blocks(r.counts.practice, 16, 8, r.counts.practice > 16 ? "bad" : "") })}</div>${r.issues.map((i) => notice({ tone: "bad", cls: "staff-issue-notice", title: i.message, detail: `${i.area}: calendar advancement stops until this is fixed.`, fixes: issueFixes(state, i) })).join("") || `<div class="fp-clearance"><span>✓ Salary cap</span><span>✓ Contracts</span><span>✓ Roster designations</span></div>`}`,
     })}${fp.panel({
       kicker: "HIRING POLICY",
       title: "Every appointment has a process.",
@@ -295,7 +298,7 @@ export function installStaffUI({ views, isBusy }) {
   views.Staff = () => {
     Staff.ensureStaff(state);
     ensureFrontDeskStyles();
-    return `<div class="staff-workspace fp-page">${header()}${state.live ? '<div class="staff-live-notice">Match in progress. Staff appointments resume after the final report.</div>' : ""}<div id="staff-content">${tab === "Team" ? teamView() : tab === "Recruitment" ? recruitment() : tab === "Search records" ? records() : compliance()}</div></div>`;
+    return `<div class="staff-workspace fp-page">${header()}${state.live ? notice({ tone: "info", cls: "staff-live-note", title: "Match in progress.", detail: "Staff appointments resume after the final report.", fixes: liveFixes() }) : ""}<div id="staff-content">${tab === "Team" ? teamView() : tab === "Recruitment" ? recruitment() : tab === "Search records" ? records() : compliance()}</div></div>`;
   };
   const previous = render;
   render = function () {

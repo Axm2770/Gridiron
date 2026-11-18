@@ -29,24 +29,53 @@ Every file in this release was built by GitHub Actions from this tag, passed the
 
 If you have 0.24.1 or later, the game offers this update in-game: choose **Download now**, then **Restart now**. Your careers are untouched. On 0.23.0 or earlier, download this version once from this page.
 
-## New in 0.29.0: realistic scores, press that matters, one navigation
+## New in 0.30.0: deeper tactics, club profiles and automatic updates
 
-### Realistic scores
+### Automatic updates
+- From the next release on, the desktop app updates itself when it starts: it saves your career, downloads and checks the update behind a pixel loading screen, then reopens your career. A card tells you what version you're on now.
+- Turn it off in Settings (Update automatically when the game starts). Updates found mid-session still wait for you, so a match is never interrupted.
+
+### Tactics, NFL style
+- Four tabs: Base plan, Situational, Advanced and Scheme fit.
+- Pick a scheme family (West Coast, Air Raid, Spread RPO, Wide zone, Erhardt-Perkins, Power gap), personnel, formation, front, coverage shell and blitz rate, each with a meter for how well your roster fits it.
+- Situational packages for 3rd down, red zone, goal line and the two-minute drill, and a 4th-down chart (conservative, balanced, aggressive).
+- Run and pass concepts, tempo, man vs zone, press vs off and run fits, with a plain-English explanation of every term.
+- Opponent analysis now shows how their tendencies match up with your plan. Every choice feeds the sim, and scores stay realistic.
+
+### Club profiles
+- Click any team's logo or name anywhere, or search for it, to open its profile: leadership, identity, top players, roster and depth chart, schedule, history and titles, stadium and finances, and a Trade with button.
+
+### Fix it in one click
+- Warnings and blockers now lead with a bold headline. Where the game suggests a fix, a button does it (release, restructure, waive, move to the practice squad, quick-sim) or takes you to the right screen.
+
+### Clearer screens
+- Inbox messages are laid out in pixel sections with bullet markers and coloured chips.
+- The Locker room's "What is moving the room" uses cards with meters, chips and win/loss pips.
+
+### Matchday
+- Weather now depends on the stadium, its roof and the time of year: snow in Green Bay in December, rain in Seattle, always 70°F indoors. It's no longer a dropdown.
+- When the head coach is calling plays, the call sheet is locked until you switch Playcaller to Manual.
+- The top bar shows "Game in progress" during a match instead of "Return to game".
+- Quick-sim dropdowns no longer cut off their text.
+
+## Also new in 0.29
+
+#### Realistic scores
 - Fixed a bug where your offense could score almost nothing: with Manual play calling, a Punt or Field goal you picked once was repeated on every down. A selected run or pass now repeats on downs 1–3 only; punts, field goals and fourth downs follow your staff unless you pick them for that snap.
 - Live coaching no longer wears your club down: only players on the field tire, and less. Saves already worn down are restored on load.
 - Scores across the league now look like real football: about 22 points per team on average, 50-point games are very rare and 70 essentially never happens. Hurry-up tempo no longer leaks into other teams' games.
 - Run-first and Vertical styles now tilt your play mix instead of replacing it, and they apply in calendar sims too.
 
-### Press conferences with consequences
+#### Press conferences with consequences
 - Every press conference asks about your tone and about a named player. Your answers move team morale, chemistry, drama, fans, the owner's patience, media trust, and that player's morale and trust in you.
 - Calling a player out can open a rift and an inbox story; backing a struggling player lifts him. "Promise snaps" creates a promise you must keep.
 - Context matters: wins, losses, streaks and rivalry weeks change the effect, and bold claims followed by a loss cost credibility.
 - The outcome card shows exactly what changed, and the Locker room lists it.
 
-### Pixel cutscenes again
+#### Pixel cutscenes again
 - Championship, draft pick, press room, playoff exit, locker room, clutch finish and conversation scenes are pixel art in the pixel theme.
 
-### One simple navigation
+#### One simple navigation
 - The sidebar is the only way to move around: the Club overview tab strip is gone, and its unique parts moved to Draft room (Scout network, Watchlist pipeline) and Coach career (Coaching tree).
 - A pixel sidebar with pixel icons that scales to fit your screen without scrolling.
 - Careers & saves was removed from the sidebar; the Careers button in the top bar opens the career library.

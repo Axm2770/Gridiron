@@ -15,7 +15,10 @@ import { REGIONS, ensureScouting, scoutCandidates } from "./draft-room.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
 import { teamColors } from "../presentation/pixel-art.mjs";
 import { fixtures } from "./front-office.mjs";
-import { rosterLimit } from "./blockers.mjs";
+import { rosterLimit, issueFixes } from "./blockers.mjs";
+import { complianceReport } from "./compliance.mjs";
+import { noticeList } from "../ui/notice.mjs";
+import "./fixes.mjs";
 import { winChance, oddsLabel, moneyline, litBlocks, recentForm, teamForm, divisionTable, ordinal, pageOf, daysBetween, shortDate, senderInitials, loadDeskStyles } from "./hub-model.mjs";
 
 
@@ -113,7 +116,7 @@ function hero() {
   const opp = opponent(),
     home = g.a === state.team,
     oppColors = teamColors(opp),
-    env = environment(state, { a: g.a, b: g.b, weather: state.live?.weather }),
+    env = environment(state, { a: g.a, b: g.b, weather: state.live && state.live.a === g.a && state.live.b === g.b ? state.live.weather : undefined }),
     stadium = state.franchise.clubs?.[home ? state.team : opp]?.stadium?.name,
     cal = state.franchise.calendarSim,
     kickoff = cal?.nextRoundDate,
@@ -123,7 +126,7 @@ function hero() {
     when = state.phase === "playoffs" ? "Playoffs" : `Week ${state.week + 1}`,
     live = state.live && !state.live.finished;
   const odds = `<div class="fd-odds" role="meter" aria-label="Win chance ${chance}%" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${chance}"><div class="fd-odds-legend"><span><small>Win chance</small><b>${chance}%</b></span><span class="fd-odds-mid">${K.chip(oddsLabel(chance), chance >= 56 ? "good" : chance <= 44 ? "bad" : "warn")}<small>Moneyline ${moneyline(chance)}</small></span><span><small>${h(abbr(opp))}</small><b>${100 - chance}%</b></span></div><div class="fd-odds-track">${Array.from({ length: 20 }, (_, i) => `<i class="${i < Math.round(chance / 5) ? "us" : "them"}"></i>`).join("")}</div></div>`;
-  return `<section class="fd-match fd-s12" style="--home:${myColors.primary};--home-2:${myColors.secondary};--away:${oppColors.primary};--away-2:${oppColors.secondary}"><div class="fd-match-grid">${side(state.team, `Your club · ${home ? "Home" : "Away"}`, myForm, false)}<div class="fd-board"><span class="fd-kick">${h(when)}${kickoff ? ` · ${h(shortDate(kickoff))}` : ""}${days != null && days >= 0 ? ` · ${days === 0 ? "Game day" : `in ${days} day${days === 1 ? "" : "s"}`}` : ""}</span><strong class="fd-vs">${live ? "LIVE" : "VS"}</strong><span class="fd-venue">${stadium ? `${h(stadium)} · ` : ""}${h(env.weather)} · Crowd ${env.crowd}</span></div>${side(opp, `Opponent · #${divisionTable(state.teams, clubs, opp).find((r) => r.me)?.rank ?? "–"} ${clubs[opp][3]}`, teamForm(state.schedule, opp), true)}</div>${odds}<div class="fd-match-foot"><span class="fd-chips">${K.chip(`#${rank} ${div}`, "team")}${env.hostile ? K.chip(`Hostile crowd ${env.crowd}`, "warn") : ""}${env.communication !== "Normal" ? K.chip(env.communication, "warn") : ""}${rival ? K.chip("Division rival", "bad") : ""}${K.chip(pulse.label, pulse.drama >= 60 ? "bad" : pulse.fanScore >= 70 ? "good" : "")}</span><span class="fd-actions"><button class="gd-btn" onclick="W.open('Game plan')">Game plan</button><button class="gd-btn gd-primary" onclick="advance()">${state.live ? "Return to match" : "Go to matchday"} →</button></span></div></section>`;
+  return `<section class="fd-match fd-s12" style="--home:${myColors.primary};--home-2:${myColors.secondary};--away:${oppColors.primary};--away-2:${oppColors.secondary}"><div class="fd-match-grid">${side(state.team, `Your club · ${home ? "Home" : "Away"}`, myForm, false)}<div class="fd-board"><span class="fd-kick">${h(when)}${kickoff ? ` · ${h(shortDate(kickoff))}` : ""}${days != null && days >= 0 ? ` · ${days === 0 ? "Game day" : `in ${days} day${days === 1 ? "" : "s"}`}` : ""}</span><strong class="fd-vs">${live ? "LIVE" : "VS"}</strong><span class="fd-venue">${stadium ? `${h(stadium)} · ` : ""}${h(env.weather === "Dome" ? "Indoors" : env.weather)}${env.forecast && !env.forecast.indoor ? ` ${env.forecast.temp}°F` : ""} · Crowd ${env.crowd}</span></div>${side(opp, `Opponent · #${divisionTable(state.teams, clubs, opp).find((r) => r.me)?.rank ?? "–"} ${clubs[opp][3]}`, teamForm(state.schedule, opp), true)}</div>${odds}<div class="fd-match-foot"><span class="fd-chips">${K.chip(`#${rank} ${div}`, "team")}${env.hostile ? K.chip(`Hostile crowd ${env.crowd}`, "warn") : ""}${env.communication !== "Normal" ? K.chip(env.communication, "warn") : ""}${rival ? K.chip("Division rival", "bad") : ""}${K.chip(pulse.label, pulse.drama >= 60 ? "bad" : pulse.fanScore >= 70 ? "good" : "")}</span><span class="fd-actions"><button class="gd-btn" onclick="W.open('Game plan')">Game plan</button><button class="gd-btn gd-primary" onclick="advance()">${state.live ? "Return to match" : "Go to matchday"} →</button></span></div></section>`;
 }
 
 function kpiStrip() {
@@ -299,8 +302,21 @@ function feedCard(span = 4, limit = 3) {
 
 /* -------------------------------------------------------------- overview */
 
+// What stops the next game or the calendar, each with its fix, above everything else.
+function attentionStrip() {
+  let issues = [];
+  try {
+    issues = complianceReport(state, { game: state.phase !== "offseason" }).issues;
+  } catch {}
+  if (!issues.length) return "";
+  return `<div class="fd-s12 fd-attention">${noticeList(
+    issues.slice(0, 3).map((i) => ({ tone: "bad", title: i.message, detail: `${i.area}: the calendar stops before your next game until this is fixed.`, fixes: issueFixes(state, i) })),
+    { label: "Before your next game" },
+  )}</div>`;
+}
+
 function hubTab() {
-  return `<div class="fd-grid gd-bento">${hero()}${kpiStrip()}${deskCard(5)}${pulseCard(4)}${standingsCard(3)}${roadCard(8)}${leadersCard(4)}${rosterCard(5)}${medicalCard(3)}${feedCard(4)}</div>`;
+  return `<div class="fd-grid gd-bento">${attentionStrip()}${hero()}${kpiStrip()}${deskCard(5)}${pulseCard(4)}${standingsCard(3)}${roadCard(8)}${leadersCard(4)}${rosterCard(5)}${medicalCard(3)}${feedCard(4)}</div>`;
 }
 
 // Coaching tree, locker-room decisions and press record: shown on Coach career.
@@ -407,7 +423,7 @@ export function gameDayStrip(s = state) {
     env = environment(s, m),
     deck = m.halftime ? halftimeDeck(s, m) : [],
     used = ensureDepth(s).halftime.some((h) => h.key === `${s.year}:${s.week}:${m.a}:${m.b}`);
-  return `<section class="gd-card gd-gameday gd-accent"><div class="gd-card-body"><div class="gd-toolbar"><span class="gd-eyebrow">Game-day strategy</span><span style="display:flex;gap:6px;flex-wrap:wrap">${K.chip(env.weather)}${K.chip(`Crowd ${env.crowd}`, env.hostile ? "warn" : "")}${K.chip(env.communication, env.communication === "Normal" ? "" : "warn")}${env.windAdvice ? K.chip(env.windAdvice) : ""}</span></div><div class="gd-meter" style="grid-template-columns:92px 1fr 36px"><span>Momentum</span>${K.momentumBar(mo)}<b>${mo > 0 ? "+" : ""}${mo}</b></div>${
+  return `<section class="gd-card gd-gameday gd-accent"><div class="gd-card-body"><div class="gd-toolbar"><span class="gd-eyebrow">Game-day strategy</span><span style="display:flex;gap:6px;flex-wrap:wrap">${K.chip((env.weather === "Dome" ? "Indoors" : env.weather) + (env.forecast && !env.forecast.indoor ? ` ${env.forecast.temp}°F` : ""))}${K.chip(`Crowd ${env.crowd}`, env.hostile ? "warn" : "")}${K.chip(env.communication, env.communication === "Normal" ? "" : "warn")}${env.windAdvice ? K.chip(env.windAdvice) : ""}</span></div><div class="gd-meter" style="grid-template-columns:92px 1fr 36px"><span>Momentum</span>${K.momentumBar(mo)}<b>${mo > 0 ? "+" : ""}${mo}</b></div>${
     deck.length && !used
       ? `<div><span class="gd-eyebrow">Halftime adjustment — pick one</span></div><div class="gd-deck">${deck.map((c) => `<button class="gd-play-card" onclick="Hub2.halftime('${c.id}')"><b>${K.escapeHTML(c.name)}</b><small>${K.escapeHTML(c.desc)}</small></button>`).join("")}</div>`
       : used && m.halftime

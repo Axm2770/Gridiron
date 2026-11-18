@@ -12,6 +12,8 @@ import { pixelFace } from "../ui/pixel-face.mjs";
 import { scoutRange } from "./scouting.mjs";
 import { offerBlockers } from "./contracts.mjs";
 import { blockerText, rosterLimit, activeCount } from "./blockers.mjs";
+import { noticeList } from "../ui/notice.mjs";
+import "./fixes.mjs";
 import { marketDay } from "./world.mjs";
 import { ensureCalendar, addDays } from "./calendar-core.mjs";
 import { pageOf, filterAssets, filterAgents, sortAgents, dealMeter, ASSET_PAGE, AGENT_PAGE } from "./market-view.mjs";
@@ -53,7 +55,8 @@ export function windowStrip(which = ["trade", "freeAgency", "draft"]) {
   return `<div class="ops-windows">${which.map((k) => `<div class="ops-window ${w[k].open ? "open" : "closed"}"><b>${names[k]}: ${e(w[k].status)}</b><small>${e(w[k].detail)}</small></div>`).join("")}</div>`;
 }
 
-const blockList = (list) => `<ul class="ops-blockers">${list.map((b) => `<li><b>${e(b.reason)}</b>${b.fix ? `<span>${e(b.fix)}</span>` : ""}</li>`).join("")}</ul>`;
+// Blockers as notices: the problem in bold, the explanation lighter, and a button per fix.
+const blockList = (list, label = "") => noticeList(list, { label, cls: "ops-blockers" });
 
 /* --------------------------------------------------------------------- market */
 // The Market is a pixel trade desk: two trade cards (You send / You receive) with club banners,
@@ -152,7 +155,7 @@ function sideCard(side, partners, sending, ask) {
     name =
       side === "give"
         ? `<span class="mk-banner-name"><small>You send</small><b>${e(club(team))}</b><em>${e(teamMode(state, team))}</em></span>`
-        : `<span class="mk-banner-name"><small>You receive from</small><select class="mk-partner" aria-label="Trade partner" onchange="Ops.partner(this.value)">${partners.map((t) => `<option value="${t}" ${t === ui.partner ? "selected" : ""}>${e(club(t))} · ${teamMode(state, t)}</option>`).join("")}</select></span>`;
+        : `<span class="mk-banner-name"><small>You receive from</small><select class="mk-partner" aria-label="Trade partner" onchange="Ops.partner(this.value)">${partners.map((t) => `<option value="${t}" ${t === ui.partner ? "selected" : ""}>${e(club(t))} · ${teamMode(state, t)}</option>`).join("")}</select>${window.W?.club ? `<button type="button" class="link club-link mk-profile-link" onclick="W.club(${team})">Club profile →</button>` : ""}</span>`;
   return `<section class="mk-side mk-${side}"><div class="mk-banner" style="${clubVars(team)}">${clubLogo(team)}${name}<span class="mk-banner-total">${total}</span></div>${tray(rows, side, team)}${picker(rows, side, team)}</section>`;
 }
 
@@ -215,7 +218,7 @@ function dealPanel(sending, ask) {
   }
   const reason = blockers[0] ? blockerText(blockers[0]) : locked ? "That player is not for sale." : "";
   main += `<div class="mk-actions"><button type="button" class="gd-btn gd-primary" ${blockers.length || locked || !ui.get.length || !ui.give.length ? "disabled" : ""} title="${e(reason || (!ui.give.length || !ui.get.length ? "Add at least one player or pick on each side." : "Send this offer to their front office."))}" onclick="Ops.propose()">Propose trade</button>${ask ? `<button type="button" class="gd-btn secondary" ${locked ? "disabled" : ""} onclick="Ops.suggest()">Suggest a package</button>` : ""}</div>`;
-  if (blockers.length) main += `<div class="mk-blocked"><p class="ops-label">Can't be proposed yet</p>${blockList(blockers)}</div>`;
+  if (blockers.length) main += `<div class="mk-blocked">${blockList(blockers, "Can't be proposed yet")}</div>`;
   return `<section class="mk-deal ${side ? "" : "is-empty"}"><div class="mk-deal-main"><div class="mk-deal-head"><h3>Deal meter</h3><span class="mk-help" tabindex="0" title="Points are each asset's trade value: yours as the other club values them, theirs as your scouts expect them to price them. Age, contracts, injuries, reputation, character and each club's needs move the price; their front office lists its reasoning as you build the deal.">?</span></div>${main}</div>${side ? `<div class="mk-reasoning">${side}</div>` : ""}</section>`;
 }
 
@@ -308,7 +311,7 @@ function freeAgentTable() {
       return `<tr><td><span class="mk-fa-id">${pixelFace(p, { size: 34 })}<span><button type="button" class="link mk-name" onclick="W.player('${p.id}',-1)" title="Open ${e(p.name)}'s profile"><span>${e(p.name)}</span></button><small><span class="mk-pos">${e(p.pos)}</span>${e(p.archetype || (p.starter ? "Starter-calibre" : "Free agent"))}</small></span></span></td><td class="numeric">${v.exact ? `<span class="mk-ovr">${p.ovr}</span>` : `<span class="mk-ovr mk-fog" title="Scouted ${e(v.label)} OVR (${v.confidence}% confidence)">${r.ovr}<i>?</i></span>`}</td><td class="numeric"><span class="mk-pot" title="Potential">${e(potLabel)}</span></td><td class="numeric">${p.age}</td><td class="numeric"><b class="mk-ask">${money(Math.round(p.salary * S.MILLION))}</b><small>/yr</small></td><td class="mk-pull" title="${e(sf.reasons.map((x) => x.text).join(" ") || "No strong pull either way")}"><span class="mk-pull-top">${K.chip(`×${sf.total}`, sf.total >= 1.05 ? "good" : sf.total <= 0.95 ? "bad" : "")}<small>${bids.length} bid${bids.length === 1 ? "" : "s"}</small></span>${why ? `<small class="mk-why mk-${why.tone || "neutral"}">${e(why.text)}</small>` : `<small class="mk-why">No strong pull either way</small>`}</td><td class="mk-fa-act">${own ? `<span class="mk-own" title="Decided on market day ${own.close}">${tag(`Offer in · day ${own.close}`, "good")}</span>` : ""}<span class="ops-actions"><button type="button" class="link mk-info" title="Scouting report: ${e(p.name)}" aria-label="Scouting report: ${e(p.name)}" onclick="Scout.open('${p.id}')">i</button><button class="gd-btn secondary small" onclick="W.player('${p.id}',-1)">Profile</button><button class="gd-btn gd-primary small" ${block ? "disabled" : ""} title="${e(block ? blockerText(block) : "Open contract talks")}" onclick="Neg.open('${p.id}')">Offer</button></span></td></tr>`;
     })
     .join("");
-  return `${general.length ? `<div class="ops-callout mk-callout"><b>Contract offers are blocked right now</b>${blockList(general)}</div>` : ""}${filters}<table class="ops-table mk-fa-table" data-no-sort="1"><colgroup><col class="c-player"><col class="c-n"><col class="c-n"><col class="c-age"><col class="c-ask"><col class="c-pull"><col class="c-act"></colgroup><thead><tr>${th("player", "Player")}${th("ovr", "OVR")}${th("pot", "POT")}${th("age", "Age")}${th("ask", "Asking")}${th("pull", "Pull / bids", "How much your club appeals to him beyond money: role, contention, coach, scheme, his personality")}<th class="numeric">Action</th></tr></thead><tbody>${body || `<tr><td colspan="7" class="mk-none">${agents.length ? "No free agents match these filters." : "No free agents available right now."}</td></tr>`}</tbody></table>${pager(pg, (n) => `Ops.mk('fa','page',${n})`)}`;
+  return `${general.length ? `<div class="mk-callout">${blockList(general, "Contract offers are blocked right now")}</div>` : ""}${filters}<table class="ops-table mk-fa-table" data-no-sort="1"><colgroup><col class="c-player"><col class="c-n"><col class="c-n"><col class="c-age"><col class="c-ask"><col class="c-pull"><col class="c-act"></colgroup><thead><tr>${th("player", "Player")}${th("ovr", "OVR")}${th("pot", "POT")}${th("age", "Age")}${th("ask", "Asking")}${th("pull", "Pull / bids", "How much your club appeals to him beyond money: role, contention, coach, scheme, his personality")}<th class="numeric">Action</th></tr></thead><tbody>${body || `<tr><td colspan="7" class="mk-none">${agents.length ? "No free agents match these filters." : "No free agents available right now."}</td></tr>`}</tbody></table>${pager(pg, (n) => `Ops.mk('fa','page',${n})`)}`;
 }
 
 /* -------------------------------------------------------- windows and clock */

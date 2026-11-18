@@ -1,4 +1,6 @@
 import { allowed } from "./state.mjs";
+import { PLAN_VALUES } from "./play-calling.mjs";
+import { OPTIONS, planOf, setPlanValue } from "./tactics.mjs";
 
 // Game plan settings are the existing match settings. The engine decides results;
 // this module only reads opponents and writes those settings.
@@ -7,12 +9,8 @@ export const STYLES = {
   "Run-first": "Runs on early downs, then play action.",
   "Vertical offense": "Deep shots. More big plays, more incompletions.",
 };
-export const FORMATIONS = [
-  "Shotgun spread",
-  "Singleback",
-  "I formation",
-  "Empty backfield",
-];
+// Base formations as the plan names them (tactics.mjs maps them onto the engine's alignments).
+export const FORMATIONS = PLAN_VALUES.formation;
 export const FRONTS = ["4–3 base", "3–4 base", "Nickel", "Dime"];
 export const DIRECTIVES = {
   protectQB: "Protect the quarterback with quick passes",
@@ -174,9 +172,13 @@ export function opponentReport(s) {
   };
 }
 
+// Game-plan keys from tactics.mjs, grouped by who may change them.
+const OFFENSE_KEYS = Object.keys(OPTIONS).filter((k) => OPTIONS[k].side === "offense"),
+  DEFENSE_KEYS = Object.keys(OPTIONS).filter((k) => OPTIONS[k].side === "defense" && k !== "front"),
+  SPECIAL_KEYS = Object.keys(OPTIONS).filter((k) => OPTIONS[k].side === "special");
 export function settingValue(s, key) {
   if (key === "style") return s.coach.style;
-  if (key === "formation") return s.coach.offense;
+  if (key in PLAN_VALUES) return planOf(s)[key];
   if (key === "defense") return s.coach.defense;
   if (key === "calling") return s.coach.calling;
   if (key in DIRECTIVES) return !!s.franchise.directives[key];
@@ -184,9 +186,10 @@ export function settingValue(s, key) {
 }
 export function canEdit(s, key) {
   if (allowed(s, "coach")) return true;
-  if (["style", "formation", "protectQB", "feedRB"].includes(key))
+  if (["style", "protectQB", "feedRB", ...OFFENSE_KEYS].includes(key))
     return allowed(s, "offense");
-  if (key === "defense") return allowed(s, "defense");
+  if (key === "defense" || DEFENSE_KEYS.includes(key)) return allowed(s, "defense");
+  if (SPECIAL_KEYS.includes(key)) return false;
   return false;
 }
 export function setGamePlan(s, key, value) {
@@ -197,9 +200,8 @@ export function setGamePlan(s, key, value) {
   if (key === "style") {
     if (!STYLES[value]) throw Error("Choose an offensive style.");
     s.coach.style = value;
-  } else if (key === "formation") {
-    if (!FORMATIONS.includes(value)) throw Error("Choose a formation.");
-    s.coach.offense = value;
+  } else if (key in PLAN_VALUES) {
+    setPlanValue(s, key, value);
   } else if (key === "defense") {
     if (!FRONTS.includes(value)) throw Error("Choose a defensive front.");
     s.coach.defense = value;

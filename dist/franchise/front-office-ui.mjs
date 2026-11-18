@@ -2,8 +2,10 @@ import * as S from "./state.mjs";
 import * as B from "./boardroom.mjs";
 import * as BM from "./board-meetings.mjs";
 import * as G from "./game-plan.mjs";
+import * as TX from "./tactics.mjs";
 import { lockerReport } from "./locker-room.mjs";
 import { icon } from "./presentation.mjs";
+import { notice } from "../ui/notice.mjs";
 import { activeDilemma, resolveDilemma } from "./depth-systems.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
 import * as fp from "./fo-pixel.mjs";
@@ -78,7 +80,7 @@ export function installFrontOfficeUI({ views, isBusy }) {
       ["Team morale", `${p.morale}%`, toneFor(p.morale, 70, 55)],
       ["Drama", p.drama, p.drama >= 55 ? "bad" : p.drama >= 35 ? "warn" : "good"],
     ];
-    const pulse = `${pending}${planBody}<span class="fp-label">What the board is watching</span><ul class="fp-watchboard">${watch.map(([k, v, t]) => `<li class="${t}"><i></i><span>${k}</span><b>${v}</b></li>`).join("")}</ul>${x.warning ? `<p class="fp-alert">${x.warning > 1 ? "Ultimatum" : "Final warning"} on record this season.</p>` : ""}`;
+    const pulse = `${pending}${planBody}<span class="fp-label">What the board is watching</span><ul class="fp-watchboard">${watch.map(([k, v, t]) => `<li class="${t}"><i></i><span>${k}</span><b>${v}</b></li>`).join("")}</ul>${x.warning ? notice({ tone: "bad", cls: "fp-notice", title: `${x.warning > 1 ? "Ultimatum" : "Final warning"} on record this season.`, detail: "The board judges the rest of the season against the targets above; missing them again puts your job at risk." }) : ""}`;
     const meetings = x.meetings.length
       ? `<ol class="fp-timeline">${x.meetings.map((m) => `<li class="${/missed|record/i.test(m.outcome) ? "bad" : /met|exceeded|set|agreed|active/i.test(m.outcome) ? "good" : "warn"}"><time>${m.date ? esc(m.date) : m.year} · W${m.week + 1}</time><b>${esc(m.kind)}: ${esc(m.title)}</b>${fp.chip(m.outcome, /missed|record/i.test(m.outcome) ? "bad" : /met|exceeded|set|agreed|active/i.test(m.outcome) ? "good" : "warn")}<small>${esc(m.agreed ? "Agreed: " + m.agreed : m.detail || "")}${m.agreed && m.detail ? " · " + esc(m.detail) : ""}</small></li>`).join("")}</ol>`
       : '<p class="fp-note">Board and team meetings appear here with what was agreed and how it turned out.</p>';
@@ -173,19 +175,84 @@ export function installFrontOfficeUI({ views, isBusy }) {
     })[trait] || "Wants results now. Winning buys patience.";
 
   /* -------------------------------------------------------------- tactics */
+  // Base plan up top; Situational, Advanced and Scheme fit behind tabs. Every option is a button
+  // with a plain-English tooltip, and the selected option's explanation sits under its group.
+  let tacticsTab = "base";
+  const TX_TABS = [
+    ["base", "Base plan"],
+    ["situational", "Situational"],
+    ["advanced", "Advanced"],
+    ["fit", "Scheme fit"],
+  ];
+  const txBlocks = (v, n = 10, tone = "") =>
+    `<span class="tx-blocks ${tone}" aria-hidden="true">${Array.from({ length: n }, (_, i) => `<i class="${i < Math.round((Math.max(0, Math.min(100, v)) / 100) * n) ? "on" : ""}"></i>`).join("")}</span>`;
+  const fitTone = (f) => (f >= 65 ? "good" : f >= 40 ? "warn" : "bad");
+  const fitWord = (f) => (f >= 80 ? "Ideal" : f >= 65 ? "Good fit" : f >= 40 ? "Workable" : "Poor fit");
   function tacticsView() {
+    if (typeof document !== "undefined" && document.querySelector && !document.querySelector('link[href="tactics.css"]'))
+      document.head?.insertAdjacentHTML?.("beforeend", '<link rel="stylesheet" href="tactics.css">');
     const r = G.opponentReport(state),
       locked = !!state.live && !state.live.finished,
+      plan = TX.planOf(state),
+      fit = TX.schemeFit(state),
+      boost = TX.schemeBoost(state, plan),
       dis = (key) => (locked || isBusy() || !G.canEdit(state, key) ? "disabled" : ""),
       value = (key) => G.settingValue(state, key),
-      options = (key, list) =>
-        `<div class="fo-segments">${list.map(([v, sub]) => `<button class="${value(key) === v ? "active" : ""}" aria-pressed="${value(key) === v}" ${dis(key)} onclick="FrontOffice.plan(${arg(key)},${arg(v)})"><b>${esc(v)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</button>`).join("")}</div>`;
-    const plan = `${card("Offense", `<label class="fo-label">Play style</label>${options("style", Object.entries(G.STYLES))}<label class="fo-label">Base formation</label>${options("formation", G.FORMATIONS.map((f) => [f]))}`)}${card("Defense", `<label class="fo-label">Base front</label>${options("defense", G.FRONTS.map((f) => [f, { "4–3 base": "Stops the run", "3–4 base": "Flexible pressure", Nickel: "Five defensive backs", Dime: "Six defensive backs" }[f]]))}`)}${card("Situations", `<div class="fo-toggles">${Object.entries(G.DIRECTIVES).map(([k, label]) => `<label class="fo-toggle"><input type="checkbox" ${value(k) ? "checked" : ""} ${dis(k)} onchange="FrontOffice.plan(${arg(k)},this.checked)"><span>${esc(label)}</span></label>`).join("")}</div><label class="fo-label">Play calling</label>${options("calling", Object.entries(G.CALLING))}<p class="fo-note">In simulated games, feeding the running back or protecting the quarterback overrides the play style. Settings apply to your next game; results are decided on the field.</p>`)}`;
-    return `<div class="fo-page"><div class="fo-tactics"><div class="fo-plan">${locked ? '<p class="fo-banner">A game is in progress. Change calls from the sideline.</p>' : ""}${plan}</div><div class="fo-scout">${r ? opponentPanel(r, locked) : card("Opponent analysis", '<p class="fo-note">No upcoming opponent. The analysis returns when the next fixture is scheduled.</p>')}</div></div></div>`;
+      fitOf = (list, f) => list.find((x) => x.family === f);
+    // One option group: label with help, buttons, and the selected option explained.
+    const group = (key, { compact = false, fits = null, setKey = key, options = TX.OPTIONS[key].options, label = TX.OPTIONS[key].label, help = TX.OPTIONS[key].help } = {}) => {
+      const cur = value(setKey),
+        sel = options.find((x) => x.value === cur) || options[0];
+      return `<div class="tx-group"><div class="tx-group-head"><label class="fo-label">${esc(label)}</label><span class="tx-help" title="${esc(help)}" aria-label="${esc(help)}" tabindex="0">?</span></div><div class="tx-opts ${compact ? "compact" : ""}" role="group" aria-label="${esc(label)}">${options
+        .map((x) => {
+          const f = fits?.(x.value);
+          return `<button type="button" class="${cur === x.value ? "active" : ""}" aria-pressed="${cur === x.value}" title="${esc(x.label + ": " + x.tip)}" ${dis(setKey)} onclick="FrontOffice.plan(${arg(setKey)},${arg(x.value)})"><b>${esc(x.label)}</b>${x.sub ? `<small>${esc(x.sub)}</small>` : ""}${f ? `<span class="tx-opt-fit">${txBlocks(f.fit, 8, fitTone(f.fit))}<em>${f.fit}</em></span>` : ""}</button>`;
+        })
+        .join("")}</div><p class="tx-explain"><b>${esc(sel.label)}.</b> ${esc(sel.tip)}</p></div>`;
+    };
+    const styleOptions = [
+      { value: "Balanced", label: "Balanced", sub: "Run 1 in 3", tip: G.STYLES.Balanced },
+      { value: "Run-first", label: "Run-first", sub: "Run 1 in 2", tip: G.STYLES["Run-first"] },
+      { value: "Vertical offense", label: "Vertical", sub: "Deep shots", tip: G.STYLES["Vertical offense"] },
+    ];
+    const offFit = (v) => fitOf(fit.offense, v),
+      covFit = (v) => (v === "Staff" ? null : fitOf(fit.coverage, ["Cover 0", "Cover 1"].includes(v) ? "Man" : "Zone")),
+      frontFit = (v) => fitOf(fit.fronts, v);
+    const covLabel = TX.optionOf("coverage", plan.coverage)?.label || plan.coverage;
+    const summary = `<section class="fo-card tx-summary"><div class="tx-summary-row"><span class="tx-side">OFF</span><b>${esc(plan.scheme)}</b><i>${esc(plan.personnel)} personnel</i><i>${esc(plan.formation)}</i><i>${esc(styleOptions.find((x) => x.value === state.coach.style)?.label || "Balanced")}</i>${chip(fitWord(offFit(plan.scheme).fit), fitTone(offFit(plan.scheme).fit))}</div><div class="tx-summary-row"><span class="tx-side def">DEF</span><b>${esc(plan.front)}</b><i>${esc(covLabel)}</i><i>${esc(TX.optionOf("blitz", plan.blitz).label)} rush</i><i>4th down: ${esc(plan.fourth)}</i></div></section>`;
+    const changed = (keys) => keys.filter((k) => value(k) !== TX.OPTIONS[k].options[0].value).length;
+    const tabs = `<div class="tx-tabs" role="tablist" aria-label="Game plan sections">${TX_TABS.map(([id, label]) => {
+      const n = id === "situational" ? changed(["third", "redZone", "goalLine", "twoMinute", "dThird", "dRedZone", "prevent"]) : id === "advanced" ? changed(["runConcept", "passConcept", "tempo", "runFit", "fakes", "onside"]) : 0;
+      return `<button type="button" role="tab" class="${tacticsTab === id ? "active" : ""}" aria-selected="${tacticsTab === id}" onclick="FrontOffice.tacticsTab(${arg(id)})">${label}${n ? `<small>${n} on</small>` : ""}</button>`;
+    }).join("")}</div>`;
+    let body = "";
+    if (tacticsTab === "base") {
+      body = `${card("Offense", `${group("scheme", { fits: offFit })}${group("style", { setKey: "style", options: styleOptions, label: "Run–pass lean", help: "How often your staff run versus pass on early downs. The scheme decides which runs and passes they pick." })}<div class="tx-pair">${group("personnel", { compact: true })}${group("formation", { compact: true })}</div>`, `<span class="tx-head-note">Meters show how your roster fits each scheme</span>`)}${card("Defense", `${group("front", { setKey: "defense", fits: frontFit })}${group("coverage", { compact: true, fits: covFit })}${group("blitz")}`)}`;
+    } else if (tacticsTab === "situational") {
+      const chart = TX.fourthChart(plan.fourth),
+        cell = (c) => `<td class="tx-c-${c === "Go" ? "go" : c === "Field goal" ? "fg" : "punt"}" title="${esc(c)}">${c === "Go" ? "GO" : c === "Field goal" ? "FG" : "PUNT"}</td>`;
+      body = `${card("Offensive packages", `<p class="fo-note">Packages replace the base plan only in their situation. Your staff call them in simulated games and whenever they call plays.</p><div class="tx-pair">${group("third", { compact: true })}${group("redZone", { compact: true })}</div><div class="tx-pair">${group("goalLine", { compact: true })}${group("twoMinute", { compact: true })}</div>`)}${card("Fourth down", `${group("fourth")}<div class="tx-chart-wrap"><table class="tx-chart" aria-label="Fourth-down decisions by field position and yards to go"><thead><tr><th>To go</th>${TX.CHART_ZONES.map((z) => `<th>${esc(z.label)}</th>`).join("")}</tr></thead><tbody>${chart.map((row) => `<tr><th>& ${esc(row.label)}</th>${row.cells.map(cell).join("")}</tr>`).join("")}</tbody></table></div><p class="fo-note">Field position runs from your goal line (left) to theirs (right). When trailing late, every setting goes for it.</p>`)}${card("Defensive packages", `${group("dThird", { compact: true })}<div class="tx-pair">${group("dRedZone", { compact: true })}${group("prevent", { compact: true })}</div>`)}${card("Game-day control", `${group("calling", { setKey: "calling", options: Object.entries(G.CALLING).map(([v, sub]) => ({ value: v, label: v, sub, tip: v === "Manual" ? "You pick each play from the sideline in live games. Simulated games and fourth downs follow your game plan." : "Your staff call every snap from this game plan, live and simulated." })), label: "Who calls plays", help: "Live games only: whether you or your staff pick each play." })}<label class="fo-label">Head coach directives</label><div class="fo-toggles">${Object.entries(G.DIRECTIVES).map(([k, label]) => `<label class="fo-toggle"><input type="checkbox" ${value(k) ? "checked" : ""} ${dis(k)} onchange="FrontOffice.plan(${arg(k)},this.checked)"><span>${esc(label)}</span></label>`).join("")}</div><p class="fo-note">In simulated games, feeding the running back or protecting the quarterback overrides the play style on early downs.</p>`)}`;
+    } else if (tacticsTab === "advanced") {
+      body = `${card("Offense details", `${group("runConcept")}${group("passConcept")}${group("tempo")}`)}${card("Defense details", `${group("manZone")}<div class="tx-pair">${group("press", { compact: true })}${group("runFit", { compact: true })}</div>`)}${card("Special teams", `<div class="tx-pair">${group("fakes", { compact: true })}${group("onside", { compact: true })}</div><p class="fo-note">Both are off by default. Fourth-down fakes never happen in the last five minutes.</p>`)}`;
+    } else {
+      const row = (f, current) =>
+        `<div class="tx-fit-row ${current ? "current" : ""}"><span class="tx-fit-name"><b>${esc(f.family)}</b>${current ? chip("Your plan", "good") : ""}</span>${txBlocks(f.fit, 10, fitTone(f.fit))}<em class="tx-fit-num ${fitTone(f.fit)}">${f.fit}</em><small>${esc(f.note)}</small></div>`;
+      const curCov = plan.coverage === "Staff" ? "Zone" : ["Cover 0", "Cover 1"].includes(plan.coverage) ? "Man" : "Zone";
+      // Positions sharing a fit change are listed together: "QB/RB/WR/TE/OL +0.5 · CB/S/LB +1".
+      const byDelta = {};
+      for (const [pos, d] of Object.entries(boost)) (byDelta[d] ??= []).push(pos);
+      const effect = Object.entries(byDelta)
+        .map(([d, list]) => `${list.join("/")} ${d > 0 ? "+" : ""}${d}`)
+        .join(" · ");
+      const best = fit.offense.slice().sort((a, b) => b.fit - a.fit)[0];
+      body = `${card("How the scheme fits your roster", `<p class="fo-note">Fit compares the starters' ratings to what each system asks of them. A good fit adds up to 1.5 overall points to the players who run it in every game; a poor fit costs the same. Multiple and the staff coverage mix are neutral.</p><div class="tx-effect ${effect ? "" : "neutral"}"><span>In the sim this week</span><b>${effect ? esc(effect) + " overall" : "No fit bonus or penalty"}</b>${best.family !== plan.scheme ? `<small>Best offensive fit: ${esc(best.family)} (${best.fit}).</small>` : `<small>You are already in your best offensive fit.</small>`}</div><label class="fo-label">Offensive schemes</label><div class="tx-fit-list">${fit.offense.map((f) => row(f, f.family === plan.scheme)).join("")}</div><label class="fo-label">Coverage families</label><div class="tx-fit-list">${fit.coverage.map((f) => row(f, f.family === curCov || (f.family === "Press" && plan.press === "Press"))).join("")}</div><label class="fo-label">Fronts</label><div class="tx-fit-list">${fit.fronts.map((f) => row(f, f.family === plan.front)).join("")}</div>`)}`;
+    }
+    return `<div class="fo-page"><div class="fo-tactics"><div class="fo-plan">${locked ? '<p class="fo-banner">A game is in progress. Change calls from the sideline.</p>' : ""}${summary}${tabs}<div class="tx-panel" role="tabpanel">${body}</div></div><div class="fo-scout">${r ? opponentPanel(r, locked) : card("Opponent analysis", '<p class="fo-note">No upcoming opponent. The analysis returns when the next fixture is scheduled.</p>')}</div></div></div>`;
   }
   function opponentPanel(r, locked) {
     const name = clubs[r.team][2],
-      t = r.tendencies;
+      t = r.tendencies,
+      notes = TX.matchupNotes(state, r);
     const unitRows = r.units
       .map(
         (u) =>
@@ -194,7 +261,7 @@ export function installFrontOfficeUI({ views, isBusy }) {
       .join("");
     const counters = r.counters
       .map((c) => {
-        const label = c.key in G.DIRECTIVES ? (c.value ? "" : "Turn off: ") + G.DIRECTIVES[c.key] : `${{ style: "Play style", formation: "Formation", defense: "Front" }[c.key]}: ${c.value}`;
+        const label = c.key in G.DIRECTIVES ? (c.value ? "" : "Turn off: ") + G.DIRECTIVES[c.key] : `${{ style: "Play style", formation: "Formation", defense: "Front" }[c.key] || TX.OPTIONS[c.key]?.label || c.key}: ${c.value}`;
         return `<li><span><b>${esc(label)}</b><small>${esc(c.reason)}</small></span>${c.applied ? chip("In plan", "good") : `<button class="small" ${locked || isBusy() || !G.canEdit(state, c.key) ? "disabled" : ""} onclick="FrontOffice.plan(${arg(c.key)},${arg(c.value)})">Apply</button>`}</li>`;
       })
       .join("");
@@ -202,7 +269,8 @@ export function installFrontOfficeUI({ views, isBusy }) {
     return `<section class="fo-card fo-opponent"><div class="fo-card-head"><div class="fo-opp-head">${logo(r.team)}<div><span class="eyebrow">OPPONENT ANALYSIS · ${r.home ? "HOME" : "AWAY"}</span><h3>${esc(clubs[r.team][1] + " " + name)}</h3><small>${r.record.w}–${r.record.l} this season</small></div></div></div>
 <div class="fo-split"><div><label class="fo-label">Strengths</label>${r.strengths.map((u) => chip(`${u.label} ${u.rating}`, "bad")).join("") || chip("None above league average")}</div><div><label class="fo-label">Weaknesses</label>${r.weaknesses.map((u) => chip(`${u.label} ${u.rating}`, "good")).join("") || chip("No clear weakness")}</div></div>
 <label class="fo-label">Units vs league average</label><div class="fo-units">${unitRows}</div>
-<label class="fo-label">Tendencies</label><div class="fo-tend"><div class="fo-runpass"><i style="width:${t.run}%">Run ${t.run}%</i><i style="width:${t.pass}%">Pass ${t.pass}%</i></div><div class="fo-row"><span>Offense</span><b>${esc(t.lean)} · coordinator: ${esc(t.oc)}</b></div><div class="fo-row"><span>Coverage</span><b>${esc(t.coverage)}</b></div><small class="fo-note">Source: ${esc(t.source)}.</small></div>
+<label class="fo-label">Tendencies</label><div class="fo-tend"><div class="fo-runpass"><i style="width:${t.run}%">Run ${t.run}%</i><i style="width:${t.pass}%">Pass ${t.pass}%</i></div><div class="fo-row"><span>Offense</span><b>${esc(t.lean)} · coordinator: ${esc(t.oc)}</b></div><div class="fo-row"><span>Coverage</span><b>${esc(t.coverage)} · coordinator: ${esc(t.dc)}</b></div><small class="fo-note">Source: ${esc(t.source)}.</small></div>
+${notes.length ? `<label class="fo-label">Their tendencies vs your plan</label><ul class="tx-notes">${notes.map((n) => `<li class="${n.tone}"><i aria-hidden="true">${n.tone === "good" ? "+" : n.tone === "bad" ? "!" : n.tone === "warn" ? "~" : "·"}</i><span>${esc(n.text)}</span></li>`).join("")}</ul>` : ""}
 <label class="fo-label">Key players</label><div class="fo-keys">${r.keyPlayers.map((p) => `<button class="fo-key" onclick="W.player(${arg(p.id)},${r.team})"><b>${p.ovr}</b><span>${esc(p.name)}<small>${p.pos} · ${p.age}</small></span></button>`).join("")}</div>
 <label class="fo-label">Suggested counters</label><ul class="fo-counters">${counters}</ul>${pending.length > 1 ? `<button ${locked || isBusy() ? "disabled" : ""} onclick="FrontOffice.applyCounters()">Apply all ${pending.length} counters</button>` : ""}</section>`;
   }
@@ -250,7 +318,7 @@ export function installFrontOfficeUI({ views, isBusy }) {
     const situation = dilemma
       ? `<div class="lr-dilemma"><span class="pp-chip bad">Decision needed</span><b>${esc(dilemma.title)}</b><p>${esc(dilemma.body)}</p><div class="lr-choices">${dilemma.choices.map((ch) => `<button class="secondary small" onclick="FrontOffice.dilemma(${arg(dilemma.id)},${arg(ch.id)})">${esc(ch.label)}</button>`).join("")}</div></div>`
       : `<div class="lr-dilemma calm"><span class="pp-chip good">No open situation</span>${lastCall ? `<p>Last call: <b>${esc(lastCall.title)}</b> · ${esc(lastCall.outcome)}</p>` : "<p>Dressing-room situations appear here after games. Your call moves morale, drama and chemistry.</p>"}</div>`;
-    const room = `<section class="pp-panel lr-room"><div class="pp-panel-head"><h3>What is moving the room</h3><button class="link lr-more" onclick="CI.open('team')">Team meeting →</button></div><ul class="lr-causes">${r.teamCauses.map((c) => `<li class="${c.tone || ""}">${esc(c.text)}</li>`).join("")}</ul>${situation}</section>`;
+    const room = `<section class="pp-panel lr-room"><div class="pp-panel-head"><h3>What is moving the room</h3><button class="link lr-more" onclick="CI.open('team')">Team meeting →</button></div><ul class="lr-causes lr-drivers">${r.teamCauses.map(roomDriver).join("")}</ul>${situation}</section>`;
     const promiseRow = (p) =>
       `<li class="${p.done ? "done" : p.dueNow ? "due" : ""}"><span><b>${esc(p.name)}</b><small>${esc(p.type)} · promised week ${(p.week ?? 0) + 1}</small></span>${
         p.done
@@ -282,6 +350,10 @@ export function installFrontOfficeUI({ views, isBusy }) {
       ),
     invest: (area) => mutate((s) => B.investFacility(s, area), `${B.FACILITIES[area].label} upgrade started.`),
     plan: (key, value) => mutate((s) => G.setGamePlan(s, key, value), "Game plan updated."),
+    tacticsTab: (tab) => {
+      tacticsTab = tab;
+      render();
+    },
     applyCounters: () =>
       mutate((s) => {
         const r = G.opponentReport(s);
@@ -307,4 +379,16 @@ export function installFrontOfficeUI({ views, isBusy }) {
   views["Locker room"] = lockerView;
   // The legacy Tactics route renders game.js's plan(); replace it with the franchise game plan.
   window.plan = tacticsView;
+}
+
+// One "What is moving the room" row: pixel glyph, bold title, detail/quote, and value chips or meters.
+const DRIVER_GLYPH = { form: "▮▯▮", pulse: "◆", leaders: "★", talk: "✎", press: "◉" };
+function roomDriver(c) {
+  if (!c.kind) return `<li class="${c.tone || ""}">${esc(c.text)}</li>`;
+  const verdict = c.tone === "good" ? "Lifting" : c.tone === "bad" ? "Dragging" : "Neutral";
+  const blocks = (v, invert) => { const n = Math.max(0, Math.min(10, Math.round((Number(v) || 0) / 10))); return `<span class="lr-blocks ${invert ? "inv" : ""}">${Array.from({ length: 10 }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span>`; };
+  const stat = (x) => `<span class="lr-stat ${x.tone || ""}"><small>${esc(x.label)}</small>${x.meter != null ? blocks(x.meter, x.invert) : ""}<b>${esc(String(x.value))}</b></span>`;
+  const form = c.results?.length ? `<span class="lr-form">${c.results.map((r) => `<b class="${r === "W" ? "w" : r === "L" ? "l" : "t"}">${esc(r)}</b>`).join("")}</span>` : "";
+  const who = c.player ? `<span class="lr-who">${c.player.id ? `<button class="link" onclick="W.player('${c.player.id}',state.team)">${esc(c.player.name)}</button>` : esc(c.player.name)}<em>${esc(c.player.stance)}</em><span class="lr-stat ${c.player.trust > 0 ? "good" : c.player.trust < 0 ? "bad" : ""}"><small>Trust</small><b>${c.player.trust > 0 ? "+" : ""}${c.player.trust}</b></span></span>` : "";
+  return `<li class="lr-driver ${c.tone || ""}"><span class="lr-glyph" aria-hidden="true">${DRIVER_GLYPH[c.kind] || "■"}</span><div class="lr-body"><div class="lr-top"><b class="lr-title">${esc(c.title)}</b><em class="lr-verdict">${verdict}</em></div>${c.quote ? `<q class="lr-quote">${esc(c.quote)}</q>` : ""}${c.detail ? `<p class="lr-detail">${esc(c.detail)}</p>` : ""}${form || (c.stats?.length || who) ? `<div class="lr-stats">${form}${(c.stats || []).map(stat).join("")}${who}</div>` : ""}</div></li>`;
 }

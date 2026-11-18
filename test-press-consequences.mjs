@@ -91,6 +91,10 @@ function presser(s, type, first, second) {
   assert(byId(s, "qb").moodLog?.some((e) => /Press conference/.test(e.reason)), "the player's profile shows why");
   const room = lockerReport(s).teamCauses.find((x) => /Press conference/.test(x.text));
   assert(room && room.tone === "good", "the locker room lists the press conference as a positive");
+  assert(room.kind === "press" && room.title === "Press conference" && room.quote, "room row is structured for the visual layout");
+  assert(room.player?.name && Number.isFinite(room.player.trust), "room row names the player and the trust change");
+  assert(room.stats.every((x) => x.label && /^[+-][0-9]/.test(String(x.value))), "room row stats are signed chips: " + JSON.stringify(room.stats));
+  assert(lockerReport(s).teamCauses.every((x) => x.kind && x.title), "every room driver has a kind and title");
 }
 
 // 3. Deflecting and then publicly blaming the player: drama, rifts, captains and an inbox story.

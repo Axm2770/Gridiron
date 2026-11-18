@@ -5,6 +5,7 @@ import { applyRealRosters } from "./real-rosters.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
 import { pixelIcon } from "../ui/pixel-icons.mjs";
 import { officeCounts } from "./newsroom.mjs";
+import { findClubs } from "./club-profile.mjs";
 const paths = {
   home: "m3 10 9-7 9 7v10H3z M9 20v-7h6v7",
   play: "m8 5 11 7-11 7z",
@@ -504,7 +505,9 @@ export function installPresentation({
                   searchKey(p.name).includes(searchKey(commandQuery)),
                 )
                 .slice(0, 18)
-            : [];
+            : [],
+        // Clubs by city, nickname or abbreviation open the club profile (W.club).
+        teams = window.W?.club ? findClubs(commandQuery, clubs) : [];
       // Actions run straight from search: type "trim", "sim", "tour" or "help".
       const actions = commandQuery
         ? [
@@ -529,6 +532,10 @@ export function installPresentation({
               ([route, label, glyph]) =>
                 `<button class="command-row" onclick="closeModal();W.open('${route}')">${pixelIcon(glyph, "ui-icon")}<span>${label}</span>${icon("arrow")}</button>`,
             )
+            .join("") +
+          (teams.length ? '<div class="result-label">CLUBS</div>' : "") +
+          teams
+            .map((t) => `<button class="command-row" onclick="closeModal();W.club(${t})"><span class="cp-crest" style="--sz:32px">${logo(t)}</span><span>${esc(cname(t))}<small>${clubs[t][3]} · ${state.teams[t].w}–${state.teams[t].l} · club profile</small></span>${icon("arrow")}</button>`)
             .join("") +
           (players.length ? '<div class="result-label">PLAYERS</div>' : "") +
           players
@@ -619,7 +626,7 @@ export function installPresentation({
     document.getElementById("breadcrumb").innerHTML =
       `<button class="mobile-menu icon-button" onclick="W.mobile()" aria-label="Toggle navigation">${icon("menu")}</button>${trail.length > 1 ? `<button class="breadcrumb-back" onclick="W.back()" aria-label="Back to ${esc(crumbLabel(trail.at(-2)[0]))}" title="Back (Alt+←)">← Back</button>` : ""}<nav class="breadcrumb-trail" aria-label="Breadcrumb"><button class="breadcrumb-club" onclick="W.open('Overview')">${esc(clubs[state.team][2])}</button>${group ? `${divider}<span class="breadcrumb-group">${esc(group[0])}</span>` : ""}${divider}${tab ? `<button class="breadcrumb-screen" onclick="W.open('${current}',null)">${esc(label)}</button>${divider}<b aria-current="page">${esc(tab)}</b>` : `<b aria-current="page">${esc(label)}</b>`}</nav>`;
     document.querySelector("header>div").innerHTML =
-      `<button class="search-trigger" onclick="W.command()" aria-label="Search players and screens">${icon("search")}<span>Search anything</span><kbd>⌘ K</kbd></button><button class="icon-button density-toggle" onclick="W.open('Settings')" aria-label="Settings" title="Settings">${icon("filter")}</button><span class="calendar-chip">${icon("calendar")}${state.year} · ${phaseName()}</span><button class="continue-button" onclick="advance()" ${isBusy() ? "disabled" : ""}>${state.live ? "Return to game" : state.interviewPending ? "Press conference" : state.phase === "offseason" ? "Offseason hub" : "Continue"}${icon("arrow")}</button>`;
+      `<button class="search-trigger" onclick="W.command()" aria-label="Search players and screens">${icon("search")}<span>Search anything</span><kbd>⌘ K</kbd></button><button class="icon-button density-toggle" onclick="W.open('Settings')" aria-label="Settings" title="Settings">${icon("filter")}</button><span class="calendar-chip">${icon("calendar")}${state.year} · ${phaseName()}</span>${state.live && view === "Matchday" ? `<span class="continue-button live-now" role="status">● Game in progress</span>` : `<button class="continue-button" onclick="advance()" ${isBusy() ? "disabled" : ""}>${state.live ? "Return to game" : state.interviewPending ? "Press conference" : state.phase === "offseason" ? "Offseason hub" : "Continue"}${icon("arrow")}</button>`}`;
     document.getElementById("club").innerHTML =
       `<button class="workspace-club" onclick="chooseClub()" title="Start a new career">${logo(state.team)}<span><b>${esc(clubs[state.team][2])}</b><small>${esc(clubs[state.team][3])} · ${state.year}</small></span><span class="club-chevron">⌄</span></button>`;
     document.querySelector(".career").innerHTML =

@@ -15,6 +15,7 @@ import { installHubUI } from "./hub-ui.mjs";
 import { installScoutCard } from "./scout-card-ui.mjs";
 import { installRecruitmentUI } from "./recruitment-ui.mjs";
 import { installPlayerUI } from "./player-ui.mjs";
+import { installClubProfile } from "./club-profile.mjs";
 import { installOfficeUI } from "./office-ui.mjs";
 import { officeCounts, ensureOffice } from "./newsroom.mjs";
 import { installCareerManager } from "./career-manager.mjs";
@@ -840,8 +841,8 @@ cname = function (i) {
 logo = function (i, cls = "") {
   let image = state.franchise?.clubs?.[i]?.rebrand?.logo;
   return image
-    ? `<img class="team-logo ${cls}" src="${image}" alt="Team logo">`
-    : previous.logo(i, cls);
+    ? `<img class="team-logo ${cls}" data-club="${i}" src="${image}" alt="Team logo">`
+    : previous.logo(i, cls).replace("<img ", `<img data-club="${i}" `);
 };
 window.signPlayer = (id) => F.offer(id);
 window.releasePlayer = (id) => F.release(id);
@@ -1463,6 +1464,7 @@ import("./presentation.mjs")
       getSection: () => section,
       isBusy: () => busy,
     });
+    installClubProfile({ heritage });
     // Hub dashboard and presentation load last; a failure leaves the classic workspace intact.
     try {
       const [{ installDashboard }, { installThemeMotion }, { installBroadcastHUD }, { installCinematics }] = await Promise.all([
