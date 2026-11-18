@@ -91,11 +91,16 @@ export function physioCandidates(s) {
   const m = ensureMedical(s),
     key = `${s.year}`;
   if (m.physioPoolYear !== key) {
-    const rng = random(identitySeed(`physio:${s.team}:${s.year}`));
+    const rng = random(identitySeed(`physio:${s.team}:${s.year}`)),
+      used = new Set([m.physio?.name]);
     m.physioPool = Array.from({ length: 3 }, (_, i) => {
       const recovery = Math.round(55 + rng() * 40),
         prevention = Math.round(50 + rng() * 40);
-      return { id: `physio-${s.year}-${i}`, name: PHYSIO_NAMES[(identitySeed(`${s.team}${s.year}${i}`) + i) % PHYSIO_NAMES.length], recovery, prevention, salary: Math.round(((recovery + prevention) / 2 - 30) * 0.012 * MILLION) };
+      // Distinct names within the pool (and from the current physio).
+      let n = (identitySeed(`${s.team}${s.year}${i}`) + i) % PHYSIO_NAMES.length;
+      for (let k = 0; k < PHYSIO_NAMES.length && used.has(PHYSIO_NAMES[n]); k++) n = (n + 1) % PHYSIO_NAMES.length;
+      used.add(PHYSIO_NAMES[n]);
+      return { id: `physio-${s.year}-${i}`, name: PHYSIO_NAMES[n], recovery, prevention, salary: Math.round(((recovery + prevention) / 2 - 30) * 0.012 * MILLION) };
     });
     m.physioPoolYear = key;
   }
