@@ -1483,6 +1483,12 @@ import("./presentation.mjs")
       } catch (error) {
         console.error("Tutorials:", error);
       }
+      try {
+        const { installDevPanel } = await import("../ui/dev-panel.mjs");
+        installDevPanel({ getSection: () => section, isBusy: () => busy });
+      } catch (error) {
+        console.error("Console:", error);
+      }
       render();
     } catch (error) {
       console.error("Hub dashboard:", error);
