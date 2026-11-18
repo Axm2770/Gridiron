@@ -568,7 +568,8 @@ export function underperformance(s, p = boardPulse(s)) {
   if (p.security < R.security) board.push(`job security down to ${p.security}`);
   if (board.length && p.pointDiff < 0) board.push(`a ${p.pointDiff} point differential`);
   if (p.streak >= R.losingStreak) team.push(`${p.streak} straight losses`);
-  if (p.paceGap <= R.paceGap) team.push("the season is slipping away from the target");
+  // Players call a meeting over losing, not over missing the owner's target while winning.
+  if (p.paceGap <= R.paceGap && p.w <= p.l) team.push("the season is slipping away from the target");
   if (p.w <= p.l && p.morale < R.teamMorale) team.push(`team morale has fallen to ${p.morale}%`);
   if (p.w <= p.l && p.drama >= R.teamDrama) team.push(`drama around the team is at ${p.drama}`);
   return { board, team };

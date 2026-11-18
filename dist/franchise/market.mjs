@@ -419,6 +419,13 @@ export function tradeBlockers(s, proposal) {
   const moving = (list) => list.filter((a) => a.kind === "player" && (!a.player.status || a.player.status === "active")).length,
     full = rosterFull(s, activeCount(s) - moving(give) + moving(get));
   if (full) out.push({ reason: full.reason, fix: `${full.fix.replace(/ first\.$/, "")}, or add more of your players to the deal.` });
+  // In season, a deal must not leave a position with nobody healthy to play it: games could not start.
+  if (s.phase !== "offseason")
+    for (const pos of new Set(give.filter((a) => a.kind === "player").map((a) => a.player.pos))) {
+      const healthy = (list) => list.filter((q) => q.pos === pos && !q.injury && !q.holdout && (!q.status || q.status === "active")).length,
+        left = healthy(s.roster.filter((q) => !giveIds.includes(q.id))) + healthy(get.filter((a) => a.kind === "player").map((a) => a.player));
+      if (left < 1) out.push({ reason: `This would leave you without a healthy ${pos}, so your next game could not be played.`, fix: `Keep him, add a ${pos} from them to the deal, or sign one first.` });
+    }
   return out;
 }
 
@@ -561,22 +568,35 @@ export function suggestPackage(s, partner, getIds) {
   if (ask.untouchable.length) return { give: [], target, total: 0, covered: false, untouchable: ask.untouchable };
   const pct = pickPct(teamMode(s, partner)),
     picks = ownedPicks(s, s.team).map((x) => ({ id: x.id, v: Math.round(pickValue(s, x) * (1 + pct)), core: false })),
+    // Never suggest a player whose departure leaves a position without enough healthy players to
+    // field its starters (sending away the only healthy QB would stop the season).
+    healthy = (pos) => s.roster.filter((q) => q.pos === pos && !q.injury && !q.holdout && (!q.status || q.status === "active")).length,
+    needed = (pos) => Math.max(1, s.roster.filter((q) => q.pos === pos && q.starter).length),
     players = s.roster
       .filter((p) => !p.injury && !s.franchise.contracts[p.id]?.noTrade && (!p.status || p.status === "active"))
+      .filter((p) => healthy(p.pos) - 1 >= needed(p.pos))
       .map((p) => ({ id: p.id, v: playerTradeValue(s, p, partner), core: !!p.starter }))
       .filter((x) => x.v > 0),
     pool = [...picks, ...players];
+  // The cheapest package of up to three assets that covers the ask: least overpayment, and a
+  // starter only counts as "cheap" if nothing made of picks and reserves gets there.
   const build = (candidates) => {
-    const single = candidates.filter((x) => x.v >= target).sort((a, b) => a.v - b.v)[0];
-    if (single) return [single];
-    const chosen = [];
-    let total = 0;
-    for (const x of candidates.slice().sort((a, b) => b.v - a.v)) {
-      if (total >= target || chosen.length >= 4) break;
-      chosen.push(x);
-      total += x.v;
+    const list = candidates.slice().sort((x, y) => y.v - x.v).slice(0, 28),
+      cost = (set) => set.reduce((n, x) => n + x.v, 0) + set.filter((x) => x.core).length * target * 0.35;
+    let best = null;
+    const consider = (set) => {
+      const total = set.reduce((n, x) => n + x.v, 0);
+      if (total < target) return;
+      if (!best || cost(set) < cost(best)) best = set;
+    };
+    for (let i = 0; i < list.length; i++) {
+      consider([list[i]]);
+      for (let j = i + 1; j < list.length; j++) {
+        consider([list[i], list[j]]);
+        for (let k = j + 1; k < list.length; k++) consider([list[i], list[j], list[k]]);
+      }
     }
-    return total >= target ? chosen : null;
+    return best;
   };
   const pkg = build(pool.filter((x) => !x.core)) || build(pool);
   if (!pkg) return { give: [], target, total: 0, covered: false };

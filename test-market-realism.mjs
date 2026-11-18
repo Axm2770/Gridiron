@@ -251,4 +251,19 @@ const profileSource = fs.readFileSync("dist/franchise/player-ui.mjs", "utf8");
 assert(/Ops\.tradeFor\('\$\{p\.id\}',\$\{e\.team\}\)/.test(profileSource) && /Trade for \$\{esc\(p\.name\)\}/.test(profileSource), "the profile offers Trade for <name>");
 assert(!/>Trade centre</.test(profileSource));
 
+// A deal or suggestion must never leave you without a healthy player at a position in season.
+{
+  const { tradeBlockers } = await import("./dist/franchise/market.mjs");
+  const q = fresh();
+  ensurePickLedger(q);
+  q.phase = "season";
+  const qbs = q.roster.filter((p) => p.pos === "QB");
+  qbs.slice(1).forEach((p) => (p.injury = 4));
+  const other = (q.team + 2) % 32,
+    deal = { partner: other, give: [qbs[0].id], get: [ownedPicks(q, other)[0].id] };
+  assert(tradeBlockers(q, deal).some((b) => /without a healthy QB/.test(b.reason)), "trading the only healthy QB is blocked");
+  const target = q.franchise.clubs[other].players.filter((p) => p.pos !== "QB").sort((a, b) => b.ovr - a.ovr)[0];
+  assert(!suggestPackage(q, other, [target.id]).give.includes(qbs[0].id), "the suggester never offers the only healthy QB");
+}
+
 console.log("PASS: icon premiums and untouchable legends, injury/wear/age discounts, rebuilding vs contending preferences, positional need, troublemaker and trade-demand discounts, readable reasons and counters, fan reaction, free agents choosing contention and playing time, Trade for <player> preselection.");
