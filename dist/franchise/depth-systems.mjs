@@ -5,6 +5,7 @@ import { hash, changeCoachReputation } from "./career-systems.mjs";
 import { applyMood } from "./newsroom.mjs";
 import { ensureSocial, reactTo, socialPulse } from "./social-engine.mjs";
 import { ensureEventLog } from "./event-bus.mjs";
+import { applyQuickPress } from "./press-consequences.mjs";
 
 const clamp = (n, a = 0, b = 100) => Math.max(a, Math.min(b, n));
 
@@ -225,7 +226,9 @@ export function answerPress(s, presserId, answerId) {
   d.pressers.unshift({ id: presserId, answer: answerId, quote, year: s.year, week: s.week });
   d.pressers = d.pressers.slice(0, 40);
   reactTo(s, presserId, { kind: "PressConference", quote, tone: a.tone, tags: [answerId] });
-  return { quote };
+  // The answer also moves the room, the fans and the owner (half the weight of a full presser).
+  const effects = applyQuickPress(s, presserId, { confident: "confident", accountable: "humble", deflect: "deflect" }[answerId], p.context === "other" ? "pre" : p.context);
+  return { quote, effects };
 }
 
 /* ------------------------------------------------------- game-day strategy deck */

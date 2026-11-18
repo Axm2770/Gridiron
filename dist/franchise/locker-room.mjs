@@ -1,5 +1,6 @@
 import { financeYear } from "./state.mjs";
 import { socialPulse } from "./social-engine.mjs";
+import { latestPress } from "./press-consequences.mjs";
 
 // Read model for the locker room: who is happy, who is not, and why.
 export const MOOD_BANDS = [
@@ -103,8 +104,18 @@ export function lockerReport(s) {
     tone: leaderMood >= 70 ? "good" : leaderMood < 60 ? "bad" : "",
   });
   const recentTeam = (s.roster.flatMap((p) => p.moodLog || []).find((e) => /^Team message:/.test(e.reason) && e.year === s.year));
-  if (recentTeam)
+  if (recentTeam && !/^Team message: Press conference/.test(recentTeam.reason))
     teamCauses.push({ text: recentTeam.reason.replace(/^Team message: /, "Team talk: "), tone: recentTeam.delta > 0 ? "good" : "bad" });
+  // The latest press conference, with what it moved.
+  const press = latestPress(s);
+  if (press) {
+    const ch = press.changes || {},
+      sign = (n) => (n > 0 ? "+" : "") + n,
+      parts = [["chemistry", ch.chemistry], ["drama", ch.drama], ["morale", ch.morale]].filter(([, v]) => v).map(([k, v]) => `${k} ${sign(v)}`),
+      who = press.playerName && press.follow ? ` · ${press.follow.tone.toLowerCase()} on ${press.playerName} (trust ${sign(ch.playerTrust ?? 0)})` : "";
+    const net = (ch.chemistry || 0) + (ch.morale || 0) - (ch.drama || 0) / 2;
+    teamCauses.push({ text: `Press conference: "${press.quote}"${who}${parts.length ? " · " + parts.join(", ") : ""}`, tone: net > 0 ? "good" : net < 0 ? "bad" : "" });
+  }
   return {
     teamMorale: Math.round(s.morale ?? avgMorale),
     avgMorale,

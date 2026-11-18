@@ -271,8 +271,9 @@ export class CharacterStage {
       extras = [],
       shot = 0,
       // Internal render scale used in the pixel theme (body.gd-pixel). The coach creator/dossier
-      // avatar renders at about 1/4.5 resolution and is scaled up with image-rendering: pixelated.
-      pixelScale = scene === "creator" ? 0.22 : null,
+      // avatar renders at about 1/4.5 resolution and the meeting stages (contract talks, expansion
+      // interviews) at 1/5; both are scaled up with image-rendering: pixelated and hard shadows.
+      pixelScale = scene === "creator" ? 0.22 : 0.2,
       reducedMotion = globalThis.matchMedia?.(
         "(prefers-reduced-motion: reduce)",
       ).matches,
@@ -543,6 +544,8 @@ export class CharacterStage {
       !!globalThis.document?.body?.classList.contains("gd-pixel");
     if (on === this.pixelated && this.pixelated !== undefined) return;
     this.pixelated = on;
+    // Hard-edged shadows read as pixel art; soft PCF shadows smear at low resolution.
+    if (this.renderer.shadowMap) this.renderer.shadowMap.type = on ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
     this.renderer.setPixelRatio(
       on ? this.pixelScale : Math.min(globalThis.devicePixelRatio || 1, 1.5),
     );

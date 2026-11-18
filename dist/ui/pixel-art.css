@@ -105,6 +105,16 @@ body .px-scene .px-scene-caption p, body .gd-cine .scn-lower p { margin: 0; font
 @keyframes px-hide { 0%, 30% { opacity: 1; } 31%, 100% { opacity: 0; } }
 @keyframes px-blink { 0% { opacity: 1; } 50% { opacity: 0; } }
 @keyframes px-flash { 0% { opacity: 1; } 6% { opacity: 0; } }
+/* Story scenes (title, draft, press, playoff exit, walk-off, locker talk). */
+.px-scene .px-l-bob-b { animation: px-bob 1.2s steps(2) 0.6s infinite; }
+.px-scene .px-l-blink-a { animation: px-blink 1.6s steps(1) infinite; }
+.px-scene .px-l-blink-b { animation: px-blink 1.6s steps(1) 0.8s infinite; }
+.px-scene .px-l-fall-a { animation: px-fall 2.4s steps(12) infinite; }
+.px-scene .px-l-fall-b { animation: px-fall 2.4s steps(12) -1.2s infinite; }
+.px-scene .px-l-jump-a { animation: px-jump 0.6s steps(2) infinite; }
+.px-scene .px-l-jump-b { animation: px-jump 0.6s steps(2) 0.3s infinite; }
+@keyframes px-fall { from { transform: translateY(-12px); } to { transform: translateY(12px); } }
+@keyframes px-jump { 50% { transform: translateY(-3px); } }
 .px-scene.px-still *, .px-scene.px-still { animation: none !important; transition: none !important; }
 .px-scene.px-still .px-l-rest, .px-scene.px-still .px-l-clap-b { opacity: 0; }
 
