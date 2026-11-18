@@ -93,7 +93,6 @@ body.gd-pixel #app .na-reader .team-logo, body.gd-pixel #app .nw-page .na-crest 
 #app .na-text p { margin: 0 0 14px; font: 400 15.5px/1.7 var(--gd-body); color: var(--gd-text); }
 #app .na-text .na-lead { font-size: 17px; font-weight: 500; line-height: 1.6; }
 #app .na-text .na-lead::after { content: ""; display: block; clear: both; }
-#app .na-initial { float: left; display: grid; place-items: center; width: 58px; height: 58px; margin: 4px 8px 0 0; background: var(--gd-bg-2); border: 3px solid var(--na-team); box-shadow: 3px 3px 0 var(--fd-ink); font: 700 40px/1 var(--gd-display) !important; color: var(--gd-text); text-transform: uppercase; }
 #app .na-quote { margin: 18px 0 20px; padding: 12px 16px 12px 18px; background: var(--gd-bg-2); border: 2px solid var(--gd-border-strong); border-left: 8px solid var(--na-team); box-shadow: 3px 3px 0 var(--fd-ink); }
 #app .na-quote p { margin: 0 0 6px !important; font: 600 21px/1.3 var(--gd-display) !important; color: var(--gd-text); }
 #app .na-quote cite { font: normal 700 12.5px var(--gd-body); color: var(--gd-text-2); }
@@ -322,6 +321,8 @@ body.gd-pixel #app .na-reader .team-logo, body.gd-pixel #app .nw-page .na-crest 
   #app .na-sb-side.r { flex-direction: column; }
   #app .na-sb-mid span { font-size: 8px !important; padding: 4px 5px 3px; }
   #app .na-ls th, #app .na-ls td { padding: 4px 3px; }
-  #app .na-initial { width: 46px; height: 46px; font-size: 30px !important; }
 }
 #app .na-list li > span { text-align: left; align-items: flex-start; }
+
+/* Lead-in: opening words in bold small caps (replaces the boxed single-letter drop cap). */
+#app .na-text .na-leadin { font-weight: 700 !important; font-variant: small-caps; letter-spacing: .04em; color: var(--gd-text); border-bottom: 3px solid var(--na-team, var(--gd-accent)); padding-bottom: 1px; }

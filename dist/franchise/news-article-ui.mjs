@@ -343,12 +343,17 @@ export function cardArt(s, a) {
 
 /* ------------------------------------------------------------------ reader */
 
+// Scores and records (28–24, 11-6) never break across lines.
+const keepScores = (html) => html.replace(/(\d)[-–](\d)/g, "$1‑$2");
+// Newspaper lead-in: the opening words in bold small caps, so the first sentence is never split
+// apart (a boxed single-letter drop cap read as "he Cowboys…").
 function withInitial(text) {
-  const m = String(text).match(/^(\W*)(\w)([\s\S]*)$/);
-  if (!m) return esc(text);
-  return `${esc(m[1])}<span class="na-initial">${esc(m[2])}</span>${esc(m[3])}`;
+  const s = String(text ?? ""),
+    m = s.match(/^((?:\S+\s+){1,3}?\S+?)(?=\s)/),
+    words = m && m[1].length <= 34 ? m[1] : "";
+  if (!words) return keepScores(esc(s));
+  return `<span class="na-leadin">${keepScores(esc(words))}</span>${keepScores(esc(s.slice(words.length)))}`;
 }
-
 // nav: { list (stories in the current view, ordered), all (every story, for Related), actions (HTML) }
 export function articleView(s, a, { list = [], all = list, actions = "" } = {}) {
   loadNewsStyles();
@@ -363,7 +368,7 @@ export function articleView(s, a, { list = [], all = list, actions = "" } = {}) 
     paras = copy.paragraphs,
     quoteAt = Math.min(2, paras.length),
     quote = copy.quote ? `<blockquote class="na-quote"><p>“${esc(copy.quote.text)}”</p><cite>— ${esc(copy.quote.by)}${copy.quote.role ? `, <span>${esc(copy.quote.role)}</span>` : ""}</cite></blockquote>` : "",
-    body = paras.map((p, k) => (k === quoteAt ? quote : "") + `<p>${esc(p)}</p>`).join("") + (quoteAt >= paras.length ? quote : ""),
+    body = paras.map((p, k) => (k === quoteAt ? quote : "") + `<p>${keepScores(esc(p))}</p>`).join("") + (quoteAt >= paras.length ? quote : ""),
     side = sideColumn(s, a, copy),
     hero = articleHero(s, a, copy);
   const navBtn = (x, dir) =>
