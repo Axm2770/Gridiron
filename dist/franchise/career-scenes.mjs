@@ -298,7 +298,7 @@ export function installCareerScenes({
     const f = state.franchise,
       c = f.cinema,
       active = c.active && conversationValid(state, c.active);
-    return `<section class="stories-hero"><span class="eyebrow">GRIDIRON STORIES</span><h2>The game behind the game.</h2><p>Trust is built in the room. Choose your words, set expectations, and live with the response.</p><div class="f-actions"><button onclick="CI.open('team')">Team meeting</button><button class="secondary" onclick="CI.open('staff')">Coordinator briefing</button>${active ? `<button class="secondary" onclick="CI.scene()">Resume conversation</button>` : ""}${state.interviewPending ? `<button class="secondary" onclick="postInterview()">Postgame interview</button>` : ""}</div></section><section class="panel pad"><h2>One-on-one conversations</h2><p class="subtitle">One meeting per player each week. Personalities change how a challenge is received.</p><div class="conversation-roster">${state.roster
+    return `<section class="gd-actionbar"><div class="f-actions"><button onclick="CI.open('team')">Team meeting</button><button class="secondary" onclick="CI.open('staff')">Coordinator briefing</button>${active ? `<button class="secondary" onclick="CI.scene()">Resume conversation</button>` : ""}${state.interviewPending ? `<button class="secondary" onclick="postInterview()">Postgame interview</button>` : ""}</div></section><section class="panel pad"><h2>One-on-one conversations</h2><p class="subtitle">One meeting per player each week. Personalities change how a challenge is received.</p><div class="conversation-roster">${state.roster
       .slice()
       .sort((a, b) => a.morale - b.morale)
       .map(
@@ -345,7 +345,7 @@ export function installCareerScenes({
     oldLocker();
   const oldMedia = mediaScreen;
   mediaScreen = () =>
-    `<section class="panel pad conversation-entry"><div><span class="eyebrow">BEHIND THE HEADLINES</span><h2>The room is listening.</h2><p>Interviews now unfold as cinematic conversations with response choices.</p></div><button onclick="W.open('Conversations')">Conversations →</button></section>` +
+    `<section class="gd-actionbar"><div class="f-actions"><button onclick="W.open('Conversations')">Conversations →</button></div></section>` +
     oldMedia();
   const oldClose = closeModal;
   closeModal = function () {

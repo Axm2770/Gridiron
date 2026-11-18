@@ -13,15 +13,6 @@
 }
 .breadcrumb-back:hover { color: var(--gd-accent, #c7f45b); }
 
-.related-links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
-.related-links > span { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gd-text-3, #91a0a7); margin-right: 2px; }
-.related-link {
-  background: var(--gd-surface-strong, #1e2850) !important; color: var(--gd-text, #edf2f2) !important;
-  border: 1px solid var(--gd-border, #2e3a6e) !important; padding: 5px 10px !important;
-  font: 600 12px var(--gd-body, sans-serif) !important; box-shadow: none !important;
-}
-.related-link:hover { border-color: var(--gd-accent, #c7f45b) !important; color: var(--gd-accent, #c7f45b) !important; }
-
 .nav-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
 .nav-tabs button { padding: 8px 14px; font-size: 13px; }
 .nav-tabs button:not(.active) { background: var(--gd-surface, #182041); color: var(--gd-text-2, #b6bde0); }
@@ -94,7 +85,7 @@ tr.me td { background: rgba(199, 244, 91, 0.06); }
 
 @media (max-width: 1000px) { .nav-snapshot { grid-template-columns: 1fr; } }
 
-/* The pixel theme raises every button; breadcrumb links and jump chips stay flat text. */
+/* The pixel theme raises every button; breadcrumb links stay flat text. */
 body #breadcrumb .breadcrumb-trail button {
   border: 0 !important; box-shadow: none !important; background: none !important;
   padding: 2px 4px !important; min-height: 0 !important; transform: none !important;
@@ -105,7 +96,6 @@ body #breadcrumb .breadcrumb-back {
 }
 #breadcrumb .breadcrumb-trail { flex-wrap: nowrap; overflow: hidden; }
 #breadcrumb .breadcrumb-trail > * { white-space: nowrap; }
-body .related-links .related-link { box-shadow: none !important; }
 #app .nav-leader-row, #app .nav-team-link {
   border: 0 !important; box-shadow: none !important; background: none !important; transform: none !important;
 }
@@ -135,3 +125,86 @@ body .related-links .related-link { box-shadow: none !important; }
 .profile-attrs { display: flex; flex-wrap: wrap; gap: 6px 12px; }
 .profile-attr { display: inline-flex; align-items: center; gap: 6px; }
 .profile-role .link { justify-self: start; font-size: 12px; }
+
+/* ---- Page frame (presentation.mjs render wrapper) ------------------------------------------
+   Title bar: the page name, then help and any real per-screen action on the right. The breadcrumb
+   already names club / section / page, so there is no eyebrow, tagline, role badge or jump row. */
+#app > .title-row.gd-titlebar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px 12px;
+  margin: 16px 0 14px; padding: 0 0 10px; min-height: 0;
+  border-bottom: 3px solid var(--gd-border-strong, #2e3a6e);
+}
+#app > .gd-titlebar > div:not(.page-context):not(.title-actions) { min-width: 0; flex: 1 1 auto; }
+#app > .gd-titlebar h1 {
+  flex: 1 1 auto; min-width: 0; margin: 0;
+  font-size: clamp(20px, 1.8vw, 26px) !important; line-height: 1.15 !important; letter-spacing: 0.02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#app > .gd-titlebar :is(.page-context, .title-actions) { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
+#app > .gd-titlebar .title-actions + .page-context { margin-left: 0; }
+#app > .gd-titlebar .title-actions .week { display: none; } /* the header clock already shows the week */
+#app > .gd-titlebar .title-actions button { min-height: 32px; padding-block: 6px; }
+#app > .gd-titlebar .page-context .icon-button { width: 32px; height: 32px; min-height: 0; padding: 0; display: inline-grid; place-items: center; }
+/* A club-coloured pixel block marks the title in the pixel theme. */
+body.gd-pixel #app > .gd-titlebar h1::before {
+  content: ""; display: inline-block; width: 0.42em; height: 0.42em; margin: 0 0.45em 0.12em 0; vertical-align: middle;
+  background: var(--team, var(--gd-accent)); box-shadow: 2px 2px 0 var(--gd-bg, #0c1124);
+}
+/* Awards keeps its race status at the end of the toolbar row. */
+#app .exp-toolbar .exp-toolbar-status { margin-left: auto; }
+/* Heroes that lost their slogan copy keep their numbers on one row. */
+#app .sc-head { grid-template-columns: minmax(0, 1fr); }
+#app .sc-head .sc-resources { flex-wrap: wrap; }
+#app .dv-head .dv-counts { margin-top: 0; }
+#app .fp-page .staff-hero.fp-dept { grid-template-columns: minmax(0, 1fr) !important; }
+#app .gd-actionbar { margin: 0 0 16px; }
+#app .gd-actionbar .f-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+#app .settings-nav > button { padding: 11px 12px !important; font: 600 14px/1.2 var(--gd-body, sans-serif) !important; min-height: 0; }
+#app .settings-nav > button > span { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#app .fp-page .staff-hero.fp-dept .fp-dept-meters { justify-content: flex-start !important; }
+#app .dv-head { align-items: center; }
+#app .settings-section > .settings-note { margin: 0 0 8px; font-size: 13px; color: var(--gd-text-2, #b6bde0); }
+
+/* Content width: panels fill the screen up to ~1800px, then the page centres instead of stretching. */
+main {
+  min-width: 0; max-width: none !important;
+  /* The sidebar is position:fixed. Anything wider than the viewport used to make the whole document
+     scroll sideways, sliding the page under the sidebar (titles cut off at the left edge). */
+  overflow-x: clip;
+}
+main > :is(header, #app, footer) { max-width: 1800px; margin-inline: auto; }
+#app { min-width: 0; }
+
+/* Consistent controls: one button height per size, toolbars that wrap instead of overflowing. */
+#app :is(.f-actions, .hub-tabs, .pp-bar, .exp-toolbar, .tx-filters, .table-tools, .nav-tabs) { flex-wrap: wrap; row-gap: 8px; }
+#app :is(.f-actions, .exp-toolbar, .pp-bar, .tx-filters) > :is(button, select, label, input) { min-width: 0; }
+
+/* Tablet and phone: the sidebar becomes the slide-in menu (W.mobile()) below 900px. */
+@media (max-width: 900px) {
+  aside {
+    position: fixed; transform: translateX(-100%); width: 238px;
+    transition: transform 0.2s; box-shadow: 10px 0 50px #0009;
+  }
+  .workspace-ready aside .career, .workspace-ready aside .sidebar-bottom { display: flex; }
+  .workspace-ready aside #club { display: block; }
+  .workspace-ready nav { display: block; margin: 0; }
+  .nav-visible aside { transform: translateX(0); }
+  .nav-visible::after { content: ""; position: fixed; inset: 0; z-index: 25; background: #0007; pointer-events: auto; }
+  main { margin-left: 0 !important; padding: 0 18px !important; }
+  .mobile-menu { display: flex; width: 30px; height: 30px; padding: 5px; }
+  .mobile-menu > .ui-icon { width: 18px; height: 18px; }
+  .breadcrumb-club, .breadcrumb-divider { display: none; }
+}
+@media (max-width: 600px) {
+  /* Phone: wide boards drop secondary columns or scroll inside their own panel instead of the page. */
+  #app .dv-row { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 64px; }
+  #app .dv-row > :nth-child(6) { display: none; }
+  #app .sc-page .sc-results { overflow-x: auto !important; }
+  #app .sc-page .finder-filter-menu > div { max-width: calc(100vw - 48px); }
+  #app .mk-seg { display: flex; flex-wrap: wrap; max-width: 100%; }
+}
+@media (max-width: 480px) {
+  main { padding: 0 12px !important; }
+  #app > .title-row.gd-titlebar { margin: 12px 0 10px; }
+  #app > .gd-titlebar .title-actions { margin-left: 0; order: 3; flex-basis: 100%; }
+}

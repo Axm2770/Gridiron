@@ -78,7 +78,7 @@ const groups = [
     ],
   ],
 ];
-// Screens reachable from search and related links but not listed in the sidebar.
+// Screens reachable from search and in-page links but not listed in the sidebar.
 const secondary = [
   ["Conversations", "Conversations", "mic"],
   ["Career dossier", "Career dossier", "briefcase"],
@@ -100,86 +100,40 @@ export const ROUTE_ALIASES = {
   // The league-wide move log lives on the League snapshot.
   Transactions: ["League desk", "Transactions"],
 };
-// Quick jumps shown under each screen title.
-export const RELATED = {
-  Overview: ["Inbox", "Calendar", "Roster"],
-  Roster: ["Development", "Medical", "Contracts", "Statistics", "Game plan"],
-  "Game plan": ["Roster", "Calendar", "Analysis"],
-  Medical: ["Roster", "Development"],
-  Development: ["Roster", "Medical", "Statistics"],
-  "Locker room": ["Conversations", "Roster", "Inbox"],
-  Conversations: ["Locker room", "Inbox"],
-  Scouting: ["Draft", "Market"],
-  Draft: ["Scouting", "Market", "Roster"],
-  Market: ["Contracts", "Scouting", "Roster", "Transactions"],
-  Contracts: ["Market", "Roster", "Boardroom", "Transactions"],
-  Club: ["Staff", "Boardroom", "Contracts"],
-  Staff: ["Club", "Career"],
-  Boardroom: ["Club", "Contracts", "Career"],
-  Career: ["Career dossier", "Staff", "Boardroom"],
-  "Career dossier": ["Career", "Boardroom"],
-  Calendar: ["Matchday", "League desk", "Roster"],
-  "League desk": ["Calendar", "Statistics", "Records", "News"],
-  Records: ["League desk", "Statistics"],
-  Statistics: ["Analysis", "Records", "League desk", "Roster"],
-  Analysis: ["Statistics", "Roster"],
-  News: ["Media room", "Inbox", "League desk"],
-  "Media room": ["News", "Inbox"],
-  Inbox: ["News", "Calendar"],
-  Matchday: ["Game plan", "Calendar", "Roster"],
-  Settings: ["Careers & saves", "Overview"],
-  "Careers & saves": ["Settings", "Overview"],
-};
+const helpControls = `<div class="page-context"><button class="icon-button" onclick="W.help()" aria-label="Help for this screen" title="Help & tutorials">?</button></div>`;
 export const NAV_GROUPS = groups;
 const legacy = new Set(["Game plan", "Schedule", "Media room", "Matchday"]);
+// Page titles shown in the title bar (taglines were removed: the title bar is just the name).
 const descriptions = {
-  Overview: ["Club overview", "The decisions that shape your next Sunday."],
-  Roster: ["Squad", "Every player. Every role. One team."],
-  Career: ["Coach profile", "Build your coaching career."],
-  Staff: ["Coaching staff", "Build your department. Run a complete search."],
-  Contracts: ["Contracts & salary cap", "Plan this season. Protect the next."],
-  Market: [
-    "Transfers & free agency",
-    "Find the right player at the right price.",
-  ],
-  Scouting: ["Scouting", "Find your next difference-maker."],
-  Draft: ["Draft room", "The next chapter starts on the clock."],
-  Club: ["Organization hub", "Invest in the future of your franchise."],
-  Medical: ["Medical & training", "Prepare hard. Keep your players ready."],
-  "Locker room": [
-    "Locker room",
-    "Understand the people behind the performance.",
-  ],
-  League: ["League office", "Follow the decisions shaping the competition."],
-  Archives: ["History & records", "Every season leaves a legacy."],
-  Calendar: [
-    "Schedule & calendar",
-    "Fixtures, results, rivals and the days in between.",
-  ],
-  "League desk": [
-    "League snapshot",
-    "Standings, leaders and the moves around the league.",
-  ],
-  Records: [
-    "Records & milestones",
-    "Champions, record marks and the Hall of Fame.",
-  ],
-  Career: ["Coach career", "Build your coaching career."],
-  "Career dossier": ["Career dossier", "Your record, reputation and offers."],
-  "Hall of Fame": ["Hall of Fame", "The people who made the game."],
-  Conversations: ["Conversations", "Your words shape the room."],
-  Database: ["Data & saves", "Your roster database and career backups."],
-  Development: [
-    "Player development",
-    "Shape ability. Manage workload. Protect the future.",
-  ],
-  "Careers & saves": ["Careers & saves", "Every coach has a different story."],
-  Inbox: ["Inbox", "The decisions and people that need your attention."],
-  News: ["News & social", "Follow the stories shaping your football world."],
-  Statistics: ["Statistics", "Find the numbers. Understand the sample."],
-  Analysis: ["Data & analysis", "See the patterns. Choose your next move."],
-  Settings: ["Settings", "Your workspace, audio, news and data tools."],
-  Debug: ["Developer console", "Inspect, adjust and test your simulation."],
+  Overview: ["Club overview"],
+  Roster: ["Squad"],
+  Career: ["Coach profile"],
+  Staff: ["Coaching staff"],
+  Contracts: ["Contracts & salary cap"],
+  Market: ["Transfers & free agency"],
+  Scouting: ["Scouting"],
+  Draft: ["Draft room"],
+  Club: ["Organization hub"],
+  Medical: ["Medical & training"],
+  "Locker room": ["Locker room"],
+  League: ["League office"],
+  Archives: ["History & records"],
+  Calendar: ["Schedule & calendar"],
+  "League desk": ["League snapshot"],
+  Records: ["Records & milestones"],
+  Career: ["Coach career"],
+  "Career dossier": ["Career dossier"],
+  "Hall of Fame": ["Hall of Fame"],
+  Conversations: ["Conversations"],
+  Database: ["Data & saves"],
+  Development: ["Player development"],
+  "Careers & saves": ["Careers & saves"],
+  Inbox: ["Inbox"],
+  News: ["News & social"],
+  Statistics: ["Statistics"],
+  Analysis: ["Data & analysis"],
+  Settings: ["Settings"],
+  Debug: ["Developer console"],
 };
 const routeEntry = (route) =>
   [...groups.flatMap((g) => g[1]), ...secondary].find(([r]) => r === route);
@@ -306,7 +260,7 @@ export function installPresentation({
     `<button class="nav-item ${active() === route ? "active" : ""}" ${active() === route ? 'aria-current="page"' : ""} onclick="W.open('${route}')">${icon(glyph)}<span>${label}</span>${route === "Matchday" && state.live ? '<i class="live-dot"></i>' : ""}${route === "Medical" && state.roster.some((p) => p.injury) ? `<small>${state.roster.filter((p) => p.injury).length}</small>` : ""}</button>`;
   function syncMobileNavigation() {
     let closed =
-      window.innerWidth <= 760 &&
+      window.innerWidth <= 900 &&
       !document.body.classList.contains("nav-visible");
     let sidebar = document.querySelector("aside");
     sidebar.inert = closed;
@@ -315,7 +269,7 @@ export function installPresentation({
   window.addEventListener("resize", syncMobileNavigation);
   document.addEventListener("click", (e) => {
     if (
-      window.innerWidth <= 760 &&
+      window.innerWidth <= 900 &&
       document.body.classList.contains("nav-visible") &&
       !e.target.closest("aside") &&
       !e.target.closest(".mobile-menu")
@@ -837,23 +791,15 @@ export function installPresentation({
     returning = false;
     navigation();
     header();
-    let title = document.querySelector("#app>.title-row"),
-      related = (RELATED[section] || [])
-        .filter((r) => r !== section)
-        .map(
-          (r) =>
-            `<button class="related-link" onclick="W.open('${r}')">${esc(crumbLabel(r))}</button>`,
-        )
-        .join(""),
-      relatedRow = related
-        ? `<div class="related-links" aria-label="Related screens"><span>Jump to</span>${related}</div>`
-        : "";
+    // Compact title bar: the page name on the left, help (and any real per-screen action) on the right.
+    // The breadcrumb already names club / section / page, so no eyebrow, tagline or jump links here.
+    let title = document.querySelector("#app>.title-row");
+    if (title) title.classList.add("gd-titlebar");
     if (view === "Franchise" && title) {
-      let [name, description] = descriptions[section] || [section, ""];
-      title.innerHTML = `<div><div class="eyebrow">${esc(clubs[state.team][1])} ${esc(clubs[state.team][2])} <span> / </span> ${state.year} SEASON</div><h1>${name}</h1><p class="subtitle">${description}</p>${relatedRow}</div><div class="page-context"><span class="role-badge">${esc(state.franchise.role)}</span><button class="icon-button" onclick="W.help()" aria-label="Workspace help">?</button></div>`;
+      let [name] = descriptions[section] || [section];
+      title.innerHTML = `<h1>${name}</h1>${helpControls}`;
       document.querySelector(".f-tabs")?.remove();
-    } else if (title && relatedRow && !title.querySelector(".related-links"))
-      title.firstElementChild?.insertAdjacentHTML("beforeend", relatedRow);
+    }
     if (title && view !== "Franchise") {
       let names = {
         Matchday: "Matchday",
@@ -863,12 +809,13 @@ export function installPresentation({
         "Head coach": "Head coach",
       };
       if (names[view]) title.querySelector("h1").textContent = names[view];
-      if (view === "Matchday")
-        title.querySelector(".subtitle").textContent =
-          "Live coaching. Every snap is your decision.";
-      // Older screens (Matchday, Tactics, Media room) get the same help button as the rest.
+      // Older screens (Matchday, Tactics, Media room) render their own title row: keep the h1 and
+      // any real actions, drop the season eyebrow, tagline and decorative status tag.
+      title
+        .querySelectorAll(".eyebrow, .subtitle, :scope > .tag")
+        .forEach((n) => n.remove());
       if (!title.querySelector("[onclick=\"W.help()\"]"))
-        title.insertAdjacentHTML("beforeend", `<div class="page-context"><button class="icon-button" onclick="W.help()" aria-label="Help for this screen">?</button></div>`);
+        title.insertAdjacentHTML("beforeend", helpControls);
     }
     syncMobileNavigation();
     enhanceTables();

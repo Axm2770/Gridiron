@@ -88,14 +88,7 @@ export function installHubUI({ views, isBusy, tradeView }) {
   views.Draft = () => windowStrip(["trade"]) + draftView();
   // One market workspace for the sidebar and the Hub tab: windows, trade builder, offers, free agents.
   if (!window.Ops) installOps({ isBusy });
-  views.Market = () =>
-    hero(
-      "RECRUITMENT / PLAYER MARKET",
-      "Trades and free agency.",
-      "Build a trade, answer offers, or bid on free agents. Open any player's scouting report to see value, fit and what is blocking a move.",
-      chip(state.franchise.market.phase, "green"),
-      "market-hero",
-    ) + opsMarketView();
+  views.Market = () => opsMarketView();
   views.Club = () => {
     const c = state.franchise.clubs[state.team],
       st = c.stadium,
@@ -312,7 +305,7 @@ export function installHubUI({ views, isBusy, tradeView }) {
     );
   }
   views.News = () =>
-    `<div class="hub-media-switch">${tabs(["Newsroom", "Fan network"], mediaTab, "Hub.mediaTab")}<span>${mediaTab === "Newsroom" ? "THE STORIES" : "THE REACTION"} / ${state.year}</span></div>${mediaTab === "Newsroom" ? `<div class="hub-news-color">${oldNews()}</div>` : socialView()}`;
+    `<div class="hub-media-switch">${tabs(["Newsroom", "Fan network"], mediaTab, "Hub.mediaTab")}</div>${mediaTab === "Newsroom" ? `<div class="hub-news-color">${oldNews()}</div>` : socialView()}`;
   const persist = (fn) => {
     if (isBusy()) {
       toast("Wait for the current simulation to finish.");

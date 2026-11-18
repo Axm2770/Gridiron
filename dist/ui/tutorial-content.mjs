@@ -47,9 +47,9 @@ export const TOURS = [
         body: "The trail shows where you are. ← Back returns to the previous screen (Alt+← works too), and each crumb is a link.",
       },
       {
-        target: [".related-links", ".page-context"],
-        title: "Jump to related screens",
-        body: "Under each screen title, Jump to links lead to the screens you usually need next. The ? button opens help for the screen you are on.",
+        target: ["#app .page-context", "#app .title-row"],
+        title: "Help on every screen",
+        body: "The ? button beside each screen title opens help for the screen you are on, plus the guided tours.",
       },
       {
         route: "Inbox",

@@ -9,10 +9,8 @@ import { CharacterStage, appearanceFor } from "./character-stage.mjs";
 import { playerFace, previewAttributes } from "./player-ui.mjs";
 import { icon } from "./presentation.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
-// Records, awards and Hall of Fame (league.css): pixel faces and a compact title bar instead of
-// the large hero, so the tab content starts near the top.
-const titleBar = (title, text, extra = "") =>
-  `<div class="lg-titlebar"><div><h2>${title}</h2><p>${text}</p></div>${extra}</div>`;
+// Records, awards and Hall of Fame (league.css): pixel faces and no sub-tab hero (the tab names the
+// screen), so the tab content starts at the top.
 // Race index as pixel blocks: production (accent) then team results (green), 20 blocks max.
 function meter(b) {
   const p = Math.round(Math.max(0, Math.min(80, b.production || 0)) / 4),
@@ -320,7 +318,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
         [75, 90, "Highly respected", "good"],
         [90, 100, "League icon", "good"],
       ];
-    const header = `<section class="fp-panel fp-dossier-head"><div class="fp-coach-card">${`<span class="fp-coach-bust">${coachPixelAvatar(coachAppearance(state), { label: (state.coach.name || "Coach") + " avatar" })}</span>`}<div class="fp-coach-id"><span class="fp-kicker">COACHING CAREER / DOSSIER</span><h2>${esc(state.coach.name || "Your coaching career")}</h2><p>${esc(name(state.team))} · ${esc(S.ROLE_TITLES[state.franchise.role] || state.franchise.role)}</p><p class="fp-note">Every decision builds a reputation. Results, development and relationships shape the opportunities ahead.</p></div><div class="fp-rep-score"><small>Reputation</small><b>${number(rep.value)}</b><span>${esc(perks.label)}</span></div></div><div class="fp-ladder" role="img" aria-label="Reputation ${number(rep.value)}: ${esc(perks.label)}">${ladder.map(([a, b, label, tone]) => `<div class="fp-rung ${tone} ${v >= a && v < b ? "here" : v >= b ? "past" : ""}" style="flex:${b - a}"><span class="fp-rung-bar">${Array.from({ length: Math.round((b - a) / 5) }, (_, i) => `<i class="${v >= a + i * 5 + 2.5 ? "on" : ""}"></i>`).join("")}</span><small>${label}</small></div>`).join("")}<span class="fp-ladder-mark" style="left:${v}%"></span></div><p class="fp-note">Offseason job interest grows from 65 reputation. 75+ unlocks prestige opportunities.</p></section>`;
+    const header = `<section class="fp-panel fp-dossier-head"><div class="fp-coach-card">${`<span class="fp-coach-bust">${coachPixelAvatar(coachAppearance(state), { label: (state.coach.name || "Coach") + " avatar" })}</span>`}<div class="fp-coach-id"><h2>${esc(state.coach.name || "Your coaching career")}</h2><p>${esc(name(state.team))} · ${esc(S.ROLE_TITLES[state.franchise.role] || state.franchise.role)}</p></div><div class="fp-rep-score"><small>Reputation</small><b>${number(rep.value)}</b><span>${esc(perks.label)}</span></div></div><div class="fp-ladder" role="img" aria-label="Reputation ${number(rep.value)}: ${esc(perks.label)}">${ladder.map(([a, b, label, tone]) => `<div class="fp-rung ${tone} ${v >= a && v < b ? "here" : v >= b ? "past" : ""}" style="flex:${b - a}"><span class="fp-rung-bar">${Array.from({ length: Math.round((b - a) / 5) }, (_, i) => `<i class="${v >= a + i * 5 + 2.5 ? "on" : ""}"></i>`).join("")}</span><small>${label}</small></div>`).join("")}<span class="fp-ladder-mark" style="left:${v}%"></span></div><p class="fp-note">Offseason job interest grows from 65 reputation. 75+ unlocks prestige opportunities.</p></section>`;
     const tiles = `<div class="fp-tiles fp-tiles-4">${fp.tile("Recruitment appeal", rep.value >= 60 ? "Attractive" : rep.value < 40 ? "Under pressure" : "Balanced", "Free agents and staff", { tone: rep.value >= 60 ? "good" : rep.value < 40 ? "bad" : "" })}${fp.tile("Contract leverage", rep.value >= 75 ? "Strong" : rep.value >= 60 ? "Improved" : "Standard", "Demands at the table", { tone: rep.value >= 75 ? "good" : "" })}${fp.tile("Active rifts", rifts.length, rifts.length ? "Need a private meeting" : "A united building", { tone: rifts.length ? "bad" : "good" })}${fp.tile("Job offers", offers.length, offers.length ? "This year" : "None this year", { tone: offers.length ? "accent" : "" })}</div>`;
     const ledger = `<ul class="fp-ledger-list">${
       rep.ledger
@@ -359,7 +357,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
       );
     const pages = Math.max(1, Math.ceil(rows.length / 9));
     record.page = Math.max(0, Math.min(record.page, pages - 1));
-    return `<div class="exp-workspace">${titleBar("The record book", "Game, season and career records, and the players and coaches closing in.", tag(state.year + " season", "gold"))}<div class="exp-toolbar">${segments(["Player", "Coach"], record.entity, "Expansion.recordEntity")}${segments(["game", "season", "career"], record.scope, "Expansion.recordScope")}<label class="exp-select">Franchise<select aria-label="Record franchise" onchange="Expansion.filter('record','team',this.value)">${options(teamOptions(), record.team)}</select></label><input aria-label="Search records" type="search" placeholder="Search records…" value="${esc(record.query)}" onchange="Expansion.filter('record','query',this.value)"></div><div class="exp-record-grid lg-recgrid">${
+    return `<div class="exp-workspace"><div class="exp-toolbar">${segments(["Player", "Coach"], record.entity, "Expansion.recordEntity")}${segments(["game", "season", "career"], record.scope, "Expansion.recordScope")}<label class="exp-select">Franchise<select aria-label="Record franchise" onchange="Expansion.filter('record','team',this.value)">${options(teamOptions(), record.team)}</select></label><input aria-label="Search records" type="search" placeholder="Search records…" value="${esc(record.query)}" onchange="Expansion.filter('record','query',this.value)"></div><div class="exp-record-grid lg-recgrid">${
       rows
         .slice(record.page * 9, record.page * 9 + 9)
         .map(
@@ -458,7 +456,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
         : candidates(snapshot, award)
             .sort((a, b) => b.breakdown.total - a.breakdown.total)
             .slice(0, 10);
-    return `<div class="exp-workspace">${titleBar("Season honors", "Follow each race across the league, then explore the final ranked ballots.", tag(announced ? "Honors announced" : locked ? "Ballot sealed" : "Awards watch", announced ? "gold" : locked ? "blue" : "green"))}<div class="exp-toolbar"><label class="exp-select">Season<select aria-label="Awards season" onchange="Expansion.awardYear(this.value)">${options(years, awardYear)}</select></label>${segments(Object.keys(A.AWARD_NAMES), award, "Expansion.award")}</div>${panel(
+    return `<div class="exp-workspace"><div class="exp-toolbar"><label class="exp-select">Season<select aria-label="Awards season" onchange="Expansion.awardYear(this.value)">${options(years, awardYear)}</select></label>${segments(Object.keys(A.AWARD_NAMES), award, "Expansion.award")}<span class="exp-toolbar-status">${tag(announced ? "Honors announced" : locked ? "Ballot sealed" : "Awards watch", announced ? "gold" : locked ? "blue" : "green")}</span></div>${panel(
       A.AWARD_NAMES[award],
       `${stats([
         [
@@ -529,7 +527,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
     hof.page = Math.max(0, Math.min(hof.page, pages - 1));
     const team = heritage?.teams.find((t) => String(t.id) === hof.team),
       numbers = team?.retiredNumbers || [];
-    return `<div class="exp-workspace">${titleBar("Hall of Fame", "The greats, their achievements and the numbers that belong to franchise history.", tag(rows.length + " enshrined", "gold"))}<div class="exp-toolbar"><label class="exp-select">Franchise<select aria-label="Hall of Fame franchise" onchange="Expansion.filter('hof','team',this.value)">${options(teamOptions(), hof.team)}</select></label>${segments(["All", "Players", "Coaches"], hof.kind, "Expansion.hofKind")}<input aria-label="Search Hall of Fame" type="search" value="${esc(hof.query)}" placeholder="Search the greats…" onchange="Expansion.filter('hof','query',this.value)"></div>${team ? panel(esc(team.name) + " · Retired numbers", `<div class="exp-retired-numbers">${numbers.map((n) => `<div><strong>${n.number}</strong><span>${esc(n.name)}</span></div>`).join("") || "<p>No officially retired numbers are recorded for this franchise.</p>"}</div>`) : ""}<div class="exp-legend-grid lg-plaques">${
+    return `<div class="exp-workspace"><div class="exp-toolbar"><label class="exp-select">Franchise<select aria-label="Hall of Fame franchise" onchange="Expansion.filter('hof','team',this.value)">${options(teamOptions(), hof.team)}</select></label>${segments(["All", "Players", "Coaches"], hof.kind, "Expansion.hofKind")}<input aria-label="Search Hall of Fame" type="search" value="${esc(hof.query)}" placeholder="Search the greats…" onchange="Expansion.filter('hof','query',this.value)"></div>${team ? panel(esc(team.name) + " · Retired numbers", `<div class="exp-retired-numbers">${numbers.map((n) => `<div><strong>${n.number}</strong><span>${esc(n.name)}</span></div>`).join("") || "<p>No officially retired numbers are recorded for this franchise.</p>"}</div>`) : ""}<div class="exp-legend-grid lg-plaques">${
       rows
         .slice(hof.page * 8, hof.page * 8 + 8)
         .map(
