@@ -29,32 +29,73 @@ Every file in this release was built by GitHub Actions from this tag, passed the
 
 If you have 0.24.1 or later, the game offers this update in-game: choose **Download now**, then **Restart now**. Your careers are untouched. On 0.23.0 or earlier, download this version once from this page.
 
-## New in 0.26.0: a pixel makeover
+## New in 0.27.0: the whole front office goes pixel
 
-### Starting a career
+### Club overview
+- A new dashboard: your next match with both clubs, form, kickoff, weather and a win-chance meter.
+- Your record, division place, point difference, cap room and roster at a glance.
+- Your desk shows the decisions waiting for you, plus the club's pulse (morale, chemistry, fans, board, drama), your division table, a season road of every week's result, team leaders, core players, the medical room and the timeline.
+
+### Medical & training
+- A treatment room: injury cards with a pixel body diagram, weeks out and expected return. Treatment choices are shown side by side with their re-injury risk, time out, cost and trust effects.
+- Squad health at a glance: availability, who's out or playing hurt, and joint wear across the squad.
+- Move players to injured reserve or back with one click, and compare physio candidates before hiring.
+- Training is a weekly calendar: choose each day's session and see the effect on fatigue, injury risk, growth and readiness before the week is played.
+
+### Data & analysis and Statistics
+- Pixel charts: where you rank in the league on every recorded metric, weekly trends, unit ratings against the league, your play-calling mix and a tale of the tape against your next opponent.
+- League leaders with pixel faces, and a side-by-side comparison of up to three players.
+- Statistics tables in categories, with filters, sortable columns and pages. Defensive interceptions now show, and the CSV export follows your filters.
+
+### Players
+- Development: progress tracks from current to potential, age curve, and a cleaner player card with a weekly progress chart.
+- Locker room: morale, chemistry, drama and leadership meters, your captains, what's moving the room, promises and a mood grid for every player.
+- Scouting: a cleaner scouting desk with a shortlist, scout assignments and a redesigned report.
+
+### Front office
+- Contracts: a cap sheet, the next five seasons' commitments, an extension watch list and a clearer ledger showing dead money if cut.
+- Coaching staff, Boardroom, Organization hub, Coach career and Career dossier all redesigned with pixel coach portraits and meters.
+- Contract and interview dialogs match the new style.
+
+### League
+- Schedule: a season strip of every week, a next-game card, and rivalry cards for head-to-head.
+- The calendar and simulation banner are redesigned.
+- League snapshot: a playoff picture "if the season ended today", standings with clinched and eliminated marks, leaders with faces, and a paged transactions log.
+- Records: a trophy wall of champions, a record book with faces, Hall of Fame plaques and the awards race.
+
+### Inbox and news
+- The inbox works like a pixel mail client: count tiles, filters, pages and clear decision cards.
+- The Gridiron Journal newspaper has lead stories, sections, search and followed teams.
+
+### Fixes
+- Home and away games are now balanced: every club gets 7–9 home games. Before, some clubs played almost every game away.
+
+## Also new in 0.26
+
+#### Starting a career
 - A new, faster career setup: pick a club, name your coach and sign, or customise everything.
 - All 32 clubs on one board by division, with real context for each: opening roster rating and rank, what the owner will expect, difficulty, projected wins, best player and starting QB.
 - A pixel coach you can shape (outfit, build, hair, colours, glasses, headset) that updates as you go.
 - Coaching philosophy choices explain what they actually change.
 - It finishes with a signing announcement. Use the arrow keys and Enter to move through it.
 
-### Matchday
+#### Matchday
 - Sim options open fully, with no scrollbar, and are no longer cut off by the field.
 - A cleaner match screen: a pixel scoreboard with the situation (down, distance, ball spot, timeouts), tidy controls, a compact call sheet that fits beside the field, and halftime and full-time banners.
 - Press conference questions and answers fit on screen.
 
-### Transfers and free agency
+#### Transfers and free agency
 - A pixel trade desk: a deal meter showing what you send against what they want, their reasoning as short +/− badges, and your offer as chips you can remove.
 - Both sides of a trade are browsed with filters, search and pages instead of long scrolling lists.
 - Incoming offers are cards, with a new **Counter** option.
 - Free agents can be filtered by position, age, rating and asking price, sorted by any column and paged, and every free agent is listed.
 
-### Draft room
+#### Draft room
 - A pixel war room: draft status, your picks as tokens, and scouting meters.
 - The big board is paged, with ability and potential bars, report confidence and roster-need flags.
 - The live draft has an on-the-clock banner, a pick ticker with grades, and a trade desk. Each draft ends with a class summary and grades.
 
-### Everywhere
+#### Everywhere
 - Player faces are pixel art in the market and the draft room.
 - Wherever a list still scrolls, it uses one slim, square pixel scrollbar.
 
