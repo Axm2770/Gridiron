@@ -8,6 +8,28 @@ import * as C from "./contracts.mjs";
 import { CharacterStage, appearanceFor } from "./character-stage.mjs";
 import { playerFace, previewAttributes } from "./player-ui.mjs";
 import { icon } from "./presentation.mjs";
+import { pixelFace } from "../ui/pixel-face.mjs";
+// Records, awards and Hall of Fame (league.css): pixel faces and a compact title bar instead of
+// the large hero, so the tab content starts near the top.
+const titleBar = (title, text, extra = "") =>
+  `<div class="lg-titlebar"><div><h2>${title}</h2><p>${text}</p></div>${extra}</div>`;
+// Race index as pixel blocks: production (accent) then team results (green), 20 blocks max.
+function meter(b) {
+  const p = Math.round(Math.max(0, Math.min(80, b.production || 0)) / 4),
+    t = Math.round(Math.max(0, Math.min(25, b.team || 0)) / 4),
+    blocks = Array.from({ length: 26 }, (_, i) => `<i class="${i < p ? "p" : i < p + t ? "t" : ""}"></i>`).join("");
+  return `<div class="lg-meter" title="Production and expectations, then team results">${blocks}</div>`;
+}
+function faceFor(id, name, team, size) {
+  const known = Number.isInteger(team) && team >= 0;
+  let p = null;
+  if (id && typeof state !== "undefined" && state?.franchise) {
+    const list = (t) => (t === state.team ? state.roster : state.franchise.clubs?.[t]?.players) || [];
+    p = (known && list(team).find((x) => x.id === id)) || null;
+    for (let t = 0; !p && t < 32; t++) p = list(t).find((x) => x.id === id) || null;
+  }
+  return pixelFace(p || { id: id || name || "player", name }, { size, team: known ? team : null });
+}
 // The contract ledger shows a full position group per page instead of eight rows.
 const CONTRACT_PAGE = 25;
 const arg = (v) => esc(JSON.stringify(v));
@@ -304,12 +326,14 @@ export function installExpansionUI({ views, isBusy, heritage }) {
       );
     const pages = Math.max(1, Math.ceil(rows.length / 9));
     record.page = Math.max(0, Math.min(record.page, pages - 1));
-    return `<div class="exp-workspace">${hero("COMPETITION / RECORD BOOK", "The marks that endure.", "Track game, season and career records — and the players and coaches closing in.", tag(state.year + " season", "gold"))}<div class="exp-toolbar">${segments(["Player", "Coach"], record.entity, "Expansion.recordEntity")}${segments(["game", "season", "career"], record.scope, "Expansion.recordScope")}<label class="exp-select">Franchise<select aria-label="Record franchise" onchange="Expansion.filter('record','team',this.value)">${options(teamOptions(), record.team)}</select></label><input aria-label="Search records" type="search" placeholder="Search records…" value="${esc(record.query)}" onchange="Expansion.filter('record','query',this.value)"></div><div class="exp-record-grid">${
+    return `<div class="exp-workspace">${titleBar("The record book", "Game, season and career records, and the players and coaches closing in.", tag(state.year + " season", "gold"))}<div class="exp-toolbar">${segments(["Player", "Coach"], record.entity, "Expansion.recordEntity")}${segments(["game", "season", "career"], record.scope, "Expansion.recordScope")}<label class="exp-select">Franchise<select aria-label="Record franchise" onchange="Expansion.filter('record','team',this.value)">${options(teamOptions(), record.team)}</select></label><input aria-label="Search records" type="search" placeholder="Search records…" value="${esc(record.query)}" onchange="Expansion.filter('record','query',this.value)"></div><div class="exp-record-grid lg-recgrid">${
       rows
         .slice(record.page * 9, record.page * 9 + 9)
         .map(
-          (r) =>
-            `<article class="exp-record-card"><span class="eyebrow">${esc(r.label)}</span><strong>${number(r.value)}</strong><h3>${esc(r.name)}</h3><div>${tag(r.historical ? "All-time standard" : "Record holder", r.historical ? "gold" : "green")}<small>${r.year || "Shared mark"} ${r.team !== null && r.team !== undefined ? " · " + esc(clubs[r.team][0]) : ""}</small></div>${r.playerId && S.roster(state, r.team).some((p) => p.id === r.playerId) ? `<button class="exp-text-button" onclick="W.player(${arg(r.playerId)},${r.team})">Player profile →</button>` : ""}</article>`,
+          (r) => {
+            const club = Number.isInteger(r.team) && clubs[r.team] ? r.team : null;
+            return `<article class="exp-record-card lg-rec">${faceFor(r.playerId, r.name, club, 56)}<span class="eyebrow">${esc(r.label)}</span><strong>${number(r.value)}</strong><h3>${esc(r.name)}</h3><div class="lg-rec-meta">${tag(r.historical ? "All-time standard" : "Record holder", r.historical ? "gold" : "green")}<small>${r.year || "Shared mark"}${club !== null ? ` · ${logo(club)} ${esc(clubs[club][0])}` : ""}</small></div>${r.playerId && S.roster(state, r.team).some((p) => p.id === r.playerId) ? `<button class="exp-text-button" onclick="W.player(${arg(r.playerId)},${r.team})">Player profile →</button>` : ""}</article>`;
+          },
         )
         .join("") ||
       empty(
@@ -323,7 +347,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
           .slice(0, 6)
           .map(
             (a) =>
-              `<div class="exp-record-row"><span class="exp-row-icon">${icon("chart")}</span><span><b>${esc(a.name)}</b><small>${esc(a.label)} · ${number(a.value)}${a.broken ? "" : " / " + number(a.target)}</small></span>${tag(a.broken ? "Record broken" : "Closing in", a.broken ? "gold" : "blue")}</div>`,
+              `<div class="exp-record-row lg-face-row">${faceFor(a.playerId, a.name, a.team, 32)}<span><b>${esc(a.name)}</b><small>${esc(a.label)} · ${number(a.value)}${a.broken ? "" : " / " + number(a.target)}</small></span>${tag(a.broken ? "Record broken" : "Closing in", a.broken ? "gold" : "blue")}</div>`,
           )
           .join("") ||
         empty(
@@ -341,7 +365,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
               .filter((p) => p.team === state.team)
               .sort((a, b) => (b.stats[key] || 0) - (a.stats[key] || 0))[0];
             return best && (best.stats[key] || 0) > 0
-              ? `<button class="exp-record-row" onclick="W.player(${arg(best.id)},${best.team})"><span><small>${label}</small><b>${esc(best.name)}</b></span><strong>${number(best.stats[key])}</strong></button>`
+              ? `<button class="exp-record-row lg-face-row" onclick="W.player(${arg(best.id)},${best.team})">${faceFor(best.id, best.name, best.team, 32)}<span><small>${label}</small><b>${esc(best.name)}</b></span><strong>${number(best.stats[key])}</strong></button>`
               : "";
           })
           .join("") ||
@@ -401,7 +425,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
         : candidates(snapshot, award)
             .sort((a, b) => b.breakdown.total - a.breakdown.total)
             .slice(0, 10);
-    return `<div class="exp-workspace">${hero("COMPETITION / NFL HONORS", "Great seasons. Lasting recognition.", "Follow the race across the league, then explore the final ranked ballots.", tag(announced ? "Honors announced" : locked ? "Ballot sealed" : "Awards watch", announced ? "gold" : locked ? "blue" : "green"))}<div class="exp-toolbar"><label class="exp-select">Season<select aria-label="Awards season" onchange="Expansion.awardYear(this.value)">${options(years, awardYear)}</select></label>${segments(Object.keys(A.AWARD_NAMES), award, "Expansion.award")}</div>${panel(
+    return `<div class="exp-workspace">${titleBar("Season honors", "Follow each race across the league, then explore the final ranked ballots.", tag(announced ? "Honors announced" : locked ? "Ballot sealed" : "Awards watch", announced ? "gold" : locked ? "blue" : "green"))}<div class="exp-toolbar"><label class="exp-select">Season<select aria-label="Awards season" onchange="Expansion.awardYear(this.value)">${options(years, awardYear)}</select></label>${segments(Object.keys(A.AWARD_NAMES), award, "Expansion.award")}</div>${panel(
       A.AWARD_NAMES[award],
       `${stats([
         [
@@ -430,7 +454,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
           .slice(0, 10)
           .map(
             (r, i) =>
-              `<article class="exp-award-row"><strong class="exp-award-rank">${locked && !announced ? "•" : String(i + 1).padStart(2, "0")}</strong>${r.pos ? playerFace(r) : `<span class="exp-row-icon">${icon("briefcase")}</span>`}<div><h3>${esc(r.name)} ${announced && r.winner ? tag("Winner", "gold") : ""}</h3><small>${esc(name(r.team))}${r.pos ? " · " + r.pos : ""}</small>${!locked ? `<div class="exp-score-bars"><span title="Production and expectations" style="width:${Math.max(2, Math.min(80, r.breakdown.production))}%"></span><i title="Team results" style="width:${Math.max(1, Math.min(25, r.breakdown.team))}%"></i></div>` : ""}</div><div class="exp-award-score"><b>${announced ? number(r.points) : locked ? "Finalist" : number(r.breakdown.total)}</b><small>${announced ? r.firstVotes + " first-place votes" : locked ? "Ballot sealed" : "Race index"}</small></div>${r.pos ? `<button class="secondary small" onclick="W.player(${arg(r.playerId || r.id)},${r.team})">Profile</button>` : ""}</article>`,
+              `<article class="exp-award-row lg-award"><strong class="exp-award-rank">${locked && !announced ? "•" : String(i + 1).padStart(2, "0")}</strong>${r.pos ? faceFor(r.playerId || r.id, r.name, r.team, 44) : `<span class="exp-row-icon">${icon("briefcase")}</span>`}<div><h3>${esc(r.name)} ${announced && r.winner ? tag("Winner", "gold") : ""}</h3><small>${clubs[r.team] ? logo(r.team) : ""} ${esc(name(r.team))}${r.pos ? " · " + r.pos : ""}</small>${!locked ? meter(r.breakdown) : ""}</div><div class="exp-award-score"><b>${announced ? number(r.points) : locked ? "Finalist" : number(r.breakdown.total)}</b><small>${announced ? r.firstVotes + " first-place votes" : locked ? "Ballot sealed" : "Race index"}</small></div>${r.pos ? `<button class="secondary small" onclick="W.player(${arg(r.playerId || r.id)},${r.team})">Profile</button>` : ""}</article>`,
           )
           .join("") ||
         empty(
@@ -464,7 +488,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
         (p.name + " " + (p.role || ""))
           .toLowerCase()
           .includes(hof.query.toLowerCase()),
-    );
+    ).sort((a, b) => (b.classYear || 0) - (a.classYear || 0) || a.name.localeCompare(b.name));
   }
   function hofView() {
     const rows = hofRows(),
@@ -472,17 +496,17 @@ export function installExpansionUI({ views, isBusy, heritage }) {
     hof.page = Math.max(0, Math.min(hof.page, pages - 1));
     const team = heritage?.teams.find((t) => String(t.id) === hof.team),
       numbers = team?.retiredNumbers || [];
-    return `<div class="exp-workspace">${hero("HISTORY / CANTON & FRANCHISE LEGENDS", "The people who shaped the game.", "Explore the greats, their achievements and the numbers that belong to franchise history.", tag("32 franchises", "gold"))}<div class="exp-toolbar"><label class="exp-select">Franchise<select aria-label="Hall of Fame franchise" onchange="Expansion.filter('hof','team',this.value)">${options(teamOptions(), hof.team)}</select></label>${segments(["All", "Players", "Coaches"], hof.kind, "Expansion.hofKind")}<input aria-label="Search Hall of Fame" type="search" value="${esc(hof.query)}" placeholder="Search the greats…" onchange="Expansion.filter('hof','query',this.value)"></div>${team ? panel(esc(team.name) + " · Retired numbers", `<div class="exp-retired-numbers">${numbers.map((n) => `<div><strong>${n.number}</strong><span>${esc(n.name)}</span></div>`).join("") || "<p>No officially retired numbers are recorded for this franchise.</p>"}</div>`) : ""}<div class="exp-legend-grid">${
+    return `<div class="exp-workspace">${titleBar("Hall of Fame", "The greats, their achievements and the numbers that belong to franchise history.", tag(rows.length + " enshrined", "gold"))}<div class="exp-toolbar"><label class="exp-select">Franchise<select aria-label="Hall of Fame franchise" onchange="Expansion.filter('hof','team',this.value)">${options(teamOptions(), hof.team)}</select></label>${segments(["All", "Players", "Coaches"], hof.kind, "Expansion.hofKind")}<input aria-label="Search Hall of Fame" type="search" value="${esc(hof.query)}" placeholder="Search the greats…" onchange="Expansion.filter('hof','query',this.value)"></div>${team ? panel(esc(team.name) + " · Retired numbers", `<div class="exp-retired-numbers">${numbers.map((n) => `<div><strong>${n.number}</strong><span>${esc(n.name)}</span></div>`).join("") || "<p>No officially retired numbers are recorded for this franchise.</p>"}</div>`) : ""}<div class="exp-legend-grid lg-plaques">${
       rows
         .slice(hof.page * 8, hof.page * 8 + 8)
         .map(
           (p) =>
-            `<button class="exp-legend" onclick="Expansion.legend(${arg(p.id)})"><div class="exp-legend-image">${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">` : playerFace(p)}<span>${tag(p.category === "Coaches" ? "Coach" : p.role || p.pos, "gold")}</span></div><div class="exp-legend-copy"><span class="eyebrow">CLASS OF ${p.classYear || "—"}</span><h3>${esc(p.name)}</h3><p>${
+            `<button class="link exp-legend lg-plaque" onclick="Expansion.legend(${arg(p.id)})"><span class="lg-plaque-class">CLASS OF ${p.classYear || "—"}</span><span class="lg-plaque-portrait">${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">` : faceFor(p.id, p.name, p.teamIds?.[0], 96)}</span><h3>${esc(p.name)}</h3><span class="lg-plaque-role">${tag(p.category === "Coaches" ? "Coach" : p.role || p.pos || "Legend", "gold")}<span>${
               p.teamIds
                 ?.map((t) => clubs[t]?.[0])
                 .filter(Boolean)
                 .join(" · ") || ""
-            }</p><div>${Object.entries(p.stats || {})
+            }</span></span><span class="lg-plaque-stats">${Object.entries(p.stats || {})
               .filter(([k]) => k !== "Hall of Fame class")
               .sort(([a], [b]) => {
                 const priority = (k) =>
@@ -500,7 +524,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
                 ([k, v]) =>
                   `<span><b>${number(v)}</b><small>${esc(metrics[k] || k)}</small></span>`,
               )
-              .join("")}</div></div></button>`,
+              .join("")}</span><span class="lg-plaque-note">${esc(p.achievements?.[0] || p.headline || (p.inducted ? "Inducted" : p.historical === false ? "Eligible " + p.classYear : ""))}</span></button>`,
         )
         .join("") ||
       empty("No matching legends", "Try another position, name or franchise.")
@@ -729,7 +753,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
       );
       if (!p) return;
       modal(
-        `<div class="exp-legend-detail"><button class="icon-button exp-detail-close" aria-label="Close legend profile" onclick="closeModal()">×</button><div class="exp-legend-detail-hero">${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.name)}">` : playerFace(p)}<div><span class="eyebrow">HALL OF FAME / ${p.role || p.pos || "LEGACY"}</span><h2>${esc(p.name)}</h2>${tag("Class of " + (p.classYear || "—"), "gold")}<p>${p.teamIds?.map((t) => name(t)).join(" · ") || esc(p.team || "")}</p></div></div><div class="exp-detail-body"><p>${esc(p.bio || "A career that helped define franchise history.")}</p>${stats(
+        `<div class="exp-legend-detail"><button class="icon-button exp-detail-close" aria-label="Close legend profile" onclick="closeModal()">×</button><div class="exp-legend-detail-hero">${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.name)}">` : faceFor(p.id, p.name, p.teamIds?.[0] ?? p.team, 120)}<div><span class="eyebrow">HALL OF FAME / ${p.role || p.pos || "LEGACY"}</span><h2>${esc(p.name)}</h2>${tag("Class of " + (p.classYear || "—"), "gold")}<p>${p.teamIds?.map((t) => name(t)).join(" · ") || esc(p.team || "")}</p></div></div><div class="exp-detail-body"><p>${esc(p.bio || "A career that helped define franchise history.")}</p>${stats(
           Object.entries(p.stats || {})
             .filter(
               ([k, v]) => k !== "Hall of Fame class" && typeof v === "number",
