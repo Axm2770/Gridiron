@@ -1,0 +1,327 @@
+/* Gridiron Journal articles (franchise/news-article-ui.mjs, na-*) and the clickable front-page
+   cards (office-ui.mjs news section, nw-* additions to desk.css). Loaded on demand by the News
+   view. Tokens only; Pixelify for headlines/kickers, DM Sans for reading, Press Start 2P only for
+   tiny accents and scoreboard digits. */
+
+/* ============================================================ FRONT PAGE CARDS */
+#app .nw-page .nw-story { cursor: pointer; transition: transform 80ms steps(2), box-shadow 80ms steps(2); }
+#app .nw-page .nw-story:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--fd-ink); }
+#app .nw-page .nw-story:focus-visible { outline: 3px solid var(--gd-accent); outline-offset: 2px; }
+#app .nw-page .nw-story:hover h3 { color: var(--gd-accent); }
+#app .nw-page .nw-story.nw-read h3 { color: var(--gd-text-2); }
+#app .nw-art { position: relative; }
+#app .nw-kind { position: absolute; top: 0; left: 0; z-index: 1; padding: 3px 6px 2px; background: var(--nw-topic, var(--gd-border-strong)); color: var(--gd-bg); font: 8px/1.4 "Press Start 2P", var(--gd-display) !important; letter-spacing: 0.02em; text-transform: uppercase; box-shadow: 2px 2px 0 var(--fd-ink); white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis; }
+#app .nw-kind.feat { background: var(--gd-warn); }
+#app .nw-story.story-topic-team .nw-kind { color: var(--gd-bg); }
+#app .nw-read-cta { flex: none; font: 9px/1 "Press Start 2P", var(--gd-display) !important; color: var(--gd-accent); letter-spacing: 0.02em; }
+#app .nw-foot .nw-read-cta:first-child { margin-left: auto; }
+#app .nw-page .nw-story h3 { font-size: 18px !important; line-height: 1.2 !important; }
+#app .nw-page .nw-story p { font-size: 13.5px; line-height: 1.55; }
+#app .nw-page .nw-lead h3 { font-size: 30px !important; line-height: 1.12 !important; }
+#app .nw-page .nw-lead p { font-size: 15px; }
+/* Section header bar between the front and the grid. */
+#app .nw-sec { display: flex; align-items: center; gap: 10px; margin: 2px 0 -2px; font: 700 15px var(--gd-display) !important; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gd-text); }
+#app .nw-sec::before { content: ""; width: 12px; height: 12px; background: var(--gd-accent); box-shadow: 2px 2px 0 var(--fd-ink); }
+#app .nw-sec::after { content: ""; flex: 1; height: 0; border-top: 3px double var(--gd-border-strong); }
+
+/* Card art built from story data. */
+#app .nw-mini-sb { display: inline-flex; align-items: center; gap: 10px; }
+#app .nw-mini-sb > b { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--gd-bg); border: 2px solid var(--gd-border-strong); box-shadow: 2px 2px 0 var(--fd-ink); font: 16px/1 "Press Start 2P", var(--gd-display) !important; color: var(--gd-text); }
+#app .nw-mini-sb > b i { font-style: normal; color: var(--gd-text-3); }
+#app .nw-lead .nw-mini-sb { flex-direction: column; gap: 12px; }
+#app .nw-lead .nw-mini-sb > b { font-size: 24px !important; padding: 10px 12px; }
+#app .nw-lead .nw-mini-sb .na-crest { --c: 88px !important; }
+#app .nw-brief .nw-mini-sb { flex-direction: column; gap: 4px; }
+#app .nw-brief .nw-mini-sb .na-crest { --c: 28px !important; }
+#app .nw-brief .nw-mini-sb > b { font-size: 10px !important; padding: 4px; }
+#app .nw-mini-ms, #app .nw-mini-ev { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+#app .nw-mini-ms > span:last-child { display: flex; flex-direction: column; }
+#app .nw-mini-ms b { font: 20px/1.1 "Press Start 2P", var(--gd-display) !important; color: var(--gd-accent); text-shadow: 2px 2px 0 var(--fd-ink); }
+#app .nw-mini-ms small, #app .nw-mini-ev small { font: 700 11px var(--gd-body); text-transform: uppercase; letter-spacing: 0.06em; color: var(--gd-text-2); }
+#app .nw-mini-ev { flex-direction: column; text-align: center; gap: 4px; }
+#app .nw-mini-ev > b { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0 6px; background: var(--gd-bg); border: 2px solid var(--gd-border-strong); box-shadow: 2px 2px 0 var(--fd-ink); font: 16px/1 "Press Start 2P", var(--gd-display) !important; color: var(--gd-warn); }
+#app .nw-mini-ev small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 180px; }
+#app .nw-mini-inj { display: inline-flex; align-items: center; gap: 10px; }
+#app .nw-mini-inj .na-body { width: 34px; height: 65px; }
+#app .nw-mini-inj b { font: 18px/1 "Press Start 2P", var(--gd-display) !important; color: var(--gd-bad); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#app .nw-mini-inj b small { font: 700 10px var(--gd-body); color: var(--gd-text-3); text-transform: uppercase; }
+#app .nw-brief .nw-mini-ms { flex-direction: column; gap: 4px; text-align: center; }
+#app .nw-brief .nw-mini-ms .gd-pixel-face { width: 40px !important; height: 40px !important; }
+#app .nw-brief .nw-mini-ms b { font-size: 12px !important; }
+#app .nw-brief .nw-mini-ms small, #app .nw-brief .nw-mini-ev small { display: none; }
+#app .nw-brief .nw-mini-inj { flex-direction: column; gap: 4px; }
+#app .nw-brief .nw-mini-inj b { font-size: 11px !important; }
+#app .nw-lead .nw-mini-ms .gd-pixel-face { width: 96px !important; height: 96px !important; }
+#app .nw-lead .nw-mini-ms b { font-size: 30px !important; }
+#app .nw-lead .nw-mini-inj .na-body { width: 66px; height: 126px; }
+
+/* ============================================================ READER */
+#app .na-reader { display: flex; flex-direction: column; gap: 10px; min-width: 0; --na-team: var(--gd-accent); }
+#app .na-reader:focus { outline: none; }
+body.gd-pixel #app .na-reader .team-logo, body.gd-pixel #app .nw-page .na-crest .team-logo { filter: none !important; }
+#app .na-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 6px 8px; background: var(--gd-surface); border: 2px solid var(--gd-border-strong); box-shadow: 3px 3px 0 var(--fd-ink); }
+#app .na-bar button { min-height: 0; padding: 5px 12px; font-size: 12.5px; }
+#app .na-pos { display: flex; flex-direction: column; min-width: 0; font: 700 12.5px var(--gd-body); color: var(--gd-text-2); }
+#app .na-pos small { font: 500 11px var(--gd-body); color: var(--gd-text-3); }
+#app .na-nav { display: inline-flex; gap: 6px; margin-left: auto; }
+
+#app .na-page { min-width: 0; padding: 18px 22px 20px; background: var(--gd-surface); border: 3px solid var(--gd-border-strong); border-top: 8px solid var(--na-team); box-shadow: 4px 4px 0 var(--fd-ink); }
+#app .na-head { padding-bottom: 12px; margin-bottom: 16px; border-bottom: 3px double var(--gd-border-strong); }
+#app .na-kick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#app .na-kicker { padding: 5px 8px 4px; background: var(--gd-accent); color: var(--gd-bg); font: 9px/1.3 "Press Start 2P", var(--gd-display) !important; text-transform: uppercase; letter-spacing: 0.03em; box-shadow: 2px 2px 0 var(--fd-ink); }
+#app .na-chip { display: inline-flex; align-items: center; padding: 2px 7px; border: 2px solid var(--gd-border-strong); background: var(--gd-bg-2); font: 700 11px/16px var(--gd-body); letter-spacing: 0.05em; text-transform: uppercase; color: var(--gd-text-2); }
+#app .na-chip.feat { border-color: var(--gd-warn); color: var(--gd-warn); }
+#app .na-team { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+#app .na-reader button.link.na-club, #app .na-reader button.link.na-plink { padding: 0; min-height: 0; font: inherit; font-weight: 700; color: var(--gd-text); text-align: left; text-decoration: underline dotted var(--gd-border-strong); text-underline-offset: 3px; }
+#app .na-reader button.link.na-club:hover, #app .na-reader button.link.na-plink:hover { color: var(--gd-accent); }
+#app .na-reader .na-save { margin-left: auto; display: grid; place-items: center; width: 30px; height: 30px; min-height: 0; padding: 0; font-size: 15px; }
+#app .na-reader .na-save.on { color: var(--gd-warn); }
+#app .na-reader .na-headline { margin: 12px 0 8px; max-width: 34ch; font: 700 40px/1.08 var(--gd-display) !important; letter-spacing: 0.01em; text-transform: none; color: var(--gd-text); text-wrap: balance; overflow-wrap: anywhere; }
+#app .na-deck { margin: 0 0 12px; max-width: 70ch; font: italic 500 16px/1.5 var(--gd-body); color: var(--gd-text-2); }
+#app .na-byline { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-top: 10px; border-top: 2px dashed var(--gd-border); }
+#app .na-byline .gd-pixel-face { border: 2px solid var(--gd-border-strong); background: var(--gd-bg-2); }
+#app .na-byline > span { display: flex; flex-direction: column; min-width: 0; }
+#app .na-byline b { font: 700 13.5px var(--gd-body); color: var(--gd-text); }
+#app .na-byline small { font-size: 12px; color: var(--gd-text-3); }
+#app .na-byline .na-dateline { margin-left: auto; font: 8px/1.6 "Press Start 2P", var(--gd-display) !important; letter-spacing: 0.03em; color: var(--gd-text-3); text-transform: uppercase; }
+
+#app .na-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); gap: 24px; align-items: start; }
+#app .na-cols.solo { grid-template-columns: minmax(0, 1fr); }
+#app .na-main { min-width: 0; }
+#app .na-hero { margin: 0 0 18px; padding: 16px; background: repeating-linear-gradient(0deg, transparent 0 6px, color-mix(in srgb, var(--gd-text) 3%, transparent) 6px 8px), var(--gd-bg-2); border: 2px solid var(--gd-border-strong); box-shadow: 3px 3px 0 var(--fd-ink); }
+#app .na-text { max-width: 70ch; }
+#app .na-text p { margin: 0 0 14px; font: 400 15.5px/1.7 var(--gd-body); color: var(--gd-text); }
+#app .na-text .na-lead { font-size: 17px; font-weight: 500; line-height: 1.6; }
+#app .na-text .na-lead::after { content: ""; display: block; clear: both; }
+#app .na-initial { float: left; display: grid; place-items: center; width: 58px; height: 58px; margin: 4px 8px 0 0; background: var(--gd-bg-2); border: 3px solid var(--na-team); box-shadow: 3px 3px 0 var(--fd-ink); font: 700 40px/1 var(--gd-display) !important; color: var(--gd-text); text-transform: uppercase; }
+#app .na-quote { margin: 18px 0 20px; padding: 12px 16px 12px 18px; background: var(--gd-bg-2); border: 2px solid var(--gd-border-strong); border-left: 8px solid var(--na-team); box-shadow: 3px 3px 0 var(--fd-ink); }
+#app .na-quote p { margin: 0 0 6px !important; font: 600 21px/1.3 var(--gd-display) !important; color: var(--gd-text); }
+#app .na-quote cite { font: normal 700 12.5px var(--gd-body); color: var(--gd-text-2); }
+#app .na-quote cite span { font-weight: 500; color: var(--gd-text-3); }
+#app .na-actions { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 10px; border-top: 2px dashed var(--gd-border); }
+#app .na-actions button.link { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+#app .na-actions button.link svg { width: 14px; height: 14px; }
+
+/* Side analytics panels with header bars. */
+#app .na-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+#app .na-panel { min-width: 0; background: var(--gd-bg-2); border: 2px solid var(--gd-border-strong); box-shadow: 3px 3px 0 var(--fd-ink); }
+#app .na-panel > :not(.na-panel-h) { margin: 10px 12px; }
+#app .na-panel-h { margin: 0; padding: 6px 10px; background: var(--gd-surface-strong); border-bottom: 2px solid var(--gd-border-strong); font: 700 14px/1.2 var(--gd-display) !important; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gd-text) !important; }
+#app .na-panel .pc-plot { position: relative; padding-left: 30px; }
+#app .na-panel .pc-y { position: absolute; left: 0; top: -2px; font-size: 11px; color: var(--gd-text-3); }
+#app .na-panel .pc-x { padding-left: 30px; font-size: 11px; color: var(--gd-text-3); text-align: center; }
+#app .na-big { font: 22px/1.2 "Press Start 2P", var(--gd-display) !important; color: var(--gd-accent); }
+
+/* Crests */
+#app .na-crest { display: inline-grid; place-items: center; flex: none; width: var(--c, 40px); height: var(--c, 40px); line-height: 0; }
+#app .na-crest .team-logo { width: 100% !important; height: 100% !important; object-fit: contain; margin: 0 !important; }
+#app .na-crest > b { font: 700 11px var(--gd-display) !important; color: var(--gd-text-2); line-height: 1; }
+
+/* Scoreboard + line score */
+#app .na-sb { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 12px; background: var(--gd-bg); border: 3px solid var(--gd-border-strong); box-shadow: inset 0 0 0 2px var(--gd-bg-2), 3px 3px 0 var(--fd-ink); }
+#app .na-sb-side { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: 10px; min-width: 0; }
+#app .na-sb-side .na-crest { grid-row: span 2; }
+#app .na-sb-side.r { grid-template-columns: auto minmax(0, 1fr) auto; text-align: right; }
+#app .na-sb-side.r .na-crest { grid-column: 3; grid-row: 1 / span 2; }
+#app .na-sb-side.r .na-sb-abbr, #app .na-sb-side.r small { grid-column: 2; }
+#app .na-sb-side.r .na-sb-pts { grid-column: 1; grid-row: 1 / span 2; }
+#app .na-sb-abbr { grid-column: 2; }
+#app .na-sb-abbr { font: 700 20px var(--gd-display) !important; color: var(--gd-text-2); }
+#app .na-sb-side small { grid-column: 2; font-size: 12px; color: var(--gd-text-3); }
+#app .na-sb-pts { grid-column: 3; grid-row: 1 / span 2; font: 34px/1 "Press Start 2P", var(--gd-display) !important; color: var(--gd-text-3); }
+#app .na-sb-side.win .na-sb-pts { color: var(--gd-text); text-shadow: 3px 3px 0 var(--fd-ink); }
+#app .na-sb-side.win .na-sb-abbr { color: var(--gd-text); }
+#app .na-sb-mid { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+#app .na-sb-mid span { padding: 5px 8px 4px; background: var(--gd-warn); color: var(--gd-bg); font: 9px/1.2 "Press Start 2P", var(--gd-display) !important; }
+#app .na-sb-mid small { font: 700 11px var(--gd-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--gd-text-3); }
+#app .na-ls { width: 100%; max-width: 460px; margin: 12px auto 0; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+#app .na-ls th, #app .na-ls td { padding: 5px 8px; border: 2px solid var(--gd-border); text-align: center; font: 600 13px var(--gd-body); color: var(--gd-text-2); }
+#app .na-ls thead th { font: 700 13px var(--gd-display) !important; background: var(--gd-surface-strong); color: var(--gd-text); }
+#app .na-ls tbody th { text-align: left; font: 700 13px var(--gd-display) !important; color: var(--gd-text); }
+#app .na-ls .na-ls-t { font: 12px "Press Start 2P", var(--gd-display) !important; color: var(--gd-text); background: var(--gd-surface-strong); }
+
+/* Team stat bars: left club grows to the left. */
+#app .na-tb { display: flex; flex-direction: column; gap: 6px; }
+#app .na-tb-head { display: flex; justify-content: space-between; font: 700 13px var(--gd-display) !important; color: var(--gd-text-2); }
+#app .na-tb-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) 76px minmax(0, 1fr) 38px; align-items: center; gap: 6px; }
+#app .na-tb-row > b { font: 700 13px var(--gd-body); color: var(--gd-text-2); font-variant-numeric: tabular-nums; }
+#app .na-tb-row > b:last-child { text-align: right; }
+#app .na-tb-row > b.lead { color: var(--gd-text); }
+#app .na-tb-row > small { text-align: center; font-size: 11px; color: var(--gd-text-3); text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#app .na-tb-bar.l .pc-hbar { transform: scaleX(-1); }
+
+/* Lists: performers, awards, free agents, picks, trades */
+#app .na-perf, #app .na-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+#app .na-perf li, #app .na-list li { display: flex; align-items: center; gap: 10px; min-width: 0; }
+#app .na-perf li > span, #app .na-list li > span { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+#app .na-perf small, #app .na-list small { font-size: 11.5px; color: var(--gd-text-3); }
+#app .na-perf em, #app .na-list em { font: normal 600 12.5px var(--gd-body); color: var(--gd-text-2); }
+#app .na-perf .gd-pixel-face, #app .na-list .gd-pixel-face { border: 2px solid var(--gd-border-strong); background: var(--gd-bg); }
+#app .na-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+#app .na-list li { padding: 6px 8px; background: var(--gd-surface); border: 2px solid var(--gd-border); }
+#app .na-list .na-none { grid-column: 1 / -1; color: var(--gd-text-3); }
+#app .na-pick { flex: none; min-width: 38px; font: 11px "Press Start 2P", var(--gd-display) !important; color: var(--gd-accent); }
+
+/* Mini standings table */
+#app .na-mt { width: calc(100% - 24px); border-collapse: collapse; font-variant-numeric: tabular-nums; }
+#app .na-mt th { padding: 3px 4px; font: 700 11px var(--gd-body); text-transform: uppercase; letter-spacing: 0.05em; color: var(--gd-text-3); text-align: right; border-bottom: 2px solid var(--gd-border-strong); }
+#app .na-mt th:first-child { text-align: left; }
+#app .na-mt td { padding: 4px; font-size: 13px; text-align: right; border-bottom: 1px solid var(--gd-border); color: var(--gd-text-2); }
+#app .na-mt td:first-child { display: flex; align-items: center; gap: 6px; text-align: left; color: var(--gd-text); }
+#app .na-mt tr.me td { background: color-mix(in srgb, var(--gd-accent) 14%, transparent); color: var(--gd-text); }
+
+/* Form strip: W/L blocks */
+#app .na-form { display: flex; flex-wrap: wrap; gap: 3px; }
+#app .na-form i { display: grid; place-items: center; width: 20px; height: 20px; font: normal 8px/1 "Press Start 2P", var(--gd-display) !important; color: var(--gd-bg); box-shadow: inset -2px -2px 0 color-mix(in srgb, var(--gd-bg) 35%, transparent); }
+#app .na-f-W { background: var(--gd-good); }
+#app .na-f-L { background: var(--gd-bad); }
+#app .na-f-T { background: var(--gd-text-3); }
+
+/* Player card */
+#app .na-pcard { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 14px; align-items: center; min-width: 0; }
+#app .na-pcard .gd-pixel-face { border: 3px solid var(--gd-border-strong); background: var(--gd-bg); box-shadow: 3px 3px 0 var(--fd-ink); }
+#app .na-pc-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#app .na-pc-pos { align-self: flex-start; padding: 2px 6px; background: var(--gd-accent); color: var(--gd-bg); font: 8px/1.4 "Press Start 2P", var(--gd-display) !important; }
+#app .na-pc-id .na-plink { font: 700 22px/1.2 var(--gd-display) !important; text-decoration: none; }
+#app .na-pcard:not(.big) .na-pc-id .na-plink { font-size: 17px !important; }
+#app .na-pc-id > small { font-size: 12.5px; color: var(--gd-text-3); }
+#app .na-pc-ovr { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+#app .na-pc-ovr b { font: 16px/1 "Press Start 2P", var(--gd-display) !important; color: var(--gd-text); }
+#app .na-pc-ovr > span { font: 700 11px var(--gd-body); color: var(--gd-text-3); }
+#app .na-pc-stats { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding-top: 8px; border-top: 2px dashed var(--gd-border); font: 600 13px var(--gd-body); color: var(--gd-text-2); }
+#app .na-spark { display: inline-flex; align-items: center; gap: 8px; }
+#app .na-spark small { font-size: 11px; color: var(--gd-text-3); }
+#app .na-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+#app .na-stats div { padding: 6px 8px; background: var(--gd-surface); border: 2px solid var(--gd-border); }
+#app .na-stats dt { font: 700 10.5px var(--gd-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--gd-text-3); }
+#app .na-stats dd { margin: 2px 0 0; font: 16px/1.2 "Press Start 2P", var(--gd-display) !important; color: var(--gd-text); }
+
+/* Milestone hero */
+#app .na-hero-ms { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; }
+#app .na-ms-num { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; padding: 10px 14px; background: var(--gd-bg); border: 3px solid var(--gd-border-strong); box-shadow: 3px 3px 0 var(--fd-ink); text-align: right; }
+#app .na-ms-label { font: 700 11px var(--gd-body); letter-spacing: 0.07em; text-transform: uppercase; color: var(--gd-text-3); }
+#app .na-ms-num > b { font: 30px/1 "Press Start 2P", var(--gd-display) !important; color: var(--gd-accent); text-shadow: 3px 3px 0 var(--fd-ink); }
+#app .na-ms-next { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+#app .na-ms-next small { font-size: 11.5px; color: var(--gd-text-3); }
+
+/* Event / streak / coach / champion heroes */
+#app .na-hero-ev { display: flex; align-items: center; gap: 18px; min-width: 0; }
+#app .na-hero-ev > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#app .na-hero-ev > div > b { font: 700 26px/1.1 var(--gd-display) !important; color: var(--gd-text); }
+#app .na-hero-ev > div > small { font-size: 13px; color: var(--gd-text-2); }
+#app .na-banner { align-self: flex-start; padding: 5px 8px 4px; background: var(--gd-good); color: var(--gd-bg); font: 10px/1.3 "Press Start 2P", var(--gd-display) !important; text-transform: uppercase; box-shadow: 2px 2px 0 var(--fd-ink); }
+#app .na-banner.bad { background: var(--gd-bad); }
+#app .na-champ .na-banner { background: var(--gd-warn); }
+#app .na-vs { justify-content: center; }
+#app .na-vs > b { font: 16px "Press Start 2P", var(--gd-display) !important; color: var(--gd-text-3); }
+#app .na-coach-face { display: inline-block; width: 96px; height: 96px; padding: 3px; flex: none; background: var(--gd-bg); border: 3px solid var(--gd-border-strong); box-shadow: 3px 3px 0 var(--fd-ink); line-height: 0; }
+#app .na-coach-face svg { width: 100%; height: 100%; }
+#app .na-coach-face.sm { width: 52px; height: 52px; }
+#app .na-coach-rec { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; min-width: 220px; }
+#app .na-coach-rec > span { font: 16px "Press Start 2P", var(--gd-display) !important; color: var(--gd-text); }
+#app .na-coach-rec small { font-size: 12px; color: var(--gd-text-3); }
+#app .na-bracket { align-items: flex-start; }
+#app .na-seeds { flex: 1; min-width: 0; }
+#app .na-seeds h4 { margin: 0 0 6px; padding: 4px 8px; background: var(--gd-surface-strong); border: 2px solid var(--gd-border-strong); font: 700 14px var(--gd-display) !important; letter-spacing: 0.06em; }
+#app .na-seeds ol { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+#app .na-seeds li { display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: var(--gd-surface); border: 2px solid var(--gd-border); font-size: 13px; }
+#app .na-seeds li > b { width: 18px; font: 10px "Press Start 2P", var(--gd-display) !important; color: var(--gd-accent); }
+#app .na-seeds li small { margin-left: auto; color: var(--gd-text-3); font-size: 12px; }
+#app .na-seeds li.me { border-color: var(--gd-accent); }
+
+/* Transaction card */
+#app .na-tx { display: flex; flex-direction: column; gap: 12px; }
+#app .na-tx-move { display: flex; align-items: center; justify-content: center; gap: 14px; }
+#app .na-tx-move .gd-pixel-face { border: 3px solid var(--gd-border-strong); background: var(--gd-bg); box-shadow: 3px 3px 0 var(--fd-ink); }
+#app .na-tx-arrow { font: 14px "Press Start 2P", var(--gd-display) !important; color: var(--gd-accent); }
+#app .na-tx-src { display: grid; place-items: center; width: 48px; height: 48px; border: 2px dashed var(--gd-border-strong); font: 9px "Press Start 2P", var(--gd-display) !important; color: var(--gd-text-3); }
+#app .na-tx-id { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+#app .na-tx-id .na-plink { font: 700 22px var(--gd-display) !important; text-decoration: none; }
+#app .na-tx-id small { font-size: 12.5px; color: var(--gd-text-3); }
+#app .na-cap { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; }
+#app .na-cap div { padding: 6px 8px; background: var(--gd-bg); border: 2px solid var(--gd-border-strong); text-align: center; }
+#app .na-cap dt { font: 700 10.5px var(--gd-body); text-transform: uppercase; letter-spacing: 0.06em; color: var(--gd-text-3); }
+#app .na-cap dd { margin: 3px 0 0; font: 13px/1.2 "Press Start 2P", var(--gd-display) !important; color: var(--gd-text); }
+
+/* Injury: pixel body + weeks-out meter */
+#app .na-inj { display: flex; align-items: center; gap: 22px; }
+#app .na-body { flex: none; }
+#app .na-body rect { fill: var(--gd-border-strong); }
+#app .na-body rect.hurt { fill: var(--gd-bad); }
+#app .na-inj-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#app .na-inj-id { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+#app .na-inj-id > span { display: flex; flex-direction: column; }
+#app .na-inj-id .gd-pixel-face { border: 2px solid var(--gd-border-strong); background: var(--gd-bg); }
+#app .na-inj-id small { font-size: 12px; color: var(--gd-text-3); }
+#app .na-cap-l { font: 700 10.5px var(--gd-body); letter-spacing: 0.07em; text-transform: uppercase; color: var(--gd-text-3); }
+#app .na-inj-dx { font: 700 20px var(--gd-display) !important; color: var(--gd-text); margin-bottom: 6px; }
+#app .na-weeks { display: flex; align-items: center; gap: 10px; }
+#app .na-weeks b { font: 18px "Press Start 2P", var(--gd-display) !important; color: var(--gd-bad); }
+#app .na-inj-now { font-size: 12.5px; color: var(--gd-text-2); }
+#app .na-hero-art .px-card { margin: 0; }
+#app .na-hero-art .px-story-portrait { margin: 0 auto; }
+#app .na-hero-art .px-story-portrait .px-portrait { width: 128px; height: 128px; }
+
+/* Related strip */
+#app .na-related { margin-top: 20px; padding-top: 12px; border-top: 3px double var(--gd-border-strong); }
+#app .na-related > .na-panel-h { display: inline-block; margin-bottom: 10px; border: 2px solid var(--gd-border-strong); }
+#app .na-rel-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+#app .na-rel { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 0; padding: 8px; background: var(--gd-bg-2); border: 2px solid var(--gd-border-strong) !important; box-shadow: 2px 2px 0 var(--fd-ink) !important; color: var(--gd-text); text-align: left; transform: none; font: inherit; }
+#app .na-rel:hover { border-color: var(--gd-accent) !important; }
+#app .na-rel-art { flex: none; display: grid; place-items: center; width: 48px; height: 48px; overflow: hidden; }
+#app .na-rel-art > * { transform: scale(0.5); transform-origin: center; }
+#app .na-rel-art .na-crest { transform: none; }
+#app .na-rel-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#app .na-rel-copy small { font-size: 11px; color: var(--gd-text-3); text-transform: uppercase; letter-spacing: 0.04em; }
+#app .na-rel-copy b { font: 700 14px/1.25 var(--gd-display) !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Feature hook container */
+#app .na-hero-feature { min-width: 0; }
+
+@media (max-width: 1180px) {
+  #app .na-cols { grid-template-columns: minmax(0, 1fr); }
+  #app .na-side { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  #app .na-rel-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  #app .na-page { padding: 12px; }
+  #app .na-reader .na-headline { font-size: 26px !important; }
+  #app .na-deck { font-size: 14.5px; }
+  #app .na-byline .na-dateline { margin-left: 0; width: 100%; }
+  #app .na-text p { font-size: 15px; }
+  #app .na-sb { gap: 6px; padding: 8px; }
+  #app .na-sb-side { grid-template-columns: auto auto; justify-items: center; }
+  #app .na-sb-side .na-crest { --c: 36px !important; grid-row: auto; }
+  #app .na-sb-side small { display: none; }
+  #app .na-sb-abbr { font-size: 15px !important; }
+  #app .na-sb-pts { grid-column: auto; grid-row: auto; font-size: 20px !important; }
+  #app .na-sb-side { grid-template-columns: 1fr; grid-template-rows: auto; row-gap: 4px; }
+  #app .na-hero-ms { grid-template-columns: minmax(0, 1fr); }
+  #app .na-ms-num { align-items: flex-start; text-align: left; }
+  #app .na-list { grid-template-columns: minmax(0, 1fr); }
+  #app .na-bracket { flex-direction: column; align-items: stretch; }
+  #app .na-cap { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #app .na-rel-row { grid-template-columns: minmax(0, 1fr); }
+  #app .na-nav { margin-left: 0; }
+  #app .na-pos small { display: none; }
+  #app .na-hero-ev { flex-wrap: wrap; }
+  #app .na-coach-rec { min-width: 0; }
+}
+
+/* Inline links inside lists and cards read left-aligned like text. */
+#app .na-reader :is(.na-perf, .na-list, .na-pc-id, .na-inj-id, .na-seeds, .na-mt, .na-tx-id) button.link { display: inline-block; width: auto; align-self: flex-start; justify-content: flex-start; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+#app .na-reader .na-tx-id button.link { align-self: center; }
+#app .na-tiles { margin-bottom: 12px; }
+#app .na-tx .na-cap + .na-list, #app .na-tx .na-list + .na-cap { margin-top: 4px; }
+#app .nw-crest.nw-league svg { width: 60%; height: 60%; color: var(--gd-text-2); }
+#app .nw-mini-ic { display: grid; place-items: center; width: 44px; height: 44px; flex: none; background: var(--gd-bg); border: 2px solid var(--gd-border-strong); box-shadow: 2px 2px 0 var(--fd-ink); font: 16px/1 "Press Start 2P", var(--gd-display) !important; color: var(--gd-warn); }
+#app .nw-mini-ms small { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 700px) {
+  #app .na-sb { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  #app .na-sb-side, #app .na-sb-side.r { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+  #app .na-sb-side.r { flex-direction: column; }
+  #app .na-sb-mid span { font-size: 8px !important; padding: 4px 5px 3px; }
+  #app .na-ls th, #app .na-ls td { padding: 4px 3px; }
+  #app .na-initial { width: 46px; height: 46px; font-size: 30px !important; }
+}
+#app .na-list li > span { text-align: left; align-items: flex-start; }

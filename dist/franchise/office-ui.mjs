@@ -29,6 +29,8 @@ import { SQUAD_SORTS, SQUAD_SORT_MENU, defaultDirection, compareSquad } from "./
 import { installLineupUI } from "./lineup-ui.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
 import { pageOf, pageContaining, litBlocks, senderInitials, loadDeskStyles } from "./hub-model.mjs";
+import { articleView, cardArt, loadNewsStyles } from "./news-article-ui.mjs";
+import { storyKind, shortKindLabel, articleCopy } from "./news-articles.mjs";
 import {
   analysisView,
   statisticsView,
@@ -75,6 +77,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       page: 0,
       total: 0,
       pages: 1,
+      reading: null,
     },
     stats = {
       category: "Passing",
@@ -295,16 +298,31 @@ export function installOfficeUI({ views, isBusy, getSection }) {
           (SOURCE_RANK[a.source] ?? 3) - (SOURCE_RANK[b.source] ?? 3),
       );
   }
+  // Every story is a clickable card that opens the full article (news-article-ui.mjs).
+  function storyActions(a) {
+    return a.messageId
+      ? `<button class="link" onclick="event.stopPropagation();Office.fromStory('${a.messageId}')">Open brief ${icon("arrow")}</button>`
+      : a.route
+        ? `<button class="link" onclick="event.stopPropagation();W.open('${a.route}')">Explore ${icon("arrow")}</button>`
+        : a.playerId
+          ? `<button class="link" onclick="event.stopPropagation();W.player('${a.playerId}',${a.team})">Player ${icon("arrow")}</button>`
+          : "";
+  }
+  function leadText(a) {
+    try {
+      const c = articleCopy(state, a);
+      return [c.lead, c.paragraphs[0]].filter(Boolean).join(" ");
+    } catch {
+      return a.body;
+    }
+  }
   function storyCard(a, kind) {
-    const art = storyArt(a),
-      action = a.messageId
-        ? `<button class="link" onclick="Office.fromStory('${a.messageId}')">Open brief ${icon("arrow")}</button>`
-        : a.route
-          ? `<button class="link" onclick="W.open('${a.route}')">Explore ${icon("arrow")}</button>`
-          : a.playerId
-            ? `<button class="link" onclick="W.player('${a.playerId}',${a.team})">Player ${icon("arrow")}</button>`
-            : "";
-    return `<article class="nw-story nw-${kind} story-topic-${esc(a.category.toLowerCase())}"><div class="nw-art ${art ? "" : "nw-art-crest"}">${art || (Number.isInteger(a.otherTeam) && a.otherTeam !== a.team && clubs[a.otherTeam] ? `<span class="nw-matchup"><span class="nw-crest">${logo(a.team)}</span><b>VS</b><span class="nw-crest">${logo(a.otherTeam)}</span></span>` : `<span class="nw-crest">${logo(a.team)}</span>`)}</div><div class="nw-copy"><div class="nw-meta">${badge(a.category)}<span>${esc(a.source)} · ${a.year} W${a.week + 1}</span><button class="icon-button nw-save ${a.bookmarked ? "on" : ""}" aria-label="${a.bookmarked ? "Unsave" : "Save"} story" onclick="Office.storyBookmark('${a.id}')">${a.bookmarked ? "★" : "☆"}</button></div><h3>${esc(a.title)}</h3><p>${esc(a.body)}</p><div class="nw-foot"><span class="nw-team">${logo(a.team)}${esc(clubs[a.team]?.[2] ?? "League")}</span>${action}</div></div></article>`;
+    const art = cardArt(state, a),
+      sk = storyKind(a),
+      label = a.feature ? "Feature" : shortKindLabel(sk),
+      // The lead story carries the article's opening paragraphs, like a broadsheet front page.
+      text = kind === "lead" ? leadText(a) : a.body;
+    return `<article class="nw-story nw-${kind} nw-k-${sk} story-topic-${esc(a.category.toLowerCase())} ${a.read ? "nw-read" : ""}" tabindex="0" role="link" aria-label="Read: ${esc(a.title)}" onclick="Office.readStory('${a.id}')" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();Office.readStory('${a.id}')}"><div class="nw-art ${art ? "" : "nw-art-crest"}">${art || (Number.isInteger(a.otherTeam) && a.otherTeam !== a.team && clubs[a.otherTeam] && clubs[a.team] ? `<span class="nw-matchup"><span class="nw-crest">${logo(a.team)}</span><b>VS</b><span class="nw-crest">${logo(a.otherTeam)}</span></span>` : clubs[a.team] ? `<span class="nw-crest">${logo(a.team)}</span>` : `<span class="nw-crest nw-league">${icon("trophy")}</span>`)}<span class="nw-kind ${a.feature ? "feat" : ""}">${esc(label)}</span></div><div class="nw-copy"><div class="nw-meta">${badge(a.category)}<span>${esc(a.source)} · ${a.year} W${a.week + 1}</span><button class="icon-button nw-save ${a.bookmarked ? "on" : ""}" aria-label="${a.bookmarked ? "Unsave" : "Save"} story" onclick="event.stopPropagation();Office.storyBookmark('${a.id}')">${a.bookmarked ? "★" : "☆"}</button></div><h3>${esc(a.title)}</h3><p>${esc(text)}</p><div class="nw-foot"><span class="nw-team">${clubs[a.team] ? logo(a.team) : ""}${esc(clubs[a.team]?.[2] ?? "League")}</span>${storyActions(a)}<span class="nw-read-cta" aria-hidden="true">Read ▸</span></div></div></article>`;
   }
   function storyCards() {
     const rows = storyRows(),
@@ -318,7 +336,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     return `<div class="nw-front">${storyCard(lead, "lead")}${rest.length ? `<div class="nw-briefs">${rest
       .slice(0, 2)
       .map((a) => storyCard(a, "brief"))
-      .join("")}</div>` : ""}</div>${rest.length > 2 ? `<div class="nw-grid">${rest
+      .join("")}</div>` : ""}</div>${rest.length > 2 ? `<h3 class="nw-sec">More headlines</h3><div class="nw-grid">${rest
       .slice(2)
       .map((a) => storyCard(a, "card"))
       .join("")}</div>` : ""}`;
@@ -333,8 +351,39 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       .map(([c, i]) => `<option value="${i}">${esc(c[1] + " " + c[2])}</option>`)
       .join("")}</select><button class="link nw-manage" onclick="Office.settings('News & workflow')">Manage following</button></div>`;
   }
+  function readerView() {
+    const all = office().stories,
+      a = all.find((x) => x.id === news.reading);
+    if (!a) {
+      news.reading = null;
+      return null;
+    }
+    const rows = storyRows(),
+      list = rows.some((x) => x.id === a.id) ? rows : [a, ...rows];
+    return articleView(state, a, { list, all, actions: storyActions(a).replace(/event.stopPropagation();/g, "") });
+  }
+  // Arrow keys turn pages in the reader; Escape returns to the front page.
+  if (typeof document !== "undefined" && document.addEventListener && !globalThis.__gdNewsKeys) {
+    globalThis.__gdNewsKeys = true;
+    document.addEventListener("keydown", (e) => {
+      if (!news.reading || !document.getElementById("na-reader") || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName || "") || document.querySelector("dialog[open]")) return;
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        Office.storyStep(e.key === "ArrowLeft" ? -1 : 1);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        Office.closeStory();
+      }
+    });
+  }
   views.News = () => {
     loadDeskStyles();
+    loadNewsStyles();
+    if (news.reading) {
+      const reader = readerView();
+      if (reader) return reader;
+    }
     const list = storyCards(),
       cal = state.franchise.calendarSim?.date,
       when = cal ? new Date(cal + "T00:00:00Z").toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long", month: "long", day: "numeric", year: "numeric" }) : `${state.year} season`;
@@ -720,6 +769,31 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       news.page = 0;
       render();
     },
+    readStory(id) {
+      const a = office().stories.find((x) => x.id === id);
+      if (!a) return;
+      news.reading = id;
+      a.read = true;
+      save();
+      W.open("News");
+      if (!document.getElementById("na-reader")) window.Hub?.mediaTab?.("Newsroom");
+      document.getElementById("na-reader")?.focus?.({ preventScroll: true });
+    },
+    closeStory() {
+      const id = news.reading;
+      news.reading = null;
+      const rows = storyRows(),
+        i = rows.findIndex((x) => x.id === id);
+      if (i >= 0) news.page = Math.floor(i / NEWS_PAGE);
+      render();
+      window.scrollTo({ top: 0, behavior: "instant" });
+    },
+    storyStep(delta) {
+      const rows = storyRows(),
+        i = rows.findIndex((x) => x.id === news.reading),
+        next = rows[i + Number(delta || 0)];
+      if (i >= 0 && next) Office.readStory(next.id);
+    },
     storyBookmark(id) {
       mutate((s) => {
         const a = ensureOffice(s).stories.find((a) => a.id === id);
@@ -961,6 +1035,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
   };
   const openScreen = W.open;
   W.open = function (route, ...rest) {
+    if (route !== "News") news.reading = null;
     openScreen(route, ...rest);
     window.scrollTo({ top: 0, behavior: "instant" });
     window.Recruit?.fit();
@@ -975,7 +1050,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       `<div class="office-pulse"><div><span class="pulse-icon">${icon("bell")}</span><span><b>${c.pending ? c.pending + " decisions on your desk" : "Your office is up to date"}</b><small>${c.unread} unread messages · ${c.urgent} urgent</small></span></div><button onclick="W.open('Inbox')">Open inbox ${icon("arrow")}</button><button class="secondary" onclick="W.open('Analysis')">Team analysis</button></div>` +
       oldOverview().replace(
         /<section class="panel news-panel">[\s\S]*?<\/section>/,
-        `<section class="panel news-panel"><div class="panel-head"><h2>Inside the franchise</h2><button class="link" onclick="W.open('News')">All news ${icon("arrow")}</button></div>${list.map((a) => `<button class="dashboard-story" onclick="${a.messageId ? `Office.fromStory('${a.messageId}')` : "W.open('News')"}"><span>${badge(a.category)} ${a.year} · W${a.week + 1}</span><b>${esc(a.title)}</b><small>${esc(a.body)}</small>${icon("chevron")}</button>`).join("")}</section>`,
+        `<section class="panel news-panel"><div class="panel-head"><h2>Inside the franchise</h2><button class="link" onclick="W.open('News')">All news ${icon("arrow")}</button></div>${list.map((a) => `<button class="dashboard-story" onclick="Office.readStory('${a.id}')"><span>${badge(a.category)} ${a.year} · W${a.week + 1}</span><b>${esc(a.title)}</b><small>${esc(a.body)}</small>${icon("chevron")}</button>`).join("")}</section>`,
       )
     );
   };

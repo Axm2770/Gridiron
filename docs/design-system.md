@@ -83,3 +83,9 @@ K.empty("No moves yet.");
 ## Glossary tooltips
 
 Labels whose text matches a term in `GLOSSARY` (`ui/tutorial-content.mjs`) get a dotted underline and a definition on hover or focus. To explain a new term everywhere it appears, add it there rather than writing one-off tooltips.
+
+## News articles
+
+Every Gridiron Journal story opens as a full article (`Office.readStory(id)`; the reader is `franchise/news-article-ui.mjs`, styles in `news.css`, copy and facts in `franchise/news-articles.mjs`). A story may carry `kind` (`match`, `result`, `milestone`, `event`, `injury`, `transaction`, `player`, …) and a small `data` object; stories without them (older saves) are classified from their text, so they still open.
+
+**Feature visuals (hook for other features).** A story posted with `postStory(s, key, { …, feature: { type, data } })` gets a "Feature" badge on the front page. When the article opens, the reader calls `window.GDFeatureVisuals?.[feature.type]` if it is a function, as `fn(feature.data, story)`, and uses the returned HTML string as the article's hero visual; if there is no function, it throws, or it returns nothing, the generic visual for the story is used. Register visuals once at install time, e.g. `(window.GDFeatureVisuals ??= {}).combine = (d, a) => "<div>…</div>"`. Keep the markup pixel-kit (tokens, `pixelFace`, `pixel-chart.mjs`), and keep `feature.data` small and JSON-safe: it is saved with the story. An optional `feature.kicker` replaces the article's kicker label.
