@@ -204,6 +204,16 @@ function passPlay(plan, mix, style, r) {
   weights.action = (weights.action || 0) * tilt[1];
   const emphasis = PASS_EMPHASIS[plan.passConcept];
   if (emphasis) weights[emphasis] = (weights[emphasis] || 0) * 1.4 + 3;
+  // Even the most aggressive NFL offenses keep deep shots and play action to about a fifth of
+  // their throws; stacking a vertical style, a play-action emphasis and a shot-heavy scheme
+  // tops out there instead of turning every pass into a bomb.
+  const shots = (weights.deep || 0) + (weights.action || 0),
+    total = Object.values(weights).reduce((n, w) => n + w, 0);
+  if (total && shots / total > 0.22) {
+    const k = (0.22 * (total - shots)) / (0.78 * shots);
+    weights.deep = (weights.deep || 0) * k;
+    weights.action = (weights.action || 0) * k;
+  }
   return { call: PASS_ENGINE[pick(weights, r)] };
 }
 // Box count for run-pass options: a base front leaves the perimeter light, so the quarterback
