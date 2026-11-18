@@ -1074,6 +1074,8 @@ async function settleRound({ live = null } = {}) {
       state,
       won ? "A win for the franchise" : "A difficult result",
       `${clubs[state.team][2]} ${ours.score[k]}–${ours.score[1 - k]}.`,
+      "club",
+      { kind: "score", team: state.team, opp: k ? ours.a : ours.b, us: ours.score[k], them: ours.score[1 - k], home: k === 0, label: `Week ${state.week + 1}` },
     );
   }
   state.live = null;

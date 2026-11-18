@@ -406,11 +406,31 @@ export function applyPressConference(s, c) {
       priority: e.kind === "callout" ? "high" : "normal",
       playerId: player?.id,
       route: "Locker room",
+      data: pressMessageData(e, summary, player),
     });
   }
   return summary;
 }
 const fmt = (n) => (n > 0 ? "+" : "") + n;
+// Structured inbox card (ui/message-cards.mjs): your quote or the player's reaction, then the
+// changes per group with the tone of each metric (drama up is bad).
+export function pressMessageData(e, summary, player) {
+  const c = summary?.changes || {},
+    team = [["Team morale", c.morale], ["Chemistry", c.chemistry], ["Drama", c.drama], ["Fan approval", c.fans], ["Owner patience", c.owner], ["Media trust", c.media], ["Credibility", c.credibility]]
+      .filter(([label, delta]) => Number.isFinite(delta) && (delta !== 0 || !["Media trust", "Credibility"].includes(label)))
+      .map(([label, delta]) => ({ label, delta }));
+  const groups = [{ name: "Team", rows: team }];
+  if (player) groups.push({ name: player.name, playerId: player.id, rows: [{ label: "Morale", delta: c.playerMorale ?? 0 }, { label: "Trust", delta: c.playerTrust ?? 0 }] });
+  return {
+    kind: "effects",
+    event: e.kind,
+    claim: e.kind === "credibility" ? e.text : "",
+    claimNote: e.kind === "credibility" ? "You said this before the game. The result did not back it up, and reporters noticed." : "",
+    reaction: e.kind === "callout" && player ? { playerId: player.id, name: player.name, text: e.text } : null,
+    lead: e.kind === "promise" ? e.text : "",
+    groups,
+  };
+}
 
 // Interview bookkeeping that the old answerInterview() did, without its fixed numbers:
 // closes the pregame/postgame slot, keeps the media transcript and the club news line.

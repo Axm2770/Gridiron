@@ -14,6 +14,7 @@ New screens should follow these rules automatically if they use the tokens and c
 | `dist/ui/navigation.css` | Breadcrumbs, related links, tab bars, the player hub and the Transactions log. |
 | `dist/ui/tutorial.css` | Guided tours, the Help & tutorials centre and glossary tooltips. |
 | `dist/ui/dialogs.css` | Dialogs in the pixel kit: the player profile (`gp-*`), the hover snapshot, plain dialogs framed by `frameDialog()` in `franchise/presentation.mjs` (`gd-dlg-*` header bar, body, sticky action row), the Ctrl+K palette, toast and update banner. |
+| `dist/ui/message-cards.mjs` / `.css` | Inbox messages as pixel cards (effects, transcripts, injuries, transactions, scouting, targets, meetings, scores, practice). Generators store structured `data` on a message (or pass it as the fifth argument of `S.log`); old messages are parsed from their text and anything else falls back to `message-format.mjs`. Signed numbers are toned by metric, not sign: drama, injury risk, dead money and fatigue going up is bad. |
 
 ## Tokens
 

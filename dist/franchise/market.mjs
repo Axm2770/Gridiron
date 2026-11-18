@@ -4,7 +4,7 @@
 // contracts.mjs/state.mjs and are reused here, never re-implemented.
 import { random, clamp } from "../engine/random.mjs";
 import { identitySeed } from "./newgens.mjs";
-import { MILLION, capLedger, capHit, roster, log, financeYear, bonusCharge } from "./state.mjs";
+import { MILLION, capLedger, capHit, roster, log, financeYear, bonusCharge, playerSnap } from "./state.mjs";
 import { setCooldown, cooldownRemaining, fanReaction, coachReputation } from "./career-systems.mjs";
 import { reactTo } from "./social-engine.mjs";
 import { ensureCalendar, leagueDates, seasonAnchor, addDays } from "./calendar-core.mjs";
@@ -646,7 +646,8 @@ export function executeTrade(s, proposal, { aiOffer = false } = {}) {
   const headline = `${describe(proposal.get || [], s.team)} acquired from the ${clubName(s, partner)}`;
   fanReaction(s, `trade:${s.year}:${s.week}:${partner}:${(proposal.give || []).join(",")}`, clamp((verdict.sends - verdict.receives) / 150 - beloved.reduce((n, x) => n + ({ legend: 2, icon: 1.5, favourite: 0.75 })[x.standing.level], 0), -4, 3), headline, { topic: "Trades" });
   for (const x of beloved) log(s, "Fans react", `Supporters are upset to see ${x.p.name}, ${x.standing.label}, traded away after ${x.standing.tenure} seasons.`);
-  log(s, "Trade agreed", `${headline} for ${describe(proposal.give || [], partner)}.`);
+  const picks = (ids) => ids.filter((id) => id.startsWith("pk-")).map((id) => ({ name: pickLabel(s, ensurePickLedger(s).find((x) => x.id === id)), pos: "Draft pick" }));
+  log(s, "Trade agreed", `${headline} for ${describe(proposal.give || [], partner)}.`, "club", { kind: "transaction", type: "trade", partner: clubName(s, partner), incoming: [...received.map(playerSnap), ...picks(proposal.get || [])], outgoing: [...sent.map(playerSnap), ...picks(proposal.give || [])] });
   reactTo(s, `trade:${s.year}:${s.week}:${partner}:${(proposal.give || []).join(",")}`, { kind: "Trade", headline, playerId: received[0]?.id, playerName: received[0]?.name, tags: [verdict.mode.toLowerCase(), deadlinePressure(s) > 0.5 ? "deadline" : "regular"] });
   s.franchise.market.history ??= [];
   s.franchise.market.history.unshift({ year: s.year, week: s.week, partner, give: proposal.give, get: proposal.get, headline });

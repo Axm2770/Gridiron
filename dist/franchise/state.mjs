@@ -257,7 +257,12 @@ export function active(s, team = s.team) {
     (p) => p.status === "active" || p.status === "elevated",
   );
 }
-export function log(s, title, body, kind = "club") {
+// A small, serialisable player snapshot for message cards (survives trades and retirements).
+export const playerSnap = (p) => (p ? { id: p.id, name: p.name, pos: p.realPosition || p.pos, ovr: p.ovr, age: p.age } : null);
+const capM = (n) => `${(Number(n || 0) / 1e6).toFixed(1)}M`;
+export const capMillions = capM;
+// `data` (optional) is structured detail the inbox renders as a card (ui/message-cards.mjs).
+export function log(s, title, body, kind = "club", data = null) {
   s.franchise.events.unshift({
     id: `event-${s.year}-${s.week}-${(s.franchise.eventSerial = (s.franchise.eventSerial || s.franchise.events.length || 0) + 1)}`,
     year: s.year,
@@ -265,6 +270,7 @@ export function log(s, title, body, kind = "club") {
     title,
     body,
     kind,
+    ...(data ? { data } : {}),
   });
   s.franchise.events = s.franchise.events.slice(0, 250);
 }

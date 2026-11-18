@@ -267,11 +267,18 @@ export function installCareerScenes({
           resumeHalf(
             ["Encourage", "Demand more", "Stay composed"][result.first],
           );
+        // One line per question and answer, so the transcript never reads as one sentence;
+        // the inbox renders `data` as a speaker card (ui/message-cards.mjs).
+        const pressScene = ["pre", "post"].includes(c.type),
+          [speakerName, outlet = ""] = String(c.speaker).split(" · "),
+          questions = c.choicesMade.map((x, i) => c.lines?.[i] || ""),
+          answers = c.choicesMade.map((x) => ({ text: x.text, tone: x.tone || "" }));
         S.log(
           state,
           "Conversation: " + c.title,
-          `${c.speaker}. ${c.choicesMade.map((x) => x.text).join(" ")}`,
-          ["pre", "post"].includes(c.type) ? "media" : "private",
+          [`${speakerName}${outlet ? ` · ${outlet}` : ""}`, ...answers.flatMap((a, i) => [questions[i] ? `Q: ${questions[i]}` : "", `A: "${a.text}"`].filter(Boolean))].join("\n"),
+          pressScene ? "media" : "private",
+          { kind: "transcript", speaker: speakerName, outlet, reporterId: pressScene ? "reporter-jordan" : null, playerId: pressScene ? null : c.speakerId || c.playerId || null, setting: c.type === "post" ? "Postgame" : c.type === "pre" ? "Pregame" : c.type === "half" ? "Halftime" : "Private", questions, answers },
         );
         save();
         render();

@@ -5,7 +5,7 @@
 // franchise.reports so the classic scouting screen and the pipeline board stay in sync.
 import { random, clamp } from "../engine/random.mjs";
 import { identitySeed } from "./newgens.mjs";
-import { log, MILLION, requireRole } from "./state.mjs";
+import { log, MILLION, requireRole, playerSnap } from "./state.mjs";
 import { draftOne, beginDraft, ensureDraftRoom } from "./personnel.mjs";
 import { slotValue } from "./market.mjs";
 import { scoutRange } from "./scouting.mjs";
@@ -272,7 +272,7 @@ export function makeUserPick(s, prospectId) {
   recordSelection(s, pick, p, d.cursor + 1);
   draftOne(s, pick, p);
   d.cursor++;
-  log(s, "Draft selection", `${p.name} (${p.pos}, ${p.college ?? "college"}) joins the franchise.`);
+  log(s, "Draft selection", `${p.name} (${p.pos}, ${p.college ?? "college"}) joins the franchise.`, "club", { kind: "transaction", type: "draft", incoming: [{ ...playerSnap(p), college: p.college || "" }], terms: [{ label: "Pick", value: `#${d.cursor}` }, ...(pick.round ? [{ label: "Round", value: String(pick.round) }] : [])] });
   return p;
 }
 
