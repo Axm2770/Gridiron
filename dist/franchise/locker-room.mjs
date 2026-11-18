@@ -93,19 +93,33 @@ export function lockerReport(s) {
     teamCauses.push({
       text: `Recent form ${results.join("-")}`,
       tone: wins >= 2 ? "good" : wins === 0 ? "bad" : "",
+      kind: "form",
+      title: "Recent form",
+      results: [...results],
     });
   teamCauses.push({
-    text: `Chemistry ${pulse.chemistry} and drama ${pulse.drama}: weekly morale ${pulse.moraleModifier > 0 ? "+" : ""}${pulse.moraleModifier}`,
+    text: `Chemistry ${Math.round(pulse.chemistry)} and drama ${Math.round(pulse.drama)}: weekly morale ${pulse.moraleModifier > 0 ? "+" : ""}${pulse.moraleModifier}`,
     tone: pulse.moraleModifier > 0 ? "good" : pulse.moraleModifier < 0 ? "bad" : "",
+    kind: "pulse",
+    title: "Chemistry & drama",
+    stats: [
+      { label: "Chemistry", value: Math.round(pulse.chemistry), meter: pulse.chemistry, tone: pulse.chemistry >= 65 ? "good" : pulse.chemistry < 45 ? "bad" : "" },
+      { label: "Drama", value: Math.round(pulse.drama), meter: pulse.drama, tone: pulse.drama >= 40 ? "bad" : pulse.drama <= 20 ? "good" : "", invert: true },
+      { label: "Weekly morale", value: (pulse.moraleModifier > 0 ? "+" : "") + pulse.moraleModifier, tone: pulse.moraleModifier > 0 ? "good" : pulse.moraleModifier < 0 ? "bad" : "" },
+    ],
   });
   const leaderMood = leaders.length ? Math.round(leaders.reduce((n, p) => n + p.morale, 0) / leaders.length) : 0;
   teamCauses.push({
     text: `Leaders' morale ${leaderMood}%${leaderMood < 60 ? ": unhappy leaders drag the room down" : ""}`,
     tone: leaderMood >= 70 ? "good" : leaderMood < 60 ? "bad" : "",
+    kind: "leaders",
+    title: "Leaders' morale",
+    detail: leaderMood < 60 ? "Unhappy leaders drag the room down" : leaderMood >= 70 ? "Your captains are setting the tone" : "",
+    stats: [{ label: "Morale", value: leaderMood + "%", meter: leaderMood, tone: leaderMood >= 70 ? "good" : leaderMood < 60 ? "bad" : "" }],
   });
   const recentTeam = (s.roster.flatMap((p) => p.moodLog || []).find((e) => /^Team message:/.test(e.reason) && e.year === s.year));
   if (recentTeam && !/^Team message: Press conference/.test(recentTeam.reason))
-    teamCauses.push({ text: recentTeam.reason.replace(/^Team message: /, "Team talk: "), tone: recentTeam.delta > 0 ? "good" : "bad" });
+    teamCauses.push({ text: recentTeam.reason.replace(/^Team message: /, "Team talk: "), tone: recentTeam.delta > 0 ? "good" : "bad", kind: "talk", title: "Team talk", detail: recentTeam.reason.replace(/^Team message: /, ""), stats: recentTeam.delta ? [{ label: "Morale", value: (recentTeam.delta > 0 ? "+" : "") + recentTeam.delta, tone: recentTeam.delta > 0 ? "good" : "bad" }] : [] });
   // The latest press conference, with what it moved.
   const press = latestPress(s);
   if (press) {
@@ -114,7 +128,15 @@ export function lockerReport(s) {
       parts = [["chemistry", ch.chemistry], ["drama", ch.drama], ["morale", ch.morale]].filter(([, v]) => v).map(([k, v]) => `${k} ${sign(v)}`),
       who = press.playerName && press.follow ? ` · ${press.follow.tone.toLowerCase()} on ${press.playerName} (trust ${sign(ch.playerTrust ?? 0)})` : "";
     const net = (ch.chemistry || 0) + (ch.morale || 0) - (ch.drama || 0) / 2;
-    teamCauses.push({ text: `Press conference: "${press.quote}"${who}${parts.length ? " · " + parts.join(", ") : ""}`, tone: net > 0 ? "good" : net < 0 ? "bad" : "" });
+    teamCauses.push({
+      text: `Press conference: "${press.quote}"${who}${parts.length ? " · " + parts.join(", ") : ""}`,
+      tone: net > 0 ? "good" : net < 0 ? "bad" : "",
+      kind: "press",
+      title: "Press conference",
+      quote: press.quote,
+      player: press.playerName && press.follow ? { name: press.playerName, id: press.playerId, stance: press.follow.tone, trust: ch.playerTrust ?? 0 } : null,
+      stats: [["Chemistry", ch.chemistry], ["Drama", ch.drama], ["Morale", ch.morale]].filter(([, v]) => v).map(([label, v]) => ({ label, value: sign(v), tone: (label === "Drama" ? -v : v) > 0 ? "good" : "bad" })),
+    });
   }
   return {
     teamMorale: Math.round(s.morale ?? avgMorale),

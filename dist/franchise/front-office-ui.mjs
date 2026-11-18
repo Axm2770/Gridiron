@@ -250,7 +250,7 @@ export function installFrontOfficeUI({ views, isBusy }) {
     const situation = dilemma
       ? `<div class="lr-dilemma"><span class="pp-chip bad">Decision needed</span><b>${esc(dilemma.title)}</b><p>${esc(dilemma.body)}</p><div class="lr-choices">${dilemma.choices.map((ch) => `<button class="secondary small" onclick="FrontOffice.dilemma(${arg(dilemma.id)},${arg(ch.id)})">${esc(ch.label)}</button>`).join("")}</div></div>`
       : `<div class="lr-dilemma calm"><span class="pp-chip good">No open situation</span>${lastCall ? `<p>Last call: <b>${esc(lastCall.title)}</b> · ${esc(lastCall.outcome)}</p>` : "<p>Dressing-room situations appear here after games. Your call moves morale, drama and chemistry.</p>"}</div>`;
-    const room = `<section class="pp-panel lr-room"><div class="pp-panel-head"><h3>What is moving the room</h3><button class="link lr-more" onclick="CI.open('team')">Team meeting →</button></div><ul class="lr-causes">${r.teamCauses.map((c) => `<li class="${c.tone || ""}">${esc(c.text)}</li>`).join("")}</ul>${situation}</section>`;
+    const room = `<section class="pp-panel lr-room"><div class="pp-panel-head"><h3>What is moving the room</h3><button class="link lr-more" onclick="CI.open('team')">Team meeting →</button></div><ul class="lr-causes lr-drivers">${r.teamCauses.map(roomDriver).join("")}</ul>${situation}</section>`;
     const promiseRow = (p) =>
       `<li class="${p.done ? "done" : p.dueNow ? "due" : ""}"><span><b>${esc(p.name)}</b><small>${esc(p.type)} · promised week ${(p.week ?? 0) + 1}</small></span>${
         p.done
@@ -307,4 +307,16 @@ export function installFrontOfficeUI({ views, isBusy }) {
   views["Locker room"] = lockerView;
   // The legacy Tactics route renders game.js's plan(); replace it with the franchise game plan.
   window.plan = tacticsView;
+}
+
+// One "What is moving the room" row: pixel glyph, bold title, detail/quote, and value chips or meters.
+const DRIVER_GLYPH = { form: "▮▯▮", pulse: "◆", leaders: "★", talk: "✎", press: "◉" };
+function roomDriver(c) {
+  if (!c.kind) return `<li class="${c.tone || ""}">${esc(c.text)}</li>`;
+  const verdict = c.tone === "good" ? "Lifting" : c.tone === "bad" ? "Dragging" : "Neutral";
+  const blocks = (v, invert) => { const n = Math.max(0, Math.min(10, Math.round((Number(v) || 0) / 10))); return `<span class="lr-blocks ${invert ? "inv" : ""}">${Array.from({ length: 10 }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span>`; };
+  const stat = (x) => `<span class="lr-stat ${x.tone || ""}"><small>${esc(x.label)}</small>${x.meter != null ? blocks(x.meter, x.invert) : ""}<b>${esc(String(x.value))}</b></span>`;
+  const form = c.results?.length ? `<span class="lr-form">${c.results.map((r) => `<b class="${r === "W" ? "w" : r === "L" ? "l" : "t"}">${esc(r)}</b>`).join("")}</span>` : "";
+  const who = c.player ? `<span class="lr-who">${c.player.id ? `<button class="link" onclick="W.player('${c.player.id}',state.team)">${esc(c.player.name)}</button>` : esc(c.player.name)}<em>${esc(c.player.stance)}</em><span class="lr-stat ${c.player.trust > 0 ? "good" : c.player.trust < 0 ? "bad" : ""}"><small>Trust</small><b>${c.player.trust > 0 ? "+" : ""}${c.player.trust}</b></span></span>` : "";
+  return `<li class="lr-driver ${c.tone || ""}"><span class="lr-glyph" aria-hidden="true">${DRIVER_GLYPH[c.kind] || "■"}</span><div class="lr-body"><div class="lr-top"><b class="lr-title">${esc(c.title)}</b><em class="lr-verdict">${verdict}</em></div>${c.quote ? `<q class="lr-quote">${esc(c.quote)}</q>` : ""}${c.detail ? `<p class="lr-detail">${esc(c.detail)}</p>` : ""}${form || (c.stats?.length || who) ? `<div class="lr-stats">${form}${(c.stats || []).map(stat).join("")}${who}</div>` : ""}</div></li>`;
 }
