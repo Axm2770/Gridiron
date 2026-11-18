@@ -29,14 +29,37 @@ Every file in this release was built by GitHub Actions from this tag, passed the
 
 If you have 0.24.1 or later, the game offers this update in-game: choose **Download now**, then **Restart now**. Your careers are untouched. On 0.23.0 or earlier, download this version once from this page.
 
-## New in 0.28.0: one look, everywhere
+## New in 0.29.0: realistic scores, press that matters, one navigation
 
-### Cleaner screens
+### Realistic scores
+- Fixed a bug where your offense could score almost nothing: with Manual play calling, a Punt or Field goal you picked once was repeated on every down. A selected run or pass now repeats on downs 1–3 only; punts, field goals and fourth downs follow your staff unless you pick them for that snap.
+- Live coaching no longer wears your club down: only players on the field tire, and less. Saves already worn down are restored on load.
+- Scores across the league now look like real football: about 22 points per team on average, 50-point games are very rare and 70 essentially never happens. Hurry-up tempo no longer leaks into other teams' games.
+- Run-first and Vertical styles now tilt your play mix instead of replacing it, and they apply in calendar sims too.
+
+### Press conferences with consequences
+- Every press conference asks about your tone and about a named player. Your answers move team morale, chemistry, drama, fans, the owner's patience, media trust, and that player's morale and trust in you.
+- Calling a player out can open a rift and an inbox story; backing a struggling player lifts him. "Promise snaps" creates a promise you must keep.
+- Context matters: wins, losses, streaks and rivalry weeks change the effect, and bold claims followed by a loss cost credibility.
+- The outcome card shows exactly what changed, and the Locker room lists it.
+
+### Pixel cutscenes again
+- Championship, draft pick, press room, playoff exit, locker room, clutch finish and conversation scenes are pixel art in the pixel theme.
+
+### One simple navigation
+- The sidebar is the only way to move around: the Club overview tab strip is gone, and its unique parts moved to Draft room (Scout network, Watchlist pipeline) and Coach career (Coaching tree).
+- A pixel sidebar with pixel icons that scales to fit your screen without scrolling.
+- Careers & saves was removed from the sidebar; the Careers button in the top bar opens the career library.
+- The interface scales down a little on smaller screens.
+
+## Also new in 0.28
+
+#### Cleaner screens
 - Every screen now opens with a compact title bar (the page name and the ? help button) and then its real content.
 - Gone from every page: the "Jump to" links, the role badge, the club and season line and the description.
 - Banners that only repeated the page title or described the page are gone from Transfers & free agency, Inbox, News, Development, Scouting, Staff, Organization, Careers & saves, Conversations, Media room, Career dossier, Records, Settings and Matchday.
 
-### Player profiles and dialogs
+#### Player profiles and dialogs
 - Player profiles are rebuilt in the pixel style:
   - a header with a pixel face, OVR and POT badges, and status chips;
   - Overview with readiness and best-attribute meters;
@@ -45,11 +68,11 @@ If you have 0.24.1 or later, the game offers this update in-game: choose **Downl
   - Scouting with attribute ranges.
 - Confirmations, the postgame report, Ctrl+K search, the help centre, tutorial cards, notifications and the update bar all share the same frames, header bars and fonts.
 
-### Cutscenes and story scenes
+#### Cutscenes and story scenes
 - Signing, coach-arrival and draft-night scenes, 3D cinematics, press conferences and player conversations now use the same pixel fonts, frames and answer cards as the rest of the game.
 - Captions no longer cover the art, and every answer fits on screen.
 
-### Any screen size
+#### Any screen size
 - Layouts adapt from phones to 2560-wide monitors: content is centred and capped on very wide screens, toolbars wrap, buttons line up, and nothing scrolls sideways or gets cut off at the edge.
 - The sidebar becomes a slide-in menu on narrow windows.
 

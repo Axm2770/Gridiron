@@ -44,6 +44,10 @@ Playcalling is shared by live coaching (`engine-bridge.mjs`) and the fast worker
 
 Simulator options (`presentation/sim-options.mjs`, localStorage `gridiron-sim-options`): instant replays of big plays, replay speed, game speed, matchday intro, spoken commentary and caption verbosity. They are per device and never touch saves or results. `presentation/match-intro.mjs` plays the skippable pre-kickoff open once per fixture (a static card under reduced motion). The 3D canvas renders at full device resolution in the pixel theme.
 
+## Press conferences
+
+`franchise/press-consequences.mjs` turns press answers (a tone question plus a named-player follow-up) into morale, chemistry, drama, fan, owner, media-trust and player trust effects, scaled by result, streak and rivalry. State lives in `franchise.pressRoom` (lazy: `applied` ids make each conference apply once, plus the last confident claim for credibility). Playing-time promises go to `cinema.promises`. Covered by `test-press-consequences.mjs`.
+
 ## Tests added
 
 `test-match-motion.mjs` covers kick units and coverage, the four run schemes (blocks and pulls), pursuit angles, contact before every tackle, and a speed bound that catches teleporting players. `test-sim-options.mjs` covers option persistence and validation, caption verbosity, instant-replay selection and the intro card.
