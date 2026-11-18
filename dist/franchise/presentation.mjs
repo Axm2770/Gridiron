@@ -2,6 +2,7 @@ import { serializeCareer } from "./ratings.mjs";
 import { faceSVG } from "./newgens.mjs";
 import * as S from "./state.mjs";
 import { applyRealRosters } from "./real-rosters.mjs";
+import { pixelFace } from "../ui/pixel-face.mjs";
 const paths = {
   home: "m3 10 9-7 9 7v10H3z M9 20v-7h6v7",
   play: "m8 5 11 7-11 7z",
@@ -214,6 +215,34 @@ const positionSide = (p) =>
     : ["DL", "LB", "CB", "S"].includes(p.pos)
       ? "Defense"
       : "Special teams";
+// Plain dialogs (an eyebrow and/or an h2 first, then copy and a .modal-actions row) get the pixel
+// kit's frame: a header bar, a body and a sticky action bar (ui/dialogs.css gd-dlg-*). Dialogs with
+// their own layout are left alone. Nodes are moved, not re-rendered, so handlers and inputs survive.
+export const FRAMED_ROOTS = ["trim-preview", "staff-meeting", "career-small-modal", "save-search-modal", "hub-article-modal", "exp-ballots", "help-welcome"];
+export function frameDialog(dialog) {
+  const kids = [...(dialog?.children || [])];
+  if (!kids.length) return false;
+  let root = dialog;
+  if (kids.length === 1 && FRAMED_ROOTS.some((c) => kids[0].classList.contains(c))) root = kids[0];
+  const first = root.firstElementChild;
+  if (!first) return false;
+  const lead = first.matches(".eyebrow") ? (first.nextElementSibling?.matches("h2") ? 2 : 1) : first.matches("h2, .press-backdrop") ? 1 : 0;
+  if (!lead || (root === dialog && dialog.querySelector(":scope > .gd-dlg-head"))) return false;
+  const doc = dialog.ownerDocument,
+    head = doc.createElement("div"),
+    body = doc.createElement("div"),
+    last = root.lastElementChild,
+    foot = last?.matches(".modal-actions") && last !== first ? last : null;
+  head.className = "gd-dlg-head";
+  body.className = "gd-dlg-body";
+  for (let i = 0; i < lead; i++) head.append(root.firstElementChild);
+  while (root.firstChild && root.firstChild !== foot) body.append(root.firstChild);
+  root.prepend(head, ...(body.childNodes.length ? [body] : []));
+  if (foot) foot.classList.add("gd-dlg-foot");
+  if (root !== dialog) root.classList.add("gd-dlg-root");
+  dialog.classList.add("gd-dlg");
+  return true;
+}
 export function installPresentation({
   views,
   getSection,
@@ -344,17 +373,17 @@ export function installPresentation({
   }
   const previousModal = modal;
   modal = function (html) {
-    document
-      .getElementById("modal")
-      .classList.remove("player-drawer", "command-dialog");
+    const dialog = document.getElementById("modal");
+    dialog.classList.remove("player-drawer", "command-dialog", "gd-dlg");
     previousModal(html);
+    frameDialog(dialog);
   };
   const previousClose = closeModal;
   closeModal = function () {
     previousClose();
     document
       .getElementById("modal")
-      .classList.remove("player-drawer", "command-dialog");
+      .classList.remove("player-drawer", "command-dialog", "gd-dlg");
   };
   window.W = {
     open(route, tab) {
@@ -464,7 +493,7 @@ export function installPresentation({
           players
             .map(
               ({ p, team }) =>
-                `<button class="command-row" onclick="W.player('${p.id}',${team})">${portrait(p)}<span>${esc(p.name)}<small>${clubs[team][0]} · ${p.realPosition || p.pos} · ${status(p)}</small></span><b>${p.ovr}</b></button>`,
+                `<button class="command-row" onclick="W.player('${p.id}',${team})">${pixelFace(p, { size: 32, team })}<span>${esc(p.name)}<small>${clubs[team][0]} · ${p.realPosition || p.pos} · ${status(p)}</small></span><b>${p.ovr}</b></button>`,
             )
             .join("") ||
         '<div class="search-empty">No matching players, screens or actions. Try a surname, a screen or "help".</div>';

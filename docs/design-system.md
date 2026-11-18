@@ -13,6 +13,7 @@ New screens should follow these rules automatically if they use the tokens and c
 | `dist/ui/kit.mjs` | String-template components that emit design-system markup: `card`, `stat`, `stats`, `tabs`, `chip`, `meter`, `row`, `empty`, `link`. |
 | `dist/ui/navigation.css` | Breadcrumbs, related links, tab bars, the player hub and the Transactions log. |
 | `dist/ui/tutorial.css` | Guided tours, the Help & tutorials centre and glossary tooltips. |
+| `dist/ui/dialogs.css` | Dialogs in the pixel kit: the player profile (`gp-*`), the hover snapshot, plain dialogs framed by `frameDialog()` in `franchise/presentation.mjs` (`gd-dlg-*` header bar, body, sticky action row), the Ctrl+K palette, toast and update banner. |
 
 ## Tokens
 

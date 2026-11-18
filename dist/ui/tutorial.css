@@ -23,14 +23,15 @@
 .tour-actions { display: flex; align-items: center; gap: 8px; }
 .tour-actions > span { flex: 1; }
 
-#modal:has(.help-centre), #modal:has(.help-welcome) { width: min(680px, calc(100vw - 32px)); max-width: none; }
+#modal:has(.help-centre) { width: min(860px, calc(100vw - 24px)); max-width: none; }
+#modal:has(.help-welcome) { width: min(620px, calc(100vw - 24px)); max-width: none; }
 .help-centre, .help-welcome { width: 100%; min-width: 0; }
 .help-tour > button { flex: none; }
 .help-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .help-head h2 { margin: 4px 0 12px; }
 .help-tabs { margin-bottom: 14px; }
 .help-intro { color: var(--gd-text-2, #a6b4bf); margin: 0 0 10px; }
-.help-tours { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 52vh; overflow: auto; }
+.help-tours { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 8px; }
 .help-tour { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--gd-border, rgba(255, 255, 255, 0.08)); border-radius: var(--gd-radius-sm, 9px); }
 .help-tour > div { display: grid; gap: 3px; min-width: 0; }
 .help-tour small { color: var(--gd-text-2, #a6b4bf); font-size: 13px; }
@@ -39,7 +40,7 @@
 .help-screen h3 { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; margin: 14px 0 6px; color: var(--gd-text-2, #a6b4bf); }
 .help-screen h3:first-child { margin-top: 0; color: var(--gd-text, #eef3f6); font-size: 16px; letter-spacing: 0; text-transform: none; }
 .help-screen ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
-.help-glossary { display: grid; gap: 10px; max-height: 52vh; overflow: auto; margin: 0; }
+.help-glossary { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 16px; margin: 0; }
 .help-glossary dt { font-weight: 700; }
 .help-glossary dd { margin: 2px 0 0; color: var(--gd-text-2, #a6b4bf); font-size: 13px; }
 .help-tips { display: flex; align-items: center; gap: 6px; margin-right: auto; font-size: 13px; color: var(--gd-text-2, #a6b4bf); }
@@ -50,4 +51,50 @@
 @media (max-width: 640px) {
   .help-tour { flex-direction: column; align-items: stretch; }
   .tour-card { left: 16px !important; right: 16px; width: auto !important; top: auto !important; bottom: 16px; }
+}
+
+/* Pixel kit (body.gd-pixel): the tour card and the help centre share the dialogs' header bar,
+   segmented tabs, square rows and block progress. One scroll region: the dialog itself, with the
+   header and the action row pinned. */
+body.gd-pixel .tour-spotlight { box-shadow: 0 0 0 9999px rgba(5, 7, 13, 0.66), 0 0 0 3px var(--gd-accent), 0 0 0 6px var(--px-ink); transition: none; }
+body.gd-pixel .tour-card { padding: 0 0 12px; border: 3px solid var(--gd-border-strong); background: var(--gd-surface); box-shadow: 6px 6px 0 var(--px-ink); }
+body.gd-pixel .tour-meta { align-items: center; gap: 10px; padding: 7px 14px; background: var(--gd-surface-strong); border-bottom: 3px solid var(--gd-border-strong); color: var(--gd-accent); }
+body.gd-pixel .tour-meta span:last-child { padding: 0 6px; border: 2px solid var(--gd-border-strong); background: var(--gd-bg-2); color: var(--gd-text); }
+body.gd-pixel .tour-card h2 { margin: 12px 14px 6px; font: 700 19px/1.2 var(--gd-display) !important; }
+body.gd-pixel .tour-card p { margin: 0 14px 10px; font-size: 14px; }
+body.gd-pixel .tour-progress { height: 12px; margin: 4px 14px 12px; padding: 2px; background: var(--gd-bg); border: 2px solid var(--gd-border-strong); }
+body.gd-pixel .tour-progress i { background: repeating-linear-gradient(90deg, var(--gd-accent) 0 10px, transparent 10px 12px); }
+body.gd-pixel .tour-actions { padding: 0 14px; }
+body.gd-pixel .tour-actions button { min-height: 34px; }
+
+body.gd-pixel #modal:has(.help-centre) { padding: 0; }
+body.gd-pixel .help-centre { display: flex; flex-direction: column; }
+body.gd-pixel .help-centre > :not(.help-head):not(.modal-actions) { margin-left: 20px; margin-right: 20px; }
+body.gd-pixel .help-head { position: sticky; top: 0; z-index: 2; align-items: center; padding: 12px 14px 10px 20px; background: var(--gd-surface-strong); border-bottom: 3px solid var(--gd-border-strong); }
+body.gd-pixel .help-head .eyebrow { display: block; font: 700 11px/1.4 var(--gd-body) !important; letter-spacing: 0.08em !important; color: var(--gd-accent); }
+body.gd-pixel #modal .help-head h2 { margin: 2px 0 0; font: 700 22px/1.2 var(--gd-display) !important; }
+body.gd-pixel #modal .help-tabs { display: inline-flex; align-self: flex-start; gap: 0; margin-top: 14px; margin-bottom: 14px; padding: 0; border: 2px solid var(--gd-border-strong); background: var(--gd-bg-2); box-shadow: 3px 3px 0 var(--px-ink); }
+body.gd-pixel #modal .help-tabs button { min-height: 34px; padding: 5px 16px; border: 0 !important; border-right: 2px solid var(--gd-border-strong) !important; background: transparent !important; box-shadow: none !important; color: var(--gd-text-2); font: 700 13px var(--gd-body) !important; transform: none !important; }
+body.gd-pixel #modal .help-tabs button:last-child { border-right: 0 !important; }
+body.gd-pixel #modal .help-tabs button.active { background: var(--gd-accent) !important; color: var(--gd-bg); }
+body.gd-pixel .help-intro { font-size: 13px; }
+body.gd-pixel .help-tour { padding: 10px 12px; background: var(--gd-bg-2); border: 2px solid var(--gd-border); border-left: 6px solid var(--gd-border-strong); }
+body.gd-pixel .help-tour.done { border-left-color: var(--gd-good); }
+body.gd-pixel .help-tour b { font-size: 14px; }
+body.gd-pixel .help-tour small { font-size: 12.5px; line-height: 1.4; }
+body.gd-pixel .help-tour-meta { font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+body.gd-pixel .help-screen h3 { font: 700 11px var(--gd-body) !important; letter-spacing: 0.08em; color: var(--gd-text-3); }
+body.gd-pixel .help-screen h3:first-child { font: 700 18px/1.2 var(--gd-display) !important; letter-spacing: 0.02em; color: var(--gd-text); text-transform: none; }
+body.gd-pixel .help-screen ul { padding: 0; list-style: none; }
+body.gd-pixel .help-screen li { padding: 6px 10px; background: var(--gd-bg-2); border: 2px solid var(--gd-border); font-size: 13px; }
+body.gd-pixel .help-glossary > div, body.gd-pixel .help-glossary dt { font-size: 13.5px; }
+body.gd-pixel .help-glossary dt { margin-top: 2px; padding: 6px 10px 0; background: var(--gd-bg-2); border: 2px solid var(--gd-border); border-bottom: 0; color: var(--gd-accent); }
+body.gd-pixel .help-glossary dd { margin: 0; padding: 0 10px 8px; background: var(--gd-bg-2); border: 2px solid var(--gd-border); border-top: 0; }
+body.gd-pixel .help-centre > .subtitle { margin-top: 10px; font-size: 12.5px; color: var(--gd-text-3); }
+body.gd-pixel .help-centre > .modal-actions { position: sticky; bottom: 0; z-index: 2; margin-top: 16px; padding: 12px 20px; background: var(--gd-surface-strong); border-top: 3px solid var(--gd-border-strong); }
+body.gd-pixel .help-tips { font-size: 13px; }
+@media (max-width: 640px) {
+  body.gd-pixel .help-centre > :not(.help-head):not(.modal-actions) { margin-left: 14px; margin-right: 14px; }
+  body.gd-pixel .help-tours, body.gd-pixel .help-glossary { grid-template-columns: minmax(0, 1fr); }
+  body.gd-pixel .help-centre > .modal-actions { padding: 10px 14px; }
 }
