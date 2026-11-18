@@ -5,6 +5,7 @@ import { applyRealRosters } from "./real-rosters.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
 import { pixelIcon } from "../ui/pixel-icons.mjs";
 import { officeCounts } from "./newsroom.mjs";
+import { findClubs } from "./club-profile.mjs";
 const paths = {
   home: "m3 10 9-7 9 7v10H3z M9 20v-7h6v7",
   play: "m8 5 11 7-11 7z",
@@ -504,7 +505,9 @@ export function installPresentation({
                   searchKey(p.name).includes(searchKey(commandQuery)),
                 )
                 .slice(0, 18)
-            : [];
+            : [],
+        // Clubs by city, nickname or abbreviation open the club profile (W.club).
+        teams = window.W?.club ? findClubs(commandQuery, clubs) : [];
       // Actions run straight from search: type "trim", "sim", "tour" or "help".
       const actions = commandQuery
         ? [
@@ -529,6 +532,10 @@ export function installPresentation({
               ([route, label, glyph]) =>
                 `<button class="command-row" onclick="closeModal();W.open('${route}')">${pixelIcon(glyph, "ui-icon")}<span>${label}</span>${icon("arrow")}</button>`,
             )
+            .join("") +
+          (teams.length ? '<div class="result-label">CLUBS</div>' : "") +
+          teams
+            .map((t) => `<button class="command-row" onclick="closeModal();W.club(${t})"><span class="cp-crest" style="--sz:32px">${logo(t)}</span><span>${esc(cname(t))}<small>${clubs[t][3]} · ${state.teams[t].w}–${state.teams[t].l} · club profile</small></span>${icon("arrow")}</button>`)
             .join("") +
           (players.length ? '<div class="result-label">PLAYERS</div>' : "") +
           players
