@@ -393,3 +393,8 @@ body .touch-sim-menu[hidden] { display: none !important; }
 /* Quick-sim dropdowns size to their longest option so "Selected play" and long stop points never clip. */
 body .touch-sim-menu select, body .touch-sim-menu .touch-sim-caller select { width: auto; max-width: 100%; text-overflow: clip; }
 body .touch-sim-menu label { min-width: 0; flex-wrap: nowrap; white-space: nowrap; }
+/* Staff playcalling: the call sheet is read-only until Playcaller is set to Manual. */
+.touch-staff-note { margin: 8px 12px 0; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; color: var(--gd-text-2, #b8c0e0); background: var(--gd-bg-2, rgba(0,0,0,.2)); border: 2px dashed var(--gd-border, #3d526e); }
+.touch-calls.staff-calling .touch-play:disabled, .touch-calls.staff-calling .touch-tempo button:disabled { opacity: .55; cursor: not-allowed; }
+.touch-calls.staff-calling .touch-play.selected:disabled { opacity: .9; }
+.touch-calls.staff-calling .touch-playcaller select { outline: 2px solid var(--gd-warn, #ffd23f); outline-offset: 2px; }
