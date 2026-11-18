@@ -14,6 +14,7 @@ import {
 } from "./player-ui.mjs";
 import { periodLabel } from "./matchday-sim.mjs";
 import { icon } from "./presentation.mjs";
+import { gameForecast, WEATHER_ICON } from "./weather.mjs";
 import { TEAM_COLORS } from "../presentation/team-colors.mjs";
 // Matchday styles (pixel panels, scoreboard, sim options popover) load after the theme sheets.
 function loadMatchdayStyles() {
@@ -102,6 +103,12 @@ export function lineupCoordinates(actors, unit, m) {
     return { ...a, left: x, top: y };
   });
 }
+// Weather is set by the stadium and the date (franchise/weather.mjs); shown, never chosen.
+const weatherChip = (m) => {
+  const f = gameForecast(state, m) || {};
+  const cond = m.weather || f.condition || "Clear";
+  return `<span class="touch-weather" title="Set by the stadium, its roof and the time of year">${WEATHER_ICON[cond] || ""} ${esc(cond === "Dome" ? "Indoors" : cond)}${f.temp != null ? ` · ${f.temp}°F` : ""}</span>`;
+};
 const select = (label, values, value, handler, locked = false) =>
   `<label>${label}<select aria-label="${label}" onchange="${handler}" ${locked ? "disabled" : ""}>${values.map((x) => `<option ${x === value ? "selected" : ""}>${x}</option>`).join("")}</select></label>`;
 export function installTouchlineUI({ isBusy }) {
@@ -292,7 +299,7 @@ export function installTouchlineUI({ isBusy }) {
         ? boardHTML()
         : tab === "Match centre"
           ? matchCentre(m)
-          : `<div class="touch-live-grid"><section class="touch-broadcast"><div class="touch-broadcast-heading"><span>${icon("play")} STADIUM FEED</span><b>${esc(state.franchise.clubs[m.a].stadium.name)}</b>${select("Weather", ["Clear", "Rain", "Wind"], m.weather || "Clear", "Touch.setting('weather',this.value)", locked())}</div><div class="match-controls touch-match-actions"><button class="touch-snap" onclick="snap()" ${disabled ? "disabled" : ""}>${icon("play")} ${animating ? "Play in motion…" : "Snap ball"}</button><button class="secondary" onclick="toggleAuto()" ${isBusy() || (animating && !autoTimer) || m.finished || m.halftime ? "disabled" : ""}>${autoTimer ? "Ⅱ Pause auto" : "Auto play"}</button><button class="secondary" onclick="timeout()" ${disabled || !m.timeouts[own] ? "disabled" : ""}>Timeout <small>${m.timeouts[own]} left</small></button><button class="secondary" onclick="Touch.lineup()" ${locked() ? "disabled" : ""}>${icon("users")} Replace</button></div><div class="touch-field-key">Colored jerseys: offense · White jerseys: defense | Blue: scrimmage | Yellow: first down</div>${visual}<div class="touch-feed-row"><div class="touch-coordinator"><span>${icon("briefcase")}</span><div><b>${esc(state.coach.name)} / SIDELINE</b><p>${esc(advice(m))}</p></div></div><div class="touch-booth"><div><b>THE BROADCAST BOOTH</b><button class="link" onclick="broadcast.toggle()">${window.broadcast?.director.enabled ? "Commentary on" : "Enable commentary"}</button><button class="link" onclick="broadcast.settings()">Voice settings</button></div><p id="broadcast-caption" aria-live="polite">${esc(m.commentary?.at(-1)?.text || "The teams are set. Make your call for the next snap.")}</p></div></div><div class="touch-mini-stats">${[
+          : `<div class="touch-live-grid"><section class="touch-broadcast"><div class="touch-broadcast-heading"><span>${icon("play")} STADIUM FEED</span><b>${esc(state.franchise.clubs[m.a].stadium.name)}</b>${weatherChip(m)}</div><div class="match-controls touch-match-actions"><button class="touch-snap" onclick="snap()" ${disabled ? "disabled" : ""}>${icon("play")} ${animating ? "Play in motion…" : "Snap ball"}</button><button class="secondary" onclick="toggleAuto()" ${isBusy() || (animating && !autoTimer) || m.finished || m.halftime ? "disabled" : ""}>${autoTimer ? "Ⅱ Pause auto" : "Auto play"}</button><button class="secondary" onclick="timeout()" ${disabled || !m.timeouts[own] ? "disabled" : ""}>Timeout <small>${m.timeouts[own]} left</small></button><button class="secondary" onclick="Touch.lineup()" ${locked() ? "disabled" : ""}>${icon("users")} Replace</button></div><div class="touch-field-key">Colored jerseys: offense · White jerseys: defense | Blue: scrimmage | Yellow: first down</div>${visual}<div class="touch-feed-row"><div class="touch-coordinator"><span>${icon("briefcase")}</span><div><b>${esc(state.coach.name)} / SIDELINE</b><p>${esc(advice(m))}</p></div></div><div class="touch-booth"><div><b>THE BROADCAST BOOTH</b><button class="link" onclick="broadcast.toggle()">${window.broadcast?.director.enabled ? "Commentary on" : "Enable commentary"}</button><button class="link" onclick="broadcast.settings()">Voice settings</button></div><p id="broadcast-caption" aria-live="polite">${esc(m.commentary?.at(-1)?.text || "The teams are set. Make your call for the next snap.")}</p></div></div><div class="touch-mini-stats">${[
               ["yards", "YARDS"],
               ["first", "FIRST DOWNS"],
               ["turnovers", "TURNOVERS"],
@@ -445,6 +452,7 @@ export function installTouchlineUI({ isBusy }) {
     if (!prior && state.live) {
       state.live.personnel = state.coach.personnel || "11";
       state.live.shell = state.coach.shell || "2-High";
+      state.live.weather = gameForecast(state, state.live)?.condition || "Clear";
       render();
     }
     return result;

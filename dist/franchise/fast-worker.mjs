@@ -1,3 +1,4 @@
+import { engineWeather } from "./weather.mjs";
 import { sortForLineup } from "./lineup.mjs";
 import { simulateExecution } from "../engine/execution.mjs";
 import {
@@ -33,6 +34,7 @@ export function simulateGame(job) {
           [0, 0],
         ],
         tempo: "Normal",
+        weather: job.weather || "Clear",
         stats: [
           { yards: 0, pass: 0, rush: 0, first: 0, turnovers: 0, plays: 0 },
           { yards: 0, pass: 0, rush: 0, first: 0, turnovers: 0, plays: 0 },
@@ -110,7 +112,7 @@ export function simulateGame(job) {
       front: !own ? m.defense || "Nickel" : "Nickel",
       personnel: own ? m.personnel || "11" : "11",
       shell: !own ? m.shell || "2-High" : "2-High",
-      weather: m.weather || "Clear",
+      weather: engineWeather(m.weather),
       offensePlayers: teams[m.poss],
       defensePlayers: teams[1 - m.poss],
       capture: false,

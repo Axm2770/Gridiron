@@ -1,3 +1,4 @@
+import { formatMessage } from "../ui/message-format.mjs";
 import { scorePill, previewAttributes, miniBio } from "./player-ui.mjs";
 import { playerAwards } from "./player-catalog.mjs";
 import * as S from "./state.mjs";
@@ -219,7 +220,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       pending = m.status === "pending",
       options = pending ? decisionOptions(m) : [],
       locked = isBusy() || state.live;
-    return `<article class="message-detail ib-msg"><div class="message-topline ib-msg-top">${badge(m.category)}${m.priority === "urgent" ? badge("Urgent", "danger") : m.priority === "important" ? badge("Important", "amber") : ""}<span>${messageTime(m)}</span><button class="icon-button ib-star ${m.bookmarked ? "positive" : ""}" aria-label="${m.bookmarked ? "Unsave" : "Save"} message" onclick="Office.bookmark('${m.id}')">${m.bookmarked ? "★" : "☆"}</button></div><h2>${esc(m.title)}</h2><div class="message-sender ib-sender">${senderAvatar(m, 44)}<span><b>${esc(m.source)}</b><small>To ${esc(state.coach.name)} · ${esc(state.franchise.role)}</small></span></div><p class="message-copy ib-copy">${esc(m.body)}</p>${
+    return `<article class="message-detail ib-msg"><div class="message-topline ib-msg-top">${badge(m.category)}${m.priority === "urgent" ? badge("Urgent", "danger") : m.priority === "important" ? badge("Important", "amber") : ""}<span>${messageTime(m)}</span><button class="icon-button ib-star ${m.bookmarked ? "positive" : ""}" aria-label="${m.bookmarked ? "Unsave" : "Save"} message" onclick="Office.bookmark('${m.id}')">${m.bookmarked ? "★" : "☆"}</button></div><h2>${esc(m.title)}</h2><div class="message-sender ib-sender">${senderAvatar(m, 44)}<span><b>${esc(m.source)}</b><small>To ${esc(state.coach.name)} · ${esc(state.franchise.role)}</small></span></div><div class="message-copy ib-copy">${formatMessage(m.body)}</div>${
       p
         ? `<div class="message-player ib-player">${playerLink(p, state.team)}<div class="ib-player-meter"><small>Morale</small>${meterBlocks(p.morale ?? 75)}<b>${num(p.morale, 0)}%</b></div><div class="ib-player-meter"><small>Trust</small>${meterBlocks(p.coachTrust ?? 60)}<b>${num(p.coachTrust ?? 60, 0)}%</b></div></div>`
         : m.playerId

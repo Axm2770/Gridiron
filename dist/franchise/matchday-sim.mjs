@@ -1,3 +1,4 @@
+import { gameForecast } from "./weather.mjs";
 import { recordDecision } from "./career-systems.mjs";
 import * as S from "./state.mjs";
 import { SIM_TARGETS, matchFingerprint } from "../engine/sim-targets.mjs";
@@ -23,6 +24,8 @@ export function roundJob(s, g, { live = null } = {}) {
         (s.franchise.postseason?.round || 0) * 991) >>>
       0,
     userTeam: s.team,
+    // Weather comes from the home stadium and the time of year (franchise/weather.mjs).
+    weather: gameForecast(s, g)?.condition || "Clear",
     directives: s.franchise.directives,
     // The play style applies to every simulated game, as the game plan promises.
     tactics: { style: s.coach?.style },

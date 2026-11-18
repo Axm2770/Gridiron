@@ -1,3 +1,4 @@
+import { engineWeather } from "./franchise/weather.mjs";
 import { sortForLineup } from "./franchise/lineup.mjs";
 import { simulateExecution, buildActors } from "./engine/execution.mjs";
 import { applyExecution } from "./engine/rules.mjs";
@@ -123,7 +124,7 @@ resolveSnap = function () {
     front: m.defense,
     personnel: m.personnel || "11",
     shell: m.shell || "2-High",
-    weather: m.weather || "Clear",
+    weather: engineWeather(m.weather),
     offensePlayers: grouped(own ? ours : theirs, team),
     defensePlayers: grouped(
       own ? theirs : ours,

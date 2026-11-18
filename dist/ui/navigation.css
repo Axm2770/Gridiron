@@ -229,3 +229,5 @@ aside #nav .nav-caret { width: 0; height: 0; border: 4px solid transparent; bord
 aside #nav .nav-group[open] > summary .nav-caret { border: 4px solid transparent; border-top-color: currentColor; border-bottom-width: 0; }
 aside.nav-tight .brand { display: none; }
 .breadcrumb-group { color: var(--gd-text-3, var(--muted)); }
+/* On Matchday during a live game the top-bar action becomes a status chip instead of "Return to game". */
+.continue-button.live-now { display: inline-flex; align-items: center; gap: 6px; cursor: default; background: transparent; color: var(--gd-bad, #ff5c5c); border: 2px solid currentColor; box-shadow: none; font-weight: 700; }

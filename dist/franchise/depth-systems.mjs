@@ -1,3 +1,4 @@
+import { gameForecast } from "./weather.mjs";
 // Depth systems: locker-room dilemmas, press-conference questions, the coaching tree and the
 // game-day strategy deck. DOM-free; callers wrap mutations in state.transact.
 import { random } from "../engine/random.mjs";
@@ -250,17 +251,20 @@ export function momentum(live, labels = []) {
 
 // Weather and crowd context for the game-day header. Noise rises with home fan sentiment.
 export function environment(s, live) {
-  const home = live?.a === s.team,
+  const fc = live && Number.isInteger(live.a) ? gameForecast(s, live) : null,
+    wx = live?.weather || fc?.condition || "Clear",
+    home = live?.a === s.team,
     pulse = socialPulse(s),
     crowd = clamp(Math.round(home ? 60 + pulse.fanScore * 0.35 : 70 + ((s.year * 31 + (live?.a ?? 0)) % 25)), 40, 100),
     noise = home ? 0 : Math.round((crowd - 60) / 8) * (hasPerk(s, "road-warrior") ? 0.5 : 1);
   return {
-    weather: live?.weather || "Clear",
+    weather: wx,
+    forecast: fc,
     crowd,
     hostile: !home && crowd >= 80,
     // Communication penalty is advisory: it recommends silent counts/quick game rather than changing the dice.
     communication: noise >= 3 ? "Silent count recommended" : noise >= 1 ? "Elevated noise" : "Normal",
-    windAdvice: live?.weather === "Wind" ? "Favor short passing and the run" : live?.weather === "Rain" ? "Ball security and inside runs" : null,
+    windAdvice: wx === "Wind" ? "Favor short passing and the run" : wx === "Rain" ? "Ball security and inside runs" : wx === "Snow" ? "Footing and ball security: lean on the run" : null,
   };
 }
 
