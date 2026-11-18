@@ -117,10 +117,13 @@ export function combineSceneSVG(d) {
     const g = grid(),
       t = (forty * i) / (n - 1),
       last = i === n - 1;
+    // Each tick paints the board's own background, so a lingering earlier frame can never show through.
+    g.rect(107, 9, 48, 13, "#05070b");
     centre(g, fmtT(t), 131, 10, last ? GOLD : "#ff5a4f", 2);
     frames += lay(g, `cer-f${last ? " cer-keep" : ""}`, last ? stay(end) : i === 0 ? on(0, t0 + run / (n - 1)) : on(t0 + (run * i) / (n - 1), run / (n - 1)));
   }
   const splitG = grid();
+  splitG.rect(5, 9, 38, 13, "#05070b");
   centre(splitG, fmtT(split), 24, 10, GOLD, 2);
   const official = grid();
   official.rect(106, 24, 50, 7, RED);
@@ -391,14 +394,14 @@ SCENE_BUILDERS.Combine = (e) => {
     name: e.playerName,
     kicker: `${e.classYear || ""} Scouting Combine`.trim(),
     headline: String(e.playerName || "").toUpperCase(),
-    sub: `${e.pos}${e.college ? " · " + e.college : ""} — ${bits.join(" · ")}`,
+    sub: [e.pos, e.college].filter(Boolean).join(" · ") + (bits.length ? " — " + bits.join(" · ") : ""),
     teamName: e.mine ? "On your watchlist" : "Draft class",
     city: "",
     lines: [
-      `${e.pos}${e.college ? " · " + e.college : ""} · ${e.mine ? "on your watchlist" : "the headline act"} steps into the blocks.`,
-      Number.isFinite(dr.forty) ? `${dr.forty.toFixed(2)} in the 40, with a ${Number.isFinite(dr.split) ? dr.split.toFixed(2) : "--"} split.` : "He skipped the 40.",
+      `${e.pos ? e.pos + (e.college ? " · " + e.college : "") + " · " : ""}${e.mine ? "On your watchlist, he" : "The headline act"} steps into the blocks.`,
+      Number.isFinite(dr.forty) ? `${dr.forty.toFixed(2)} in the 40, with a ${Number.isFinite(dr.split) ? dr.split.toFixed(2) : "--"} split.` : "The workout opens with the 40.",
       Number.isFinite(dr.bench) ? `Bench press: ${dr.bench} reps at 225 pounds.` : "No bench press today.",
-      Number.isFinite(dr.vertical) ? `Vertical jump: ${dr.vertical} inches. Athletic score ${Number(e.score ?? 0).toFixed(1)}.` : `Athletic score ${Number(e.score ?? 0).toFixed(1)}.`,
+      [Number.isFinite(dr.vertical) ? `Vertical jump: ${dr.vertical} inches.` : "Then the vertical jump.", Number.isFinite(Number(e.score)) && e.score !== null && e.score !== "" ? `Athletic score ${Number(e.score).toFixed(1)}.` : ""].filter(Boolean).join(" "),
     ],
     svg: () => combineSceneSVG({ ...e, name: e.playerName }),
   };
@@ -431,6 +434,22 @@ SCENE_BUILDERS.Honors = (e, s, base) => {
     svg: () => honorsSceneSVG({ ...base, ...e, winnerName, winnerAbbr: wl.abbr, winnerColors: teamColors(winnerTeam, s), coachLook: coachLook(s, base.team) }),
   };
 };
+
+// Previews (dev panel, Cinematics.preview) and damaged events arrive without data: fill sensible
+// defaults so captions never print "undefined" or "NaN".
+for (const [kind, defaults] of Object.entries({
+  Combine: (s) => ({ playerName: "Top prospect", classYear: s?.year ?? "" }),
+  HallOfFame: (s) => ({ playerName: "The inductee", pos: "Legend", classYear: s?.year ?? "" }),
+  Honors: (s) => ({ awardName: "Most Valuable Player", winnerName: "This year's winner", finalistName: "Your finalist", seasonYear: s?.year ?? "" }),
+})) {
+  const build = SCENE_BUILDERS[kind];
+  if (!build) continue;
+  SCENE_BUILDERS[kind] = (e = {}, s, base) => {
+    const d = defaults(s), filled = { ...e };
+    for (const [k, v] of Object.entries(d)) if (filled[k] === undefined || filled[k] === null || filled[k] === "") filled[k] = v;
+    return build(filled, s, base);
+  };
+}
 
 /* --------------------------------------------------------- feature visuals */
 
