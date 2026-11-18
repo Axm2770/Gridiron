@@ -8,6 +8,8 @@ import {
   resolveBoardDecision,
   ensureSeasonExpectations,
 } from "./board-meetings.mjs";
+// Article data, milestones and league-calendar events (news-articles.mjs; functions only).
+import { matchData, milestoneStories, leagueEventStories } from "./news-articles.mjs";
 const clamp = (n, a = 0, b = 99) => Math.max(a, Math.min(b, n));
 const hash = (s) => {
   let h = 2166136261;
@@ -567,6 +569,7 @@ export function syncOffice(s) {
     });
     o.outlookYear = s.year;
   }
+  for (const [key, item] of leagueEventStories(s)) postStory(s, key, item);
   o.eventKeys ??= [];
   for (const e of [...(s.franchise.events || [])].reverse().slice(-65)) {
     if (e.title === "Weekly review" || e.kind === "league-move") continue;
@@ -686,6 +689,8 @@ export function syncOffice(s) {
             title: `Availability watch: ${p.name}`,
             body: `The player is unavailable with ${p.medical?.diagnosis || "an injury"}. The staff will manage recovery and reassess his workload.`,
             category: "Medical",
+            kind: "injury",
+            data: { playerId: p.id, diagnosis: p.medical?.diagnosis || "an injury", weeks: p.injury, part: p.medical?.bodyPart || p.medical?.part || null },
             playerId: p.id,
             messageId: m?.id,
             source: "Team communications",
@@ -763,6 +768,9 @@ export function processNewsRound(s, results, roundKey) {
     });
     postStory(s, "match-" + roundKey, {
       ...matchStory(s, ours, i, roundKey),
+      kind: "match",
+      otherTeam: i === 0 ? ours.b : ours.a,
+      data: matchData(s, ours, i, roundKey),
       category: "Team",
       source: "Sunday Review",
     });
@@ -797,9 +805,23 @@ export function processNewsRound(s, results, roundKey) {
       otherTeam: r.b,
       category: "League",
       ...leagueStory(s, r, `${roundKey}-${i}`),
+      kind: "result",
+      data: matchData(s, r, 0, roundKey),
       source: "League desk",
       route: "League",
     });
+  // Milestones crossed this round. Club, coach and record stories always run; player milestones
+  // are capped (three for your club and followed clubs, yours first; two from around the league)
+  // so results and features still lead the paper.
+  const followed = new Set([s.team, ...o.followedTeams]),
+    milestones = milestoneStories(s, results, roundKey),
+    isPlayer = ([, x]) => ["player", "season", "games"].includes(x.data?.type),
+    near = milestones
+      .filter((m) => isPlayer(m) && followed.has(m[1].team))
+      .sort(([, x], [, y]) => (y.team === s.team) - (x.team === s.team))
+      .slice(0, 3),
+    far = milestones.filter((m) => isPlayer(m) && !followed.has(m[1].team)).slice(0, 2);
+  for (const [key, item] of [...milestones.filter((m) => !isPlayer(m)), ...near, ...far]) postStory(s, key, item);
   const training = s.roster
       .filter((p) => p.progression?.lastReport?.year === year)
       .sort(
@@ -826,7 +848,7 @@ export function processNewsRound(s, results, roundKey) {
     // Story-only features fill the weeks without a decision, so the feed is not just results.
     if (type === 0 || type === 3 || type === 5) {
       const feature = featureStory(s, p, type, roundKey);
-      if (feature) postStory(s, key, { ...feature, category: "Players", playerId: feature.playerId ?? p.id, source: feature.source || "Gridiron Journal" });
+      if (feature) postStory(s, key, { ...feature, kind: "player", category: "Players", playerId: feature.playerId ?? p.id, source: feature.source || "Gridiron Journal" });
     }
     if (type === 1) {
       applyMood(s, {
