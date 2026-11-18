@@ -95,6 +95,8 @@ export const ROUTE_ALIASES = {
   Awards: ["Records", "Awards"],
   // Next Generation was folded into the Draft room; old inbox links and bookmarks land there.
   "Next generation": ["Draft"],
+  // "Squad" is the sidebar label for the Roster route.
+  Squad: ["Roster"],
   // The league-wide move log lives on the League snapshot.
   Transactions: ["League desk", "Transactions"],
 };

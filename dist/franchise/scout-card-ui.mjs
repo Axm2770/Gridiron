@@ -9,7 +9,7 @@ import { scoutedTradeValue, pickEquivalent, marketWindows, depthRank, marketValu
 import { offerBlockers } from "./contracts.mjs";
 import { positionalNeed } from "./recruiting-pipeline.mjs";
 import { onTheClock } from "./draft-room.mjs";
-import { playerFace } from "./player-ui.mjs";
+import { pixelFace } from "../ui/pixel-face.mjs";
 
 const e = K.escapeHTML;
 const STARTERS = { QB: 1, RB: 1, WR: 3, TE: 1, OL: 5, DL: 4, LB: 3, CB: 3, S: 2, K: 1, P: 1 };
@@ -30,11 +30,21 @@ export function teamFit(s, p, view) {
 }
 
 const action = (label, onclick, block, primary = false) =>
-  `<div class="scout-action"><button class="gd-btn ${primary ? "gd-primary" : ""}" ${block ? "disabled" : ""} onclick="${e(onclick)}">${e(label)}</button>${block ? `<small><b>${e(block.reason)}</b>${block.fix ? ` ${e(block.fix)}` : ""}</small>` : ""}</div>`;
+  `<div class="scout-action sc-act"><button class="${primary ? "" : "secondary"}" ${block ? "disabled" : ""} onclick="${e(onclick)}">${e(label)}</button>${block ? `<small><b>${e(block.reason)}</b>${block.fix ? ` ${e(block.fix)}` : ""}</small>` : ""}</div>`;
+// A rating as 12 pixel blocks: solid up to what is certain, hatched across the scouted range.
+const rangeBar = (lo, hi, n = 12) => {
+  const a = Math.round((lo / 99) * n),
+    b = Math.max(a, Math.round((hi / 99) * n));
+  return `<span class="sc-range" aria-hidden="true">${Array.from({ length: n }, (_, i) => `<i class="${i < a ? "on" : i < b ? "fog" : ""}"></i>`).join("")}</span>`;
+};
+const loadStyles = () => {
+  if (typeof document !== "undefined" && typeof document.querySelector === "function" && !document.querySelector('link[href="people.css"]'))
+    document.head?.insertAdjacentHTML?.("beforeend", '<link rel="stylesheet" href="people.css">');
+};
 
 export function scoutCardHTML(s, id) {
   const where = locate(s, id);
-  if (!where) return `<div class="scout-card"><p>This player is no longer in the league.</p><button class="gd-btn" onclick="closeModal()">Close</button></div>`;
+  if (!where) return `<div class="scout-card sc-card"><p class="pp-none">This player is no longer in the league.</p><div class="sc-actions"><button onclick="closeModal()">Close</button></div></div>`;
   const { p, team } = where,
     own = team === s.team,
     view = scoutRange(s, p, team),
@@ -85,10 +95,13 @@ export function scoutCardHTML(s, id) {
   if (own) actions.push(action("Open contract", `closeModal();F.contract('${id}')`, null));
   const win = team === -2 ? windows.draft : team === -1 ? windows.freeAgency : own ? null : windows.trade,
     winName = team === -2 ? "Draft" : team === -1 ? "Free agency" : "Trades";
-  return `<div class="scout-card"><header>${playerFace(p)}<div><span class="gd-eyebrow">SCOUTING REPORT · ${e(clubLabel(team))}</span><h2>${e(p.name)}</h2><p>${e(p.pos)} · ${p.age} yrs${p.college ? ` · ${e(p.college)}` : ""}${team >= 0 && !own ? ` · ${e(teamMode(s, team))} club` : ""}</p>${knowledge}</div><button class="icon-button" onclick="closeModal()" aria-label="Close scouting report">×</button></header>${K.stats(stats)}${win ? `<p class="scout-window ${win.open ? "open" : "closed"}"><b>${winName}: ${e(win.status)}.</b> ${e(win.detail)}</p>` : ""}<div class="scout-attrs">${attrs.map((a) => `<div><span>${e(attrName(a.key))}</span><b class="${a.value == null ? "ops-fogged" : ""}">${a.value ?? range([a.lo, a.hi])}</b></div>`).join("") || "<p>No attribute grades recorded.</p>"}</div><div class="scout-actions">${actions.join("")}</div><p class="scout-note">${view.exact ? "These are his true ratings." : `Ranges always contain his true ratings. Each report adds about ${35}% confidence; at 100% you see the real numbers. Trade estimates use these ranges.`}</p></div>`;
+  const conf = Math.round(view.confidence ?? 100),
+    tile = ([label, value, sub]) => `<div class="sc-tile"><small>${e(label)}</small><b>${e(value)}</b><span>${e(sub)}</span></div>`;
+  return `<div class="scout-card sc-card"><div class="sc-card-head">${pixelFace(p, { size: 72, team: team >= 0 ? team : null })}<div class="sc-card-id"><span class="pp-kicker">SCOUTING REPORT · ${e(clubLabel(team).toUpperCase())}</span><h2>${e(p.name)}</h2><p><em class="pp-pos">${e(p.pos)}</em>${p.age} yrs${p.college ? ` · ${e(p.college)}` : ""}${team >= 0 && !own ? ` · ${e(teamMode(s, team))} club` : ""}</p>${knowledge}</div><div class="sc-card-ovr ${view.exact ? "" : "fog"}"><b>${e(view.label)}</b><small>OVR</small><span class="sc-card-conf"><span class="pp-blocks ${conf >= 100 ? "good" : conf >= 50 ? "" : "warn"}">${Array.from({ length: 10 }, (_, i) => `<i class="${i < Math.round(conf / 10) ? "on" : ""}"></i>`).join("")}</span>${conf}% known</span></div><button class="icon-button sc-x" onclick="closeModal()" aria-label="Close scouting report">×</button></div><div class="sc-card-tiles">${stats.slice(1).map(tile).join("")}</div>${win ? `<p class="scout-window sc-window ${win.open ? "open" : "closed"}"><i></i><b>${winName}: ${e(win.status)}.</b> ${e(win.detail)}</p>` : ""}<div class="sc-card-body"><span class="pp-label">Graded attributes <small>${view.exact ? "true ratings" : "hatched = still uncertain"}</small></span><div class="scout-attrs sc-attrs">${attrs.map((a) => `<div><span>${e(attrName(a.key))}</span>${a.value != null ? rangeBar(a.value, a.value) : rangeBar(a.lo, a.hi)}<b class="${a.value == null ? "ops-fogged fog" : ""}">${a.value ?? range([a.lo, a.hi])}</b></div>`).join("") || '<p class="pp-none">No attribute grades recorded.</p>'}</div></div><div class="scout-actions sc-actions">${actions.join("")}</div><p class="scout-note sc-note">${view.exact ? "These are his true ratings." : `Ranges always contain his true ratings. Each report adds about 35% confidence; at 100% you see the real numbers. Trade estimates use these ranges.`}</p></div>`;
 }
 
 export function installScoutCard({ isBusy }) {
+  loadStyles();
   let open = null;
   const show = (id) => {
     open = id;

@@ -78,8 +78,12 @@ export function efficiency(s, p) {
 
 // Summary of the planned week. Intensity is the mean of non-off days, mapped to 0–100.
 export function weekPlan(s) {
-  const t = ensureTraining(s),
-    blocks = t.schedule.map((b) => BLOCKS[b] ?? BLOCKS.Off),
+  return summarizeSchedule(ensureTraining(s).schedule);
+}
+
+// The same summary for any six-day schedule (read-only; the planner previews "what if" changes).
+export function summarizeSchedule(schedule) {
+  const blocks = schedule.map((b) => BLOCKS[b] ?? BLOCKS.Off),
     working = blocks.filter((b) => b.intensity > 0),
     sum = (k) => blocks.reduce((n, b) => n + b[k], 0);
   return {
@@ -142,6 +146,13 @@ export function changePosition(s, playerId, to) {
   return p;
 }
 
+// Familiarity and readiness after a week of `plan`, from the current levels. Shared by the weekly
+// tick and the planner's projection, so the screen shows exactly what the week will do.
+export function nextLevels(t, plan) {
+  const familiarity = clamp(Math.round(t.familiarity * 0.92 + plan.familiarity), 20, 100);
+  return { familiarity, readiness: clamp(Math.round(40 + plan.readiness * 2 + (familiarity - 50) * 0.3 - Math.max(0, plan.fatigue) * 0.6), 10, 100) };
+}
+
 const gain = (rng, base) => Math.round(base * (0.6 + rng() * 0.8) * 1000) / 1000;
 
 // Once per settled round: familiarity/readiness, drill and individual attribute growth,
@@ -152,8 +163,7 @@ export function processTrainingWeek(s, roundKey) {
   t.seen.push(roundKey);
   t.seen = t.seen.slice(-200);
   const plan = weekPlan(s);
-  t.familiarity = clamp(Math.round(t.familiarity * 0.92 + plan.familiarity), 20, 100);
-  t.readiness = clamp(Math.round(40 + plan.readiness * 2 + (t.familiarity - 50) * 0.3 - Math.max(0, plan.fatigue) * 0.6), 10, 100);
+  Object.assign(t, nextLevels(t, plan));
   s.franchise.preparation.familiarity = t.familiarity;
   const grew = [];
   for (const p of s.roster) {
