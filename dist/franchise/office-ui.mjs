@@ -13,13 +13,9 @@ import {
 import {
   STAT_VIEWS,
   seasonStats,
-  statRows,
   statValue,
-  teamReport,
-  leagueBenchmarks,
   csvText,
 } from "./analysis.mjs";
-import { effectiveAttributes } from "./ratings.mjs";
 import { faceSVG } from "./newgens.mjs";
 import { icon, searchKey } from "./presentation.mjs";
 import { rosterLimit } from "./blockers.mjs";
@@ -28,6 +24,15 @@ import { storyArt } from "../presentation/pixel-art.mjs";
 import { heightInches } from "./player-catalog.mjs";
 import { SQUAD_SORTS, SQUAD_SORT_MENU, defaultDirection, compareSquad } from "./squad-sort.mjs";
 import { installLineupUI } from "./lineup-ui.mjs";
+import {
+  analysisView,
+  statisticsView,
+  statisticsResults,
+  statisticsRows,
+  compareBody,
+  comparePickList,
+  compareTray,
+} from "./analysis-ui.mjs";
 const fmtBio = (n) => Number(n).toLocaleString("en-US");
 const num = (n, d = 1) =>
   Number.isFinite(n)
@@ -76,6 +81,9 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       query: "",
       sort: null,
       direction: -1,
+      club: "All",
+      pos: "All",
+      page: 0,
     },
     squad = {
       query: "",
@@ -86,7 +94,8 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     },
     selected = [],
     settingsTab = "Interface",
-    analysisTab = "Performance";
+    analysisTab = "Performance",
+    compareQuery = "";
   const office = () => ensureOffice(state);
   const mutate = (fn) => {
     if (isBusy()) {
@@ -266,60 +275,23 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     ]
       .sort((a, b) => b - a)
       .concat("Career");
-  function statTableRows() {
-    return (
-      statRows(state, stats)
-        .slice(0, 160)
-        .map(
-          ({ p, team, stats: s }, i) =>
-            `<tr><td class="muted">${i + 1}</td><td>${playerLink(p, team)}</td>${STAT_VIEWS[stats.category].map(([key]) => `<td class="numeric">${num(statValue(s, key, stats.mode), key === "growth" ? 2 : 1)}</td>`).join("")}<td><button class="compare-toggle ${selected.some((x) => x.id === p.id) ? "active" : ""}" onclick="Office.compareToggle('${p.id}',${team})" aria-label="Compare ${esc(p.name)}">${selected.some((x) => x.id === p.id) ? "✓" : "＋"}</button></td></tr>`,
-        )
-        .join("") ||
-      `<tr><td colspan="12" class="office-empty">No matching players with this sample. Reduce the minimum snaps filter.</td></tr>`
-    );
-  }
+  // Statistics and comparison rendering lives in analysis-ui.mjs; this file keeps the state.
   views.Statistics = () => {
     if (!statYears().map(String).includes(String(stats.year)))
       stats.year = state.year;
     stats.team = state.team;
-    const count = statRows(state, stats).length;
-    return `${metrics([
-      ["Data scope", "This save", "Simulated production only"],
-      [
-        "Season",
-        stats.year,
-        stats.year === "Career"
-          ? "All recorded save seasons"
-          : "Current and completed games",
-      ],
-      [
-        "Matching players",
-        `<span id="stats-match-count">${num(count, 0)}</span>`,
-        "First 160 shown",
-      ],
-      ["Display", stats.mode, "Efficiency columns retain their units"],
-    ])}<div class="office-tabs stats-tabs">${Object.keys(STAT_VIEWS)
-      .map(
-        (c) =>
-          `<button class="${c === stats.category ? "active" : ""}" onclick="Office.statFilter('category','${c}')">${c}</button>`,
-      )
-      .join(
-        "",
-      )}</div><section class="panel"><div class="office-filters"><label>Scope<select aria-label="Statistics scope" onchange="Office.statFilter('scope',this.value)">${opts(["My team", "League"], stats.scope)}</select></label><label>Season<select aria-label="Statistics season" onchange="Office.statFilter('year',this.value)">${opts(statYears(), stats.year)}</select></label><label>Display<select aria-label="Statistics display" onchange="Office.statFilter('mode',this.value)">${opts(["Totals", "Per 100 snaps"], stats.mode)}</select></label><label>Minimum snaps<select aria-label="Minimum snaps" onchange="Office.statFilter('minimum',Number(this.value))">${opts([0, 25, 100, 250], stats.minimum)}</select></label><div class="table-search">${icon("search")}<input type="search" aria-label="Search statistics" placeholder="Find a player…" value="${esc(stats.query)}" oninput="Office.searchStats(this.value)"></div><button class="secondary small" onclick="Office.exportStats()">Export CSV</button></div><div class="scroll"><table class="office-data-table"><thead><tr><th>#</th><th>Player</th>${STAT_VIEWS[stats.category].map(([key, label]) => `<th aria-sort="${stats.sort === key ? (stats.direction === -1 ? "descending" : "ascending") : "none"}"><button onclick="Office.statSort('${key}')">${label} ${stats.sort === key ? (stats.direction === -1 ? "↓" : "↑") : ""}</button></th>`).join("")}<th>Compare</th></tr></thead><tbody id="stats-rows">${statTableRows()}</tbody></table></div><div class="office-table-note">${stats.mode === "Per 100 snaps" ? "Counting stats are scaled to 100 recorded snaps. Rate columns (Cmp %, Y/A, Y/C, Y/Rec) retain their original units." : "Click a column to sort. — means no recorded value or no valid denominator."} Snaps can include special teams. Older saves may have incomplete player records. ${stats.category === "Defense" ? "The engine currently records tackles and sacks; untracked defensive metrics are omitted." : ""}</div></section>${comparisonTray()}`;
+    return statisticsView(stats, {
+      years: statYears(),
+      selected,
+      tray: comparisonTray(),
+    });
   };
   const comparable = (id, t) => S.roster(state, t).find((p) => p.id === id);
   function comparisonTray() {
     selected = selected.filter((x) => comparable(x.id, x.team));
-    return selected.length
-      ? `<div class="comparison-tray"><span>COMPARE <b>${selected.length} / 3</b></span>${selected
-          .map((x) => {
-            const p = comparable(x.id, x.team);
-            return `<button class="compare-chip" onclick="Office.compareToggle('${x.id}',${x.team})">${esc(p.name)} ×</button>`;
-          })
-          .join(
-            "",
-          )}<button onclick="Office.compare()" ${selected.length < 2 ? "disabled" : ""}>Compare players →</button><button class="link" onclick="Office.clearCompare()">Clear</button></div>`
-      : "";
+    return compareTray(
+      selected.map((x) => ({ p: comparable(x.id, x.team), team: x.team })),
+    );
   }
   const pref = () => viewPrefs();
   const squadList = () =>
@@ -508,79 +480,9 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       .join(
         "",
       )}</select></label><button class="secondary small" aria-label="Reverse squad sort" onclick="Office.squadReverse()">${squad.direction === -1 ? (["name", "pos", "college"].includes(squad.sort) ? "↓ Z–A" : "↓ Highest first") : ["name", "pos", "college"].includes(squad.sort) ? "↑ A–Z" : "↑ Lowest first"}</button></div><div id="squad-view-content">${squadContent()}</div><div class="office-table-note" id="squad-view-count">${squadList().length} of ${state.roster.length} players · Views and tracked players are saved with this career.</div></section>`}${comparisonTray()}`;
-  function teamBars(r, b) {
-    return [
-      ["Points / game", r.ppg, b.ppg],
-      ["Points allowed / game", r.allowed, b.allowed],
-      ["Squad morale", r.morale, b.morale],
-      ["Training grade", r.training, b.training],
-    ]
-      .map(([label, v, l]) => {
-        const max = Math.max(v || 0, l || 0, 1);
-        return `<div class="benchmark-row"><div><b>${label}</b><span>${num(v)} <small>vs ${num(l)} league mean</small></span></div><div class="benchmark-bars"><i style="width:${v === null ? 0 : (v / max) * 100}%"></i><b style="width:${l === null ? 0 : (l / max) * 100}%"></b></div></div>`;
-      })
-      .join("");
-  }
   views.Analysis = () => {
-    const r = teamReport(state),
-      b = leagueBenchmarks(state),
-      injured = r.roster.filter((p) => p.injury),
-      unsettled = r.roster.filter((p) => p.morale < 60),
-      last = r.played.slice(-6),
-      op = game(),
-      opp = op ? teamReport(state, op.a === state.team ? op.b : op.a) : null;
-    const trends = last.length
-      ? `<div class="results-chart">${last.map((g) => `<div class="result-column"><div><i style="height:${Math.max(4, (g.for / Math.max(1, ...last.flatMap((x) => [x.for, x.against]))) * 120)}px" title="Scored ${g.for}"></i><b style="height:${Math.max(4, (g.against / Math.max(1, ...last.flatMap((x) => [x.for, x.against]))) * 120)}px" title="Allowed ${g.against}"></b></div><strong>${g.for}–${g.against}</strong><small>W${g.week} · ${esc(clubs[g.opponent][0])}</small></div>`).join("")}</div>`
-      : '<div class="office-empty">Your first completed game will begin this chart.</div>';
-    const mood = office().moodHistory.slice(0, 8);
-    const body =
-      analysisTab === "Performance"
-        ? `<div class="analysis-grid">${panel("Your team against the league", teamBars(r, b), badge(r.games + " games"))}${panel("Recent results", trends + '<p class="chart-key"><i></i> Scored <b></b> Allowed</p>')}</div>${panel("Your next opponent", opp ? `<div class="opposition-report">${logo(opp.team)}<div><h3>${esc(cname(opp.team))}</h3><p>${opp.games} games · ${num(opp.ppg)} points/game · ${num(opp.allowed)} allowed/game</p></div><button class="secondary" onclick="W.open('Game plan')">Prepare tactics →</button></div><p class="muted">${opp.games < 3 ? "Small sample: fewer than three games. Use roster quality and availability alongside these results." : "Scoring trends are descriptive. Opponent quality and game situation affect these figures."}</p>` : "No fixture scheduled. Use the offseason to address the squad.")}`
-        : analysisTab === "Workload"
-          ? `<div class="analysis-grid">${panel(
-              "Availability watch",
-              injured.length
-                ? injured
-                    .slice(0, 8)
-                    .map(
-                      (p) =>
-                        `<div class="analysis-player-row">${playerLink(p, state.team)}<span>${p.injury}w <small>${esc(p.medical?.bodyPart || "Injury")}</small></span><button class="link" onclick="Dev.player('${p.id}')">Rehab →</button></div>`,
-                    )
-                    .join("")
-                : "<p>No current injuries.</p>",
-            )}${panel(
-              "Training & recovery",
-              r.roster
-                .filter(
-                  (p) =>
-                    p.progression?.load === "Intensive" ||
-                    (p.fitness ?? 100) < 75,
-                )
-                .slice(0, 8)
-                .map(
-                  (p) =>
-                    `<div class="analysis-player-row">${playerLink(p, state.team)}<span>${num(p.fitness, 0)}% <small>${esc(p.progression?.load || "Normal")} load</small></span><button class="link" onclick="Dev.player('${p.id}')">Plan →</button></div>`,
-                )
-                .join("") || "<p>No low-condition or intensive-load flags.</p>",
-            )}</div>`
-          : `<div class="analysis-grid">${panel(
-              "Relationship watch",
-              unsettled.length
-                ? unsettled
-                    .slice(0, 8)
-                    .map(
-                      (p) =>
-                        `<div class="analysis-player-row">${playerLink(p, state.team)}<span class="negative">${num(p.morale, 0)}%<small>${num(p.coachTrust ?? 60, 0)}% trust</small></span><button class="link" onclick="Office.morale('${p.id}')">Why? →</button></div>`,
-                    )
-                    .join("")
-                : "<p>No players below 60% morale.</p>",
-            )}${panel("Why the room changed", mood.length ? mood.map((e) => `<div class="mood-event"><span>${e.year} · W${e.week + 1}</span><b>${esc(e.reason)}</b><small>${e.changes.map((c) => esc(c.name) + " " + sign(c.delta)).join(" · ") || "No direct morale change"}</small></div>`).join("") : "<p>News reactions and responses will be recorded here.</p>")}</div>`;
-    return `${metrics([
-      ["Scoring", num(r.ppg), "Points per game"],
-      ["Defensive scoring", num(r.allowed), "Points allowed per game"],
-      ["Squad morale", num(r.morale, 0) + "%", "Roster average"],
-      ["Available", r.available, "Healthy active/elevated players"],
-    ])}<div class="office-tabs stats-tabs">${["Performance", "Workload", "Dynamics"].map((v) => `<button class="${analysisTab === v ? "active" : ""}" onclick="Office.analysis('${v}')">${v}</button>`).join("")}</div>${body}<p class="fiction-note">— indicates no recorded sample. Scoring benchmarks use regular-season games; player production includes all recorded games.</p>`;
+    selected = selected.filter((x) => comparable(x.id, x.team));
+    return analysisView({ tab: analysisTab, selected, query: compareQuery });
   };
   function settingsInterface() {
     return `<div class="settings-section"><h3>Make the workspace yours.</h3><p>Display preferences apply on this device. Career decisions remain part of each save.</p><label class="settings-row"><span><b>Pixel theme</b><small>Square pixel panels, hard shadows and a pixel-art field with clear, readable text. Off restores the classic look.</small></span><input type="checkbox" aria-label="Pixel theme" ${document.body.classList.contains("gd-pixel") ? "checked" : ""} onchange="Office.pixel(this.checked)"></label><label class="settings-row"><span><b>Table density</b><small>More space or more players on screen.</small></span><select aria-label="Interface density" onchange="Office.density(this.value)">${opts(["comfortable", "compact"], document.body.dataset.density || "comfortable")}</select></label><label class="settings-row"><span><b>Reduce scene motion</b><small>Quieter cutscenes and static interface transitions.</small></span><input type="checkbox" aria-label="Reduce scene motion" ${document.body.classList.contains("reduce-motion") ? "checked" : ""} onchange="Office.motion(this.checked)"></label><div class="settings-row"><span><b>Keyboard shortcuts</b><small>⌘K / Ctrl+K opens global player and screen search. Escape closes dialogs.</small></span><button class="secondary" onclick="W.command()">Open search</button></div></div>`;
@@ -732,23 +634,41 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     },
     statFilter(k, v) {
       stats[k] = v;
-      if (k === "category") stats.sort = null;
+      if (k === "category") {
+        stats.sort = null;
+        stats.pos = "All";
+      }
+      if (k === "scope" && v !== "League") stats.club = "All";
+      stats.page = 0;
       render();
     },
     statSort(k) {
       stats.direction = stats.sort === k ? -stats.direction : -1;
       stats.sort = k;
+      stats.page = 0;
+      render();
+    },
+    statPage(d) {
+      stats.page = Math.max(0, (stats.page || 0) + d);
       render();
     },
     searchStats(v) {
       stats.query = v;
-      document.getElementById("stats-rows").innerHTML = statTableRows();
-      const count = document.getElementById("stats-match-count");
-      if (count) count.textContent = num(statRows(state, stats).length, 0);
+      stats.page = 0;
+      // Update the results in place so the search box keeps focus.
+      const res = statisticsResults(stats, selected),
+        set = (id, html) => {
+          const el = document.getElementById(id);
+          if (el) el.innerHTML = html;
+        };
+      set("stats-rows", res.body);
+      set("st-pager", res.pager);
+      set("st-podium", res.podium);
+      set("stats-match-count", num(res.count, 0));
     },
     exportStats() {
       const columns = STAT_VIEWS[stats.category],
-        rows = statRows(state, stats);
+        rows = statisticsRows(stats);
       const content = csvText(
         ["Player", "Team", "Position", ...columns.map((c) => c[1])],
         rows.map(({ p, team, stats: s }) => [
@@ -818,6 +738,12 @@ export function installOfficeUI({ views, isBusy, getSection }) {
         return;
       }
       render();
+      // Keep an open comparison dialog in step with the selection.
+      const dlg = document.getElementById("modal");
+      if (dlg?.open && dlg.classList.contains("compare-dialog")) {
+        if (selected.length >= 2) window.Office.compare();
+        else closeModal();
+      }
     },
     clearCompare() {
       selected = [];
@@ -828,56 +754,15 @@ export function installOfficeUI({ views, isBusy, getSection }) {
         .map((x) => ({ p: comparable(x.id, x.team), team: x.team }))
         .filter((x) => x.p);
       if (rows.length < 2) return;
-      const roleKeys = {
-        QB: [
-          "throwPower",
-          "throwAccuracyShort",
-          "throwAccuracyMid",
-          "throwAccuracyDeep",
-        ],
-        RB: ["carrying", "breakTackle", "catching"],
-        WR: ["catching", "shortRouteRunning"],
-        TE: ["catching", "shortRouteRunning", "runBlock"],
-        OL: ["runBlock", "passBlock"],
-        DL: ["tackle"],
-        LB: ["tackle", "zoneCoverage"],
-        CB: ["manCoverage", "zoneCoverage", "tackle"],
-        S: ["manCoverage", "zoneCoverage", "tackle"],
-        K: ["kickPower", "kickAccuracy"],
-        P: ["kickPower", "kickAccuracy"],
-      };
-      const attrs = [
-        ...new Set([
-          "speed",
-          "acceleration",
-          "strength",
-          "awareness",
-          "stamina",
-          ...rows.flatMap(({ p }) => roleKeys[p.pos] || []),
-        ]),
-      ];
       modal(
-        `<div class="comparison-modal"><div class="drawer-top"><span>PLAYER COMPARISON</span><button class="icon-button" onclick="closeModal()" aria-label="Close comparison">×</button></div><div class="compare-players" style="--compare-count:${rows.length}">${rows.map(({ p, team }) => `<div>${avatar(p)}<h3>${esc(p.name)}</h3><p>${esc(clubs[team][0])} · ${esc(p.realPosition || p.pos)} · ${p.age}</p><b>${p.ovr} <small>OVR</small></b></div>`).join("")}</div><div class="scroll"><table class="office-data-table"><thead><tr><th>Attribute</th>${rows.map(({ p }) => `<th>${esc(p.name.split(" ").at(-1))}</th>`).join("")}</tr></thead><tbody>${[
-          ["Potential", (p) => p.pot],
-          ["Morale", (p) => p.morale],
-          ["Condition", (p) => p.fitness],
-          ["Training", (p) => p.progression?.training],
-          ["Form", (p) => p.progression?.form],
-          ...attrs.map((k) => [
-            k.replace(/([A-Z])/g, " $1"),
-            (p) => (effectiveAttributes(p) || {})[k],
-          ]),
-        ]
-          .map(([label, get]) => {
-            const vals = rows.map(({ p }) => get(p)),
-              max = Math.max(...vals.filter(Number.isFinite));
-            return `<tr><th>${esc(label)}</th>${vals.map((v) => `<td class="${v === max ? "positive" : ""}">${num(v)}</td>`).join("")}</tr>`;
-          })
-          .join(
-            "",
-          )}</tbody></table></div><p class="data-note">Position matters: an attribute can be irrelevant to a player's role. Ratings include development and medical changes in this save.</p></div>`,
+        `<div class="comparison-modal an-cmp-modal"><div class="drawer-top"><span>PLAYER COMPARISON</span><button class="secondary small" onclick="closeModal();W.open('Analysis');Office.analysis('Compare')">Open in Analysis</button><button class="icon-button" onclick="closeModal()" aria-label="Close comparison">×</button></div>${compareBody(rows)}</div>`,
       );
       document.getElementById("modal").classList.add("compare-dialog");
+    },
+    compareSearch(v) {
+      compareQuery = v;
+      const list = document.getElementById("an-pick-list");
+      if (list) list.innerHTML = comparePickList(selected, v);
     },
     analysis(v) {
       analysisTab = v;
