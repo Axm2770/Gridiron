@@ -175,12 +175,17 @@ function roomCard(x) {
   } else if (status.key === "questionable") {
     const agg = TREATMENTS[c.treatment]?.aggravate ?? 0;
     mid = `<div class="mt-rc-dx"><b>${e(c.label)}</b><small>${e(TREATMENTS[c.treatment]?.label ?? "Playing through")}</small></div><div class="mt-rc-meter"><span class="mt-cap">Risk</span>${blocks(agg * 100, 50, 8, agg >= 0.25 ? "bad" : "warn", `Aggravation risk ${pct(agg)} per game`)}<b>${pct(agg)}</b></div><small class="mt-rc-back">Plays this week · ${c.weeksPlayed || 0}/${c.trueWeeks} weeks managed</small>`;
+  } else if (!(weeks > 0) && p.status === "ir") {
+    // Healed but still on injured reserve: show him as fit and when he can come back, not as "Injury · 0 wk out".
+    const ready = (p.irReturnWeek ?? 0) <= state.week;
+    mid = `<div class="mt-rc-dx"><b>Fit again</b><small>On injured reserve${c?.label ? ` · was ${e(c.label.toLowerCase())}` : ""}</small></div><div class="mt-rc-meter"><span class="mt-cap">Fit</span>${blocks(8, 8, 8, "good", "Healed")}<b>100%</b></div><small class="mt-rc-back">${ready ? "<b>Ready to activate</b> · frees an IR spot" : `IR eligible from week ${(p.irReturnWeek ?? 0) + 1}`}</small>`;
   } else {
     const dx = c?.label || p.medical?.diagnosis || "Injury",
       plan = status.key === "decision" ? "Treatment decision needed" : TREATMENTS[c?.treatment]?.label || (p.status === "ir" ? "Injured reserve" : "Rest & rehab");
     mid = `<div class="mt-rc-dx"><b>${e(dx)}</b><small>${e(plan)}</small></div><div class="mt-rc-meter"><span class="mt-cap">Out</span>${blocks(Math.min(weeks, 8), 8, 8, weeks >= 6 ? "bad" : weeks >= 3 ? "warn" : "accent", `${weeks} weeks out`)}<b>${weeks} wk</b></div><small class="mt-rc-back">${x.back ? `Expected back: <b>${x.back.label}</b>` : "Cleared to return"}${p.status === "ir" ? ` · IR eligible wk ${(p.irReturnWeek ?? 0) + 1}` : ""}</small>`;
   }
-  const part = status.key === "risk" ? null : c?.part || p.medical?.bodyPart || "body",
+  const healed = !(weeks > 0) && p.status === "ir",
+    part = status.key === "risk" || healed ? null : c?.part || p.medical?.bodyPart || "body",
     figure = part ? bodySVG(injuryMarks(part, p.id), { width: 30, label: `${PART_LABEL[part] || part} injury` }) : bodySVG(wearMarks(p.wear || {}), { width: 30, label: "Joint wear" });
   const irReady = p.status === "ir" && !(p.injury > 0) && (p.irReturnWeek ?? 0) <= state.week;
   const actions = [

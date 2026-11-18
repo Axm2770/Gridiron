@@ -160,7 +160,19 @@ body.gd-pixel #app > .gd-titlebar h1::before {
 #app .gd-actionbar { margin: 0 0 16px; }
 #app .gd-actionbar .f-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
 #app .settings-nav > button { padding: 11px 12px !important; font: 600 14px/1.2 var(--gd-body, sans-serif) !important; min-height: 0; }
-#app .settings-nav > button > span { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#app .settings-nav > button > span { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; width: auto; }
+/* Footer: readable caption text and a flat text link instead of a 7px raised button. */
+main > footer, main > footer .footer-status { font: 500 11px var(--gd-body, sans-serif); letter-spacing: 0.02em; color: var(--gd-text-3, #536d90); }
+main > footer .footer-status button.link { margin-left: 12px; padding: 0; background: none; border: 0; box-shadow: none; font: 600 11px var(--gd-body, sans-serif); color: var(--gd-text-2, #a6bbd8); text-decoration: underline dotted; text-underline-offset: 3px; }
+main > footer .footer-status button.link:hover { color: var(--gd-accent, #c7f45b); }
+/* Long breadcrumbs (Records / Hall of Fame) shrink and ellipsize; the toolbar on the right never wraps. */
+main > header > #breadcrumb { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+main > header > #breadcrumb .breadcrumb-trail { min-width: 0; }
+main > header > #breadcrumb .breadcrumb-trail > :is(button, b) { display: block; text-align: left; flex: 0 1 auto; width: auto; min-width: 3em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+main > header > #breadcrumb .breadcrumb-trail > span { flex: none; }
+
+main > header > div { flex: none; }
+main > header > div :is(button, .search-trigger) { white-space: nowrap; }
 #app .fp-page .staff-hero.fp-dept .fp-dept-meters { justify-content: flex-start !important; }
 #app .dv-head { align-items: center; }
 #app .settings-section > .settings-note { margin: 0 0 8px; font-size: 13px; color: var(--gd-text-2, #b6bde0); }
@@ -231,3 +243,9 @@ aside.nav-tight .brand { display: none; }
 .breadcrumb-group { color: var(--gd-text-3, var(--muted)); }
 /* On Matchday during a live game the top-bar action becomes a status chip instead of "Return to game". */
 .continue-button.live-now { display: inline-flex; align-items: center; gap: 6px; cursor: default; background: transparent; color: var(--gd-bad, #ff5c5c); border: 2px solid currentColor; box-shadow: none; font-weight: 700; }
+/* Settings → Follow franchises: 3×3 mosaic turns 16px crests into noise; show them crisp and larger. */
+body.gd-pixel #app .follow-team-grid img { width: 26px; height: 26px; filter: none; }
+#app .follow-team-grid > label { font-size: 13px; }
+/* Sub-tab bars rendered in a <nav> (Calendar, League snapshot, Records) picked up the legacy sidebar
+   `nav button.active` green; match the active tab of every other screen (chalk fill, ink text). */
+body.gd-pixel #app .nav-tabs button.active { background: var(--gd-text) !important; color: var(--gd-bg, #0b1218) !important; }

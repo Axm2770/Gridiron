@@ -109,7 +109,7 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     }
     const footer = document.querySelector(".footer-status");
     if (footer)
-      footer.innerHTML = `<i class="live-dot"></i> <span>${status === "error" ? "Save failed — export a backup" : dirty || status === "saving" ? "Saving career…" : "Career saved on this device"}</span><button onclick="Career.open()">Manage careers ↗</button>`;
+      footer.innerHTML = `<i class="live-dot"></i> <span>${status === "error" ? "Save failed — export a backup" : dirty || status === "saving" ? "Saving career…" : "Career saved on this device"}</span><button class="link" onclick="Career.open()">Manage careers ↗</button>`;
   };
   const flush = () => {
     clearTimeout(timer);

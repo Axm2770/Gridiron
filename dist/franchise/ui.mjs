@@ -1482,6 +1482,12 @@ import("./presentation.mjs")
       installCinematics({ isBusy: () => busy });
       installThemeMotion({ getSection: () => section });
       try {
+        const { installPostgameReport } = await import("../ui/postgame-report.mjs");
+        installPostgameReport(window);
+      } catch (error) {
+        console.error("Postgame report:", error);
+      }
+      try {
         const { installTutorials } = await import("../ui/tutorial.mjs");
         installTutorials({ getSection: () => section, isBusy: () => busy });
       } catch (error) {

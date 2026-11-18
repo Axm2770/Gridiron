@@ -8,6 +8,7 @@ import { icon } from "./presentation.mjs";
 import { notice } from "../ui/notice.mjs";
 import { activeDilemma, resolveDilemma } from "./depth-systems.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
+import { pixelIcon } from "../ui/pixel-icons.mjs";
 import * as fp from "./fo-pixel.mjs";
 import { staffBust, ensureFrontDeskStyles } from "./fo-pixel.mjs";
 import { coachAppearance } from "./coach-avatar.mjs";
@@ -90,7 +91,7 @@ export function installFrontOfficeUI({ views, isBusy }) {
     ];
     const pulse = `${pending}${planBody}<span class="fp-label">What the board is watching</span><ul class="fp-watchboard">${watch.map(([k, v, t]) => `<li class="${t}"><i></i><span>${k}</span><b>${v}</b></li>`).join("")}</ul>${x.warning ? notice({ tone: "bad", cls: "fp-notice", title: `${x.warning > 1 ? "Ultimatum" : "Final warning"} on record this season.`, detail: "The board judges the rest of the season against the targets above; missing them again puts your job at risk." }) : ""}`;
     const meetings = x.meetings.length
-      ? `<ol class="fp-timeline">${x.meetings.map((m) => `<li class="${/missed|record/i.test(m.outcome) ? "bad" : /met|exceeded|set|agreed|active/i.test(m.outcome) ? "good" : "warn"}"><time>${m.date ? esc(m.date) : m.year} · W${m.week + 1}</time><b>${esc(m.kind)}: ${esc(m.title)}</b>${fp.chip(m.outcome, /missed|record/i.test(m.outcome) ? "bad" : /met|exceeded|set|agreed|active/i.test(m.outcome) ? "good" : "warn")}<small>${esc(m.agreed ? "Agreed: " + m.agreed : m.detail || "")}${m.agreed && m.detail ? " · " + esc(m.detail) : ""}</small></li>`).join("")}</ol>`
+      ? `<ol class="fp-timeline">${x.meetings.map((m) => `<li class="${/missed|record/i.test(m.outcome) ? "bad" : /met|exceeded|set|agreed|active/i.test(m.outcome) ? "good" : "warn"}"><time>${m.date ? esc(m.date) : m.year} · W${m.week + 1}</time><b>${esc(!m.kind || String(m.title || "").toLowerCase().includes(String(m.kind).toLowerCase()) ? m.title : `${m.kind}: ${m.title}`)}</b>${fp.chip(m.outcome, /missed|record/i.test(m.outcome) ? "bad" : /met|exceeded|set|agreed|active/i.test(m.outcome) ? "good" : "warn")}<small>${esc(m.agreed ? "Agreed: " + m.agreed : m.detail || "")}${m.agreed && m.detail ? " · " + esc(m.detail) : ""}</small></li>`).join("")}</ol>`
       : '<p class="fp-note">Board and team meetings appear here with what was agreed and how it turned out.</p>';
     const mandate = `<p class="fp-note">${o.mandateLocked ? `Agreed for ${state.year}: <b>${esc(o.mandate)}</b>. ${esc(B.MANDATES[o.mandate].text)}` : `Agree one mandate per season. It sets the win target ownership judges you on (projection ${o.projected}).`}</p><div class="fp-mandates">${Object.entries(B.MANDATES).map(([k, m]) => `<button class="fp-mandate ${o.mandate === k ? "active" : ""}" aria-pressed="${o.mandate === k}" ${o.mandateLocked || busy ? "disabled" : ""} onclick="FrontOffice.mandate(${arg(k)})"><strong>${m.shift > 0 ? "+" : ""}${m.shift}</strong><span><b>${k}${o.mandate === k ? " ✓" : ""}</b><small>${esc(m.text)}</small></span></button>`).join("")}</div>`;
     const budget = `<div class="fp-row"><span>Club cash</span><b>${money(b.cash)}</b></div><div class="fp-row"><span>Staff payroll / budget</span><b>${money(b.staffPayroll)} / ${money(b.staffBudget)}</b></div>${fp.blocks(payrollShare, 100, 20, payrollShare > 100 ? "bad" : payrollShare > 90 ? "warn" : "good", "Staff payroll " + Math.round(payrollShare) + "% of budget")}<div class="fp-row"><span>Player cap used</span><b>${money(b.cap.used)} / ${money(b.cap.limit)}</b></div>${fp.blocks(capShare, 100, 20, b.cap.room < 0 ? "bad" : capShare > 95 ? "warn" : "good", "Player cap " + Math.round(capShare) + "% used")}<div class="fp-action"><button ${!o.can.budget || o.budgetCooldown || busy ? "disabled" : ""} onclick="FrontOffice.budget()">Ask for +${money(B.BUDGET_STEP)} staff budget</button><small>${!o.can.budget ? `${esc(state.franchise.role)} cannot request budget.` : o.budgetCooldown ? `Ownership will hear another request in ${o.budgetCooldown} days.` : "Approval depends on job security and cash reserves. The answer is immediate."}</small></div>`;
@@ -393,7 +394,8 @@ ${notes.length ? `<label class="fo-label">Their tendencies vs your plan</label><
 }
 
 // One "What is moving the room" row: pixel glyph, bold title, detail/quote, and value chips or meters.
-const DRIVER_GLYPH = { form: "▮▯▮", pulse: "◆", leaders: "★", talk: "✎", press: "◉" };
+// Crisp 12×12 pixel icons (ui/pixel-icons.mjs) instead of text glyphs, which overflowed the 34px box.
+const DRIVER_GLYPH = { form: "stats", pulse: "locker", leaders: "records", talk: "news", press: "news" };
 function roomDriver(c) {
   if (!c.kind) return `<li class="${c.tone || ""}">${esc(c.text)}</li>`;
   const verdict = c.tone === "good" ? "Lifting" : c.tone === "bad" ? "Dragging" : "Neutral";
@@ -401,5 +403,5 @@ function roomDriver(c) {
   const stat = (x) => `<span class="lr-stat ${x.tone || ""}"><small>${esc(x.label)}</small>${x.meter != null ? blocks(x.meter, x.invert) : ""}<b>${esc(String(x.value))}</b></span>`;
   const form = c.results?.length ? `<span class="lr-form">${c.results.map((r) => `<b class="${r === "W" ? "w" : r === "L" ? "l" : "t"}">${esc(r)}</b>`).join("")}</span>` : "";
   const who = c.player ? `<span class="lr-who">${c.player.id ? `<button class="link" onclick="W.player('${c.player.id}',state.team)">${esc(c.player.name)}</button>` : esc(c.player.name)}<em>${esc(c.player.stance)}</em><span class="lr-stat ${c.player.trust > 0 ? "good" : c.player.trust < 0 ? "bad" : ""}"><small>Trust</small><b>${c.player.trust > 0 ? "+" : ""}${c.player.trust}</b></span></span>` : "";
-  return `<li class="lr-driver ${c.tone || ""}"><span class="lr-glyph" aria-hidden="true">${DRIVER_GLYPH[c.kind] || "■"}</span><div class="lr-body"><div class="lr-top"><b class="lr-title">${esc(c.title)}</b><em class="lr-verdict">${verdict}</em></div>${c.quote ? `<q class="lr-quote">${esc(c.quote)}</q>` : ""}${c.detail ? `<p class="lr-detail">${esc(c.detail)}</p>` : ""}${form || (c.stats?.length || who) ? `<div class="lr-stats">${form}${(c.stats || []).map(stat).join("")}${who}</div>` : ""}</div></li>`;
+  return `<li class="lr-driver ${c.tone || ""}"><span class="lr-glyph" aria-hidden="true">${pixelIcon(DRIVER_GLYPH[c.kind] || "home")}</span><div class="lr-body"><div class="lr-top"><b class="lr-title">${esc(c.title)}</b><em class="lr-verdict">${verdict}</em></div>${c.quote ? `<q class="lr-quote">${esc(c.quote)}</q>` : ""}${c.detail ? `<p class="lr-detail">${esc(c.detail)}</p>` : ""}${form || (c.stats?.length || who) ? `<div class="lr-stats">${form}${(c.stats || []).map(stat).join("")}${who}</div>` : ""}</div></li>`;
 }

@@ -60,7 +60,7 @@ export const initials = (name) =>
 export const compact = (n) => (n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(n < 1e4 ? 1 : 0) + "K" : String(Math.round(n)));
 
 export const post = (p) =>
-  `<article class="gd-post"><span class="gd-avatar gd-a-${e(p.archetype || "fan")}">${e(initials(p.name))}</span><div><div class="gd-post-head"><b>${e(p.name)}</b>${p.verified ? chip("✓", "team") : ""}<small>@${e(p.handle)} · ${e(p.voiceKind || "")}</small></div><p>${e(p.body)}</p><div class="gd-post-meta"><span>♥ ${compact(p.likes || 0)}</span>${p.reposts ? `<span>⟲ ${compact(p.reposts)}</span>` : ""}<span>💬 ${(p.comments || []).length}</span>${p.tone ? `<span>${e(p.tone)}</span>` : ""}</div></div></article>`;
+  `<article class="gd-post"><span class="gd-avatar gd-a-${e(p.archetype || "fan")}">${e(initials(p.name))}</span><div><div class="gd-post-head"><b>${e(p.name)}</b>${p.verified ? `<i class="gd-verified" title="Verified account" aria-label="Verified account">✓</i>` : ""}<small>@${e(p.handle)} · ${e(p.voiceKind || "")}</small></div><p>${e(p.body)}</p><div class="gd-post-meta"><span>♥ ${compact(p.likes || 0)}</span>${p.reposts ? `<span>⟲ ${compact(p.reposts)}</span>` : ""}<span>💬 ${(p.comments || []).length}</span>${p.tone ? `<span>${e(p.tone)}</span>` : ""}</div></div></article>`;
 
 export const hexToRgb = (hex) => {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || "");

@@ -257,6 +257,12 @@ export const pixelJersey = (opts) => jerseyGrid(opts).svg({ cls: "px-jersey", la
 /* ----------------------------------------------------------------- scenes */
 // A scene is 160×90 and split into layers so CSS can animate them independently.
 
+// One sponsor-wall tile: 15×7 with the full club abbreviation (up to three letters) centred.
+function wallTile(g, x, y, abbr, tile, mark) {
+  const label = glyphText(abbr || "GD").trim().slice(0, 3);
+  return g.rect(x, y, 15, 7, tile).text(label, x + Math.floor((15 - textWidth(label)) / 2), y + 1, mark);
+}
+
 function pressWall(g, colors, abbr) {
   g.rect(0, 0, 160, 64, "#18202c").rect(0, 0, 160, 2, "#283244");
   const tile = mix(colors.primary, "#18202c", 0.45),
@@ -265,7 +271,7 @@ function pressWall(g, colors, abbr) {
     for (let c = -1; c < 9; c++) {
       const x = 4 + c * 20 + (r % 2) * 10,
         y = 4 + r * 12;
-      g.rect(x, y, 12, 7, tile).text(abbr.slice(0, 2), x + 2, y + 1, mark);
+      wallTile(g, x, y, abbr, tile, mark);
     }
   return g;
 }
@@ -619,7 +625,7 @@ export function conversationStageSVG(d) {
     back.rect(0, 0, W, 58, "#18202c");
     const tile = mix(colors.primary, "#18202c", 0.45),
       mark = mix(colors.secondary, "#18202c", 0.35);
-    for (let r = 0; r < 5; r++) for (let c = -1; c < 13; c++) back.rect(4 + c * 20 + (r % 2) * 10, 3 + r * 11, 12, 7, tile).text((d.abbr || "GD").slice(0, 2), 6 + c * 20 + (r % 2) * 10, 4 + r * 11, mark);
+    for (let r = 0; r < 5; r++) for (let c = -1; c < 13; c++) wallTile(back, 4 + c * 20 + (r % 2) * 10, 3 + r * 11, d.abbr || "GD", tile, mark);
     back.rect(0, 58, W, 22, "#2a2018").rect(0, 58, W, 2, "#3a2c22");
   } else if (setting === "locker") {
     back.rect(0, 0, W, 58, "#232a35");

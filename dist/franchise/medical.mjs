@@ -302,7 +302,7 @@ export function processMedicalWeek(s, roundKey) {
         applyLongTerm(p, c.outlook?.longTerm, s.year);
         m.history.unshift({ ...c });
         m.history = m.history.slice(0, 60);
-        log(s, "Cleared to return", `${p.name} is back from a ${c.label.toLowerCase()}.`, "club", injuryCard(s, p, { weeks: 0, status: "cleared", diagnosis: c.label, total: c.weeksOut || c.trueWeeks }));
+        log(s, "Cleared to return", `${p.name} is back from ${/^[aeiou]/i.test(c.label) ? "an" : "a"} ${c.label.toLowerCase()}.`, "club", injuryCard(s, p, { weeks: 0, status: "cleared", diagnosis: c.label, total: c.weeksOut || c.trueWeeks }));
         events.push({ kind: "cleared", playerId: p.id });
       }
     } else if (c.status === "playing-through" && p.injury > 0) {
