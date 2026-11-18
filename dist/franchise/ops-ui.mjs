@@ -155,7 +155,7 @@ function sideCard(side, partners, sending, ask) {
     name =
       side === "give"
         ? `<span class="mk-banner-name"><small>You send</small><b>${e(club(team))}</b><em>${e(teamMode(state, team))}</em></span>`
-        : `<span class="mk-banner-name"><small>You receive from</small><select class="mk-partner" aria-label="Trade partner" onchange="Ops.partner(this.value)">${partners.map((t) => `<option value="${t}" ${t === ui.partner ? "selected" : ""}>${e(club(t))} · ${teamMode(state, t)}</option>`).join("")}</select></span>`;
+        : `<span class="mk-banner-name"><small>You receive from</small><select class="mk-partner" aria-label="Trade partner" onchange="Ops.partner(this.value)">${partners.map((t) => `<option value="${t}" ${t === ui.partner ? "selected" : ""}>${e(club(t))} · ${teamMode(state, t)}</option>`).join("")}</select>${window.W?.club ? `<button type="button" class="link club-link mk-profile-link" onclick="W.club(${team})">Club profile →</button>` : ""}</span>`;
   return `<section class="mk-side mk-${side}"><div class="mk-banner" style="${clubVars(team)}">${clubLogo(team)}${name}<span class="mk-banner-total">${total}</span></div>${tray(rows, side, team)}${picker(rows, side, team)}</section>`;
 }
 

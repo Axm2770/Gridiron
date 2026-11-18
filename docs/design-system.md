@@ -78,6 +78,7 @@ K.empty("No moves yet.");
 - Layout: `main` clips horizontal overflow (the sidebar is fixed, so a sideways-scrolling page used to slide under it), content is centred at max 1800px on wide screens, and below 900px the sidebar becomes the slide-in menu (`W.mobile()`). Wide tables scroll inside their own panel on phones, never the page.
 - Add a line of help for every new route to `SCREEN_HELP` in `ui/tutorial-content.mjs`. `test-tutorials.mjs` fails if a sidebar route has none.
 - Player names link to the player hub: `W.player(id, team)`.
+- Club names and crests link to the club profile: `W.club(team)` (`franchise/club-profile.mjs`, styles in `club.css`). Logos carry `data-club`, and a crest or a cell whose text is exactly a club name (or its abbreviation beside its logo) is linked automatically outside buttons; inside your own buttons call `W.club(t)` or use `clubLink(t, label)`. Ctrl+K finds clubs by city, nickname or abbreviation.
 
 ## Glossary tooltips
 

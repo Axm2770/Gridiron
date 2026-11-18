@@ -222,7 +222,7 @@ export function installNavigationUI({ views, heritage, getSection, isBusy }) {
       `<div class="lg-kpis"><div><small>Record</small><b>${sum.wins}–${sum.losses}${sum.ties ? "–" + sum.ties : ""}</b></div><div><small>Points</small><b>${sum.pf}<i>–</i>${sum.pa}</b></div><div><small>Diff</small><b class="${diff > 0 ? "good" : diff < 0 ? "bad" : ""}">${diff > 0 ? "+" : ""}${diff}</b></div><div><small>Left</small><b>${sum.remaining}</b></div></div><div class="lg-formline"><small>Last ${f.length || 5}</small>${f.length ? form(f) : "<em>No games yet</em>"}<small>${streak(f) ? "Streak " + streak(f) : ""}</small></div><div class="lg-mini-div"><h3>${esc(clubs[state.team][3])} · ${pos}${["st", "nd", "rd", "th"][Math.min(pos, 4) - 1]}</h3>${ids
         .map(
           (t, i) =>
-            `<button class="link lg-row ${t === state.team ? "me" : ""}" onclick="${t === state.team ? "W.open('League desk')" : `Nav.rival(${t})`}"><span class="lg-pos">${i + 1}</span>${crest(t, 22)}<span class="lg-name"><b>${esc(clubs[t][2])}</b></span><span class="lg-wl">${wl(state.teams[t])}</span>${form(recentForm(state, t))}</button>`,
+            `<button class="link lg-row ${t === state.team ? "me" : ""}" onclick="W.club(${t})" title="${esc(fullName(t))} · club profile"><span class="lg-pos">${i + 1}</span>${crest(t, 22)}<span class="lg-name"><b>${esc(clubs[t][2])}</b></span><span class="lg-wl">${wl(state.teams[t])}</span>${form(recentForm(state, t))}</button>`,
         )
         .join("")}</div>`,
       `<button class="link" onclick="W.open('League desk')">Standings ${icon("arrow")}</button>`,
@@ -337,21 +337,21 @@ export function installNavigationUI({ views, heritage, getSection, isBusy }) {
             diff = r.pf - r.pa,
             mark = pic.marks[t],
             seed = seeds.indexOf(t) + 1;
-          return `<button type="button" class="link lg-row ${t === state.team ? "me" : ""} ${seed ? "in" : ""}" onclick="Nav.rival(${t})" title="${esc(fullName(t))}${seed ? ` · seed ${seed}` : ""}${mark ? " · " + MARK_LABELS[mark] : ""}"><span class="lg-pos">${i + 1}</span>${crest(t, 22)}<span class="lg-name"><b>${esc(clubs[t][2])}</b></span><span class="lg-wl">${wl(r)}</span><span class="lg-diff ${diff > 0 ? "good" : diff < 0 ? "bad" : ""}">${diff > 0 ? "+" : ""}${diff}</span>${form(recentForm(state, t))}<span class="lg-mark ${mark || ""}">${mark || ""}</span></button>`;
+          return `<button type="button" class="link lg-row ${t === state.team ? "me" : ""} ${seed ? "in" : ""}" onclick="W.club(${t})" title="${esc(fullName(t))}${seed ? ` · seed ${seed}` : ""}${mark ? " · " + MARK_LABELS[mark] : ""}"><span class="lg-pos">${i + 1}</span>${crest(t, 22)}<span class="lg-name"><b>${esc(clubs[t][2])}</b></span><span class="lg-wl">${wl(r)}</span><span class="lg-diff ${diff > 0 ? "good" : diff < 0 ? "bad" : ""}">${diff > 0 ? "+" : ""}${diff}</span>${form(recentForm(state, t))}<span class="lg-mark ${mark || ""}">${mark || ""}</span></button>`;
         })
         .join("")}</div>`;
     };
     return `<div class="lg-standings">${[0, 1]
       .map((c) => `<div class="lg-conf"><h3 class="lg-conf-name">${c ? "NFC" : "AFC"}</h3><div class="lg-divs">${[0, 1, 2, 3].map((d) => board(c * 4 + d)).join("")}</div></div>`)
-      .join("")}</div><div class="lg-legend"><span><i class="lg-key in"></i> In playoff position</span><span><b class="lg-mark y">y</b> ${MARK_LABELS.y}</span><span><b class="lg-mark x">x</b> ${MARK_LABELS.x}</span><span><b class="lg-mark e">e</b> ${MARK_LABELS.e}</span><span>Select a club for your head-to-head record.</span></div>`;
+      .join("")}</div><div class="lg-legend"><span><i class="lg-key in"></i> In playoff position</span><span><b class="lg-mark y">y</b> ${MARK_LABELS.y}</span><span><b class="lg-mark x">x</b> ${MARK_LABELS.x}</span><span><b class="lg-mark e">e</b> ${MARK_LABELS.e}</span><span>Select a club for its profile.</span></div>`;
   }
   function picture(pic) {
     const slot = (t, seed) =>
-      `<button type="button" class="link lg-seed ${t === state.team ? "me" : ""}" onclick="Nav.rival(${t})" title="${esc(fullName(t))}"><i>${seed}</i>${crest(t, 30)}<span><b>${esc(clubs[t][0])}</b><small>${wl(state.teams[t])}</small></span></button>`;
+      `<button type="button" class="link lg-seed ${t === state.team ? "me" : ""}" onclick="W.club(${t})" title="${esc(fullName(t))}"><i>${seed}</i>${crest(t, 30)}<span><b>${esc(clubs[t][0])}</b><small>${wl(state.teams[t])}</small></span></button>`;
     return `<div class="lg-picture">${pic.conferences
       .map(
         (c) =>
-          `<div class="lg-pic-row"><span class="lg-pic-conf">${c.conference ? "NFC" : "AFC"}</span><div class="lg-seeds">${c.seeds.map((t, i) => slot(t, i + 1)).join("")}</div>${pic.final ? "" : `<div class="lg-hunt"><small>In the hunt</small>${c.hunt.map((t) => `<button type="button" class="link lg-hunt-team" onclick="Nav.rival(${t})" title="${esc(fullName(t))}">${crest(t, 22)}<b>${esc(clubs[t][0])}</b><small>${wl(state.teams[t])}</small></button>`).join("")}</div>`}</div>`,
+          `<div class="lg-pic-row"><span class="lg-pic-conf">${c.conference ? "NFC" : "AFC"}</span><div class="lg-seeds">${c.seeds.map((t, i) => slot(t, i + 1)).join("")}</div>${pic.final ? "" : `<div class="lg-hunt"><small>In the hunt</small>${c.hunt.map((t) => `<button type="button" class="link lg-hunt-team" onclick="W.club(${t})" title="${esc(fullName(t))}">${crest(t, 22)}<b>${esc(clubs[t][0])}</b><small>${wl(state.teams[t])}</small></button>`).join("")}</div>`}</div>`,
       )
       .join("")}</div>`;
   }
@@ -563,7 +563,7 @@ export function installNavigationUI({ views, heritage, getSection, isBusy }) {
       const h = M.headToHead(state, state.team, r.opponent);
       host.insertAdjacentHTML(
         "beforeend",
-        `<div class="nav-fixture-h2h"><span class="eyebrow">HEAD-TO-HEAD</span><div class="hub-health-row"><span>All-time record</span><b>${h.games.length ? record(h.allTime) : "First meeting"}</b></div>${h.last ? `<div class="hub-health-row"><span>Last meeting</span><b>${h.last.year} ${stage(h.last)} · ${h.last.result} ${h.last.pf}–${h.last.pa}</b></div>` : ""}<button class="secondary small" onclick="closeModal();Nav.rival(${r.opponent})">Full head-to-head ${icon("arrow")}</button></div>`,
+        `<div class="nav-fixture-h2h"><span class="eyebrow">HEAD-TO-HEAD</span><div class="hub-health-row"><span>All-time record</span><b>${h.games.length ? record(h.allTime) : "First meeting"}</b></div>${h.last ? `<div class="hub-health-row"><span>Last meeting</span><b>${h.last.year} ${stage(h.last)} · ${h.last.result} ${h.last.pf}–${h.last.pa}</b></div>` : ""}<button class="secondary small" onclick="closeModal();Nav.rival(${r.opponent})">Full head-to-head ${icon("arrow")}</button> <button class="secondary small" onclick="W.club(${r.opponent})">${esc(clubs[r.opponent][2])} profile ${icon("arrow")}</button></div>`,
       );
     };
   }
