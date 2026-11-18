@@ -23,6 +23,7 @@ import { effectiveAttributes } from "./ratings.mjs";
 import { faceSVG } from "./newgens.mjs";
 import { icon, searchKey } from "./presentation.mjs";
 import { rosterLimit } from "./blockers.mjs";
+import { trimPlan } from "./personnel.mjs";
 import { storyArt } from "../presentation/pixel-art.mjs";
 const fmtBio = (n) => Number(n).toLocaleString("en-US");
 const num = (n, d = 1) =>
@@ -445,7 +446,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       over = active - limit;
     if (over <= 0) return "";
     const practice = state.roster.filter((p) => p.status === "practice").length;
-    return `<div class="squad-alert" role="status"><div><b>${over} over the ${limit}-player active limit.</b><small>Games can't be played until you trim. Trim to ${limit} keeps your best player at every position, moves the rest to the practice squad while it has room (${practice} / 16), and releases the remainder.</small></div>${S.allowed(state, "roster") ? `<button onclick="F.action('trim')">Trim to ${limit} automatically</button>` : ""}</div>`;
+    return `<div class="squad-alert" role="status"><div><b>${over} over the ${limit}-player active limit.</b><small>Games can't be played until you trim. Trim to ${limit} keeps your best player at every position, moves the rest to the practice squad while it has room (${practice} / 16), and releases the remainder.</small></div>${S.allowed(state, "roster") ? `<button onclick="Office.trimPreview()">Trim to ${limit} automatically</button>` : ""}</div>`;
   };
   views.Roster = () =>
     `${rosterAlert()}${metrics([
@@ -465,7 +466,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
         "Injury or holdout",
       ],
       ["Following", pref().favorites.length, "Your tracked players"],
-    ])}<div class="squad-workspace-controls"><div class="office-tabs">${["Overview", "Performance", "Development", "Contracts", "Bio & honors"].map((v) => `<button class="${pref().squad === v ? "active" : ""}" onclick="Office.squadView('${v}')">${v}</button>`).join("")}</div><div><button class="secondary small" onclick="Office.squadLayout()">${pref().layout === "Cards" ? "☷ Table view" : "▦ Card view"}</button><button class="secondary small" onclick="F.depth()">Optimize depth</button><details class="action-menu"><summary>Operations ⌄</summary><div><button onclick="F.action('trim')">Trim to 53</button><button onclick="F.action('recruit')">Recruit reserves</button><button onclick="F.action('camp')">Invite camp roster</button><button onclick="Office.waivers()">Waiver wire</button></div></details></div></div><section class="panel"><div class="office-filters"><div class="table-search">${icon("search")}<input type="search" aria-label="Search squad" placeholder="Name, position or jersey…" value="${esc(squad.query)}" oninput="Office.searchSquad(this.value)"></div><select aria-label="Squad unit" onchange="Office.squadFilter('unit',this.value)">${opts(["All", "Offense", "Defense", "Special teams"], squad.unit)}</select><select aria-label="Roster status filter" onchange="Office.squadFilter('status',this.value)">${opts(["All", "active", "practice", "ir", "elevated", "Favorites"], squad.status)}</select><label>Sort by<select aria-label="Sort squad" onchange="Office.squadFilter('sort',this.value)">${[
+    ])}<div class="squad-workspace-controls"><div class="office-tabs">${["Overview", "Performance", "Development", "Contracts", "Bio & honors"].map((v) => `<button class="${pref().squad === v ? "active" : ""}" onclick="Office.squadView('${v}')">${v}</button>`).join("")}</div><div><button class="secondary small" onclick="Office.squadLayout()">${pref().layout === "Cards" ? "☷ Table view" : "▦ Card view"}</button><button class="secondary small" onclick="F.depth()">Optimize depth</button><details class="action-menu"><summary>Operations ⌄</summary><div><button onclick="Office.trimPreview()">Trim to 53</button><button onclick="F.action('recruit')">Recruit reserves</button><button onclick="F.action('camp')">Invite camp roster</button><button onclick="Office.waivers()">Waiver wire</button></div></details></div></div><section class="panel"><div class="office-filters"><div class="table-search">${icon("search")}<input type="search" aria-label="Search squad" placeholder="Name, position or jersey…" value="${esc(squad.query)}" oninput="Office.searchSquad(this.value)"></div><select aria-label="Squad unit" onchange="Office.squadFilter('unit',this.value)">${opts(["All", "Offense", "Defense", "Special teams"], squad.unit)}</select><select aria-label="Roster status filter" onchange="Office.squadFilter('status',this.value)">${opts(["All", "active", "practice", "ir", "elevated", "Favorites"], squad.status)}</select><label>Sort by<select aria-label="Sort squad" onchange="Office.squadFilter('sort',this.value)">${[
       ["ovr", "Overall"],
       ["name", "Name"],
       ["age", "Age"],
@@ -609,6 +610,15 @@ export function installOfficeUI({ views, isBusy, getSection }) {
                 .join("")}</div>`
     }</section></div>`;
   window.Office = {
+    // Shows exactly who a trim moves before anything happens.
+    trimPreview() {
+      const plan = trimPlan(state),
+        row = (p) => `<li><b>${esc(p.name)}</b> <small>${esc(p.pos)} · ${p.ovr} OVR · age ${p.age}</small></li>`;
+      if (!plan.practice.length && !plan.release.length) return toast("The active roster is already within the limit.");
+      modal(
+        `<div class="trim-preview"><div class="eyebrow">TRIM TO 53</div><h2>Confirm roster cuts</h2><p>The best player at every position and the highest-rated players stay active.</p>${plan.practice.length ? `<h3>To the practice squad (${plan.practice.length})</h3><ul>${plan.practice.map(row).join("")}</ul>` : ""}${plan.release.length ? `<h3>Released (${plan.release.length})</h3><p class="subtitle">The practice squad is full. Released players count against the cap as dead money for any guaranteed or bonus money left on their deals.</p><ul>${plan.release.map(row).join("")}</ul>` : ""}<div class="modal-actions"><button class="secondary" onclick="closeModal()">Cancel</button><button onclick="closeModal();F.action('trim')">Confirm ${plan.release.length ? plan.release.length + " release" + (plan.release.length === 1 ? "" : "s") + " and " : ""}${plan.practice.length} move${plan.practice.length === 1 ? "" : "s"}</button></div></div>`,
+      );
+    },
     select(id) {
       const m = allMessages().find((x) => x.id === id);
       if (!m) return;

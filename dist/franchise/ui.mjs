@@ -546,7 +546,7 @@ window.F.selectTradeTeam = (value) => {
 };
 function rosterView() {
   let f = state.franchise;
-  return `${panel("Roster operations", `<div class="f-actions">${button("Assistant depth chart", "F.depth()", "coach")}${button("Trim active roster to 53", "F.action('trim')", "roster")}${button("Delegate reserve recruitment", "F.action('recruit')")} ${button("Invite camp roster to 90", "F.action('camp')", "roster")}</div><p class="subtitle">${S.active(state).filter((p) => p.status === "active").length} active · ${state.roster.filter((p) => p.status === "practice").length}/16 practice squad · ${state.roster.filter((p) => p.status === "ir").length} injured reserve. IR returns require four weeks; practice-squad elevations expire after each game.</p>`)}${panel(
+  return `${panel("Roster operations", `<div class="f-actions">${button("Assistant depth chart", "F.depth()", "coach")}${button("Trim active roster to 53", "Office.trimPreview()", "roster")}${button("Delegate reserve recruitment", "F.action('recruit')")} ${button("Invite camp roster to 90", "F.action('camp')", "roster")}</div><p class="subtitle">${S.active(state).filter((p) => p.status === "active").length} active · ${state.roster.filter((p) => p.status === "practice").length}/16 practice squad · ${state.roster.filter((p) => p.status === "ir").length} injured reserve. IR returns require four weeks; practice-squad elevations expire after each game.</p>`)}${panel(
     "Players",
     table(
       ["Player", "Role / condition", "Roster status", "Move / action"],

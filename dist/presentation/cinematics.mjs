@@ -543,6 +543,14 @@ export function playCinematic(event) {
   return true;
 }
 
+// A cutscene is worth showing within about a week of its moment (calendar date when known,
+// otherwise the same league year and phase within one week).
+export function isRecent(e, s, days = 8) {
+  const today = s.franchise?.calendarSim?.date;
+  if (e.date && today) return Math.abs(Date.parse(today) - Date.parse(e.date)) <= days * 86400000;
+  return e.year === s.year && e.phase === s.phase && Math.abs((e.week ?? 0) - (s.week ?? 0)) <= 1;
+}
+
 export function installCinematics({ isBusy }) {
   installPixelScenes();
   let cursor = Number(state.franchise?.eventLog?.serial ?? 0);
@@ -567,7 +575,8 @@ export function installCinematics({ isBusy }) {
     // Wait until the match animation and any modal are done before rolling a cinematic.
     const busy = isBusy() || (typeof animating !== "undefined" && animating) || document.getElementById("modal")?.open;
     if (!pending.length || busy || active || pixelSceneActive()) return;
-    const pick = pickCinematic(pending.splice(0));
+    // Moments that waited out a long simulation are old news by now: only recent ones play.
+    const pick = pickCinematic(pending.splice(0).filter((e) => isRecent(e, state)));
     if (pick) setTimeout(() => playCinematic(pick), 250);
   };
   const sample = (kind) => {

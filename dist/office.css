@@ -1768,3 +1768,7 @@ body[data-density="compact"] .inbox-row {
 .squad-alert > div { display: grid; gap: 3px; flex: 1; min-width: 240px; }
 .squad-alert b { color: var(--gd-warn, #ffd23f); }
 .squad-alert small { color: var(--gd-text-2, #b6bde0); font-size: 13px; }
+.trim-preview { width: min(560px, calc(100vw - 48px)); }
+.trim-preview ul { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 4px; max-height: 32vh; overflow: auto; }
+.trim-preview h3 { margin: 14px 0 6px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gd-text-2, #b6bde0); }
+.trim-preview small { color: var(--gd-text-3, #7d86b6); }
