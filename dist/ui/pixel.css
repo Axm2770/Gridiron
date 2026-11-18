@@ -203,3 +203,126 @@ body.gd-pixel ::-webkit-scrollbar-track { background: var(--gd-bg-2); border-lef
 body.gd-pixel ::-webkit-scrollbar-thumb { background: var(--gd-border-strong); border: 2px solid var(--gd-bg-2); border-radius: 0; }
 body.gd-pixel ::-webkit-scrollbar-thumb:hover { background: var(--gd-accent); }
 body.gd-pixel ::-webkit-scrollbar-corner { background: var(--gd-bg-2); }
+
+/* ---------- Sidebar (0.29): the single way between screens ----------
+   Pixel glyphs (ui/pixel-icons.mjs), Pixelify group headings with a pixel caret, an accent bar on
+   the active entry and pixel chips. Every size reads --nav-scale, which fitNavigation() in
+   franchise/presentation.mjs lowers (to 2/3: 11px labels, 12px glyphs drawn 1:1) until the whole sidebar fits
+   without scrolling; below that it folds the groups that do not hold the current screen. */
+body.gd-pixel aside {
+  --s: var(--nav-scale, 1);
+  width: 232px;
+  padding: calc(14px * var(--s)) 10px calc(10px * var(--s)) !important;
+  gap: calc(8px * var(--s));
+  background: var(--gd-bg-2) !important;
+  border-right: 3px solid var(--gd-border-strong) !important;
+  box-shadow: 3px 0 0 var(--px-ink);
+}
+body.gd-pixel aside::before { display: none; }
+body.gd-pixel aside .brand { padding: 0 4px; gap: 8px; font-size: calc(15px * var(--s)); line-height: 1; flex-shrink: 0; }
+body.gd-pixel aside .brand small { font-size: calc(9px * var(--s)); letter-spacing: 0.3em; margin-top: 3px; }
+body.gd-pixel aside .brandmark { font-size: calc(28px * var(--s)); }
+body.gd-pixel aside .brandmark span { font-size: calc(17px * var(--s)); }
+body.gd-pixel aside .career { display: none !important; }
+body.gd-pixel aside #club { flex-shrink: 0; }
+body.gd-pixel aside .workspace-club {
+  display: flex; align-items: center; gap: 8px; width: 100%; margin: 0 !important;
+  padding: calc(6px * var(--s)) 8px !important;
+  background: var(--gd-surface) !important;
+  border: 2px solid var(--gd-border-strong) !important;
+  border-left: 6px solid var(--team, var(--gd-accent)) !important;
+  box-shadow: 3px 3px 0 var(--px-ink) !important;
+}
+body.gd-pixel aside .workspace-club:hover { background: var(--gd-surface-strong) !important; }
+body.gd-pixel aside .workspace-club > .team-logo { width: calc(28px * var(--s)); height: calc(28px * var(--s)); flex-shrink: 0; }
+body.gd-pixel aside .workspace-club b { display: block; font-family: var(--gd-display) !important; font-size: max(13px, calc(15px * var(--s))); color: var(--gd-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.gd-pixel aside .workspace-club small { font-size: 11px; color: var(--gd-text-3); margin-top: 1px; white-space: nowrap; }
+body.gd-pixel aside .workspace-club > span:not(.club-chevron) { min-width: 0; flex: 1; }
+body.gd-pixel aside .club-chevron { font-size: 0; width: 10px; height: 6px; flex-shrink: 0; background: var(--gd-text-3); clip-path: polygon(0 0, 100% 0, 100% 34%, 80% 34%, 80% 67%, 60% 67%, 60% 100%, 40% 100%, 40% 67%, 20% 67%, 20% 34%, 0 34%); }
+
+body.gd-pixel aside #nav { display: flex; flex-direction: column; gap: 0; padding: 0 !important; overflow: hidden auto; min-height: 0; flex: 1; }
+body.gd-pixel aside #nav .nav-top { display: flex; flex-direction: column; flex-shrink: 0; padding-bottom: calc(4px * var(--s)); }
+body.gd-pixel aside :is(#nav, .sidebar-settings) .nav-item {
+  display: flex; align-items: center; gap: calc(9px * var(--s)); width: 100%; flex-shrink: 0;
+  min-height: 0 !important; height: calc(30px * var(--s)); margin: 0 !important;
+  padding: 0 6px 0 calc(8px * var(--s)) !important;
+  border: 0 !important; border-left: 4px solid transparent !important; box-shadow: none !important;
+  background: transparent !important; color: var(--gd-text-2) !important; transform: none !important;
+  font-size: max(11px, calc(13px * var(--s))) !important; font-weight: 500; text-align: left; cursor: pointer;
+}
+body.gd-pixel aside :is(#nav, .sidebar-settings) .nav-item > span { flex: 1; min-width: 0; font-size: inherit !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: inherit; }
+body.gd-pixel aside :is(#nav, .sidebar-settings) .px-icon { width: calc(18px * var(--s)); height: calc(18px * var(--s)); flex-shrink: 0; color: var(--gd-text-3); }
+body.gd-pixel aside :is(#nav, .sidebar-settings) .nav-item:hover { background: var(--gd-surface) !important; color: var(--gd-text) !important; }
+body.gd-pixel aside :is(#nav, .sidebar-settings) .nav-item:hover .px-icon { color: var(--gd-text-2); }
+body.gd-pixel aside :is(#nav, .sidebar-settings) .nav-item.active {
+  background: var(--gd-surface-strong) !important; color: var(--gd-text) !important; font-weight: 700;
+  border-left-color: var(--gd-accent) !important;
+  box-shadow: inset 0 -2px 0 var(--px-ink), inset 0 2px 0 rgba(255, 255, 255, 0.06) !important;
+}
+body.gd-pixel aside :is(#nav, .sidebar-settings) .nav-item.active .px-icon { color: var(--gd-accent); }
+body.gd-pixel aside :is(#nav, .sidebar-settings) .nav-item:focus-visible { outline: 2px dashed var(--gd-accent) !important; outline-offset: -2px; }
+/* Pixel chips: counts and LIVE. */
+body.gd-pixel aside #nav .nav-chip {
+  flex-shrink: 0; min-width: 18px; padding: 2px 4px 1px; text-align: center;
+  font: 8px/1.1 "Press Start 2P", ui-monospace, monospace !important; color: var(--gd-accent);
+  border: 2px solid currentColor; background: var(--gd-bg) !important; box-shadow: 2px 2px 0 var(--px-ink);
+}
+body.gd-pixel aside #nav .nav-chip.warn { color: var(--gd-warn); }
+body.gd-pixel aside #nav .nav-chip.live { color: var(--gd-bad); animation: gd-nav-blink 1.2s steps(2, jump-none) infinite; }
+@keyframes gd-nav-blink { 50% { opacity: 0.45; } }
+/* Group headings: Pixelify label, a stepped pixel caret and a dotted rule that fills the row. */
+body.gd-pixel aside #nav .nav-group { flex-shrink: 0; padding: 0 !important; margin: 0; border: 0; }
+body.gd-pixel aside #nav .nav-group > summary {
+  display: flex; align-items: center; gap: 6px; list-style: none; cursor: pointer;
+  height: calc(24px * var(--s)); padding: calc(4px * var(--s)) 6px 0 8px !important; margin: 0;
+  font: 600 max(11px, calc(12px * var(--s))) / 1 var(--gd-display) !important;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--gd-text-3) !important;
+}
+body.gd-pixel aside #nav .nav-group > summary::-webkit-details-marker { display: none; }
+body.gd-pixel aside #nav .nav-group > summary::after {
+  content: ""; flex: 1; height: 2px; margin-left: 2px;
+  background: repeating-linear-gradient(90deg, var(--gd-border) 0 4px, transparent 4px 8px);
+}
+body.gd-pixel aside #nav .nav-caret {
+  width: 6px; height: 8px; flex-shrink: 0; background: currentColor;
+  clip-path: polygon(0 0, 34% 0, 34% 25%, 67% 25%, 67% 38%, 100% 38%, 100% 62%, 67% 62%, 67% 75%, 34% 75%, 34% 100%, 0 100%);
+}
+body.gd-pixel aside #nav .nav-group[open] > summary .nav-caret { width: 8px; height: 6px; clip-path: polygon(0 0, 100% 0, 100% 34%, 75% 34%, 75% 67%, 62% 67%, 62% 100%, 38% 100%, 38% 67%, 25% 67%, 25% 34%, 0 34%); }
+body.gd-pixel aside #nav .nav-group > summary:hover { color: var(--gd-text) !important; }
+body.gd-pixel aside #nav .nav-group > summary:focus-visible { outline: 2px dashed var(--gd-accent) !important; outline-offset: -2px; }
+body.gd-pixel aside #nav .nav-group:not([open]):has(.nav-item.active) > summary { color: var(--gd-accent) !important; }
+body.gd-pixel aside #nav .nav-settings-divider { display: none; }
+body.gd-pixel aside .sidebar-settings { flex-shrink: 0; padding: calc(4px * var(--s)) 0 0 !important; border-top: 2px dashed var(--gd-border) !important; }
+/* Coach card at the bottom: a compact pixel panel. */
+body.gd-pixel aside .sidebar-bottom { flex-shrink: 0; margin: 0 !important; padding: 0 !important; border: 0 !important; min-height: 0 !important; }
+body.gd-pixel aside .coach-identity-button {
+  display: flex; align-items: center; gap: 8px; width: 100%; max-width: none; padding: calc(5px * var(--s)) 8px !important;
+  background: var(--gd-surface) !important; border: 2px solid var(--gd-border-strong) !important; box-shadow: 3px 3px 0 var(--px-ink) !important;
+  color: var(--gd-text) !important; font-size: max(12px, calc(13px * var(--s))); line-height: 1.25; text-align: left;
+}
+body.gd-pixel aside .coach-identity-button:hover { background: var(--gd-surface-strong) !important; }
+body.gd-pixel aside .coach-identity-button > span + span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+body.gd-pixel aside .coach-identity-button small { font-size: 11px; color: var(--gd-text-3); font-weight: 500; }
+body.gd-pixel aside .coach-identity-button .avatar { width: calc(32px * var(--s)); height: calc(32px * var(--s)); padding: 0 !important; flex-shrink: 0; }
+/* The slide-in menu (under 900px) may scroll; it keeps full-size rows. */
+@media (max-width: 900px) {
+  body.gd-pixel aside { --s: 1; width: 260px; height: 100dvh; }
+  body.gd-pixel aside #nav { overflow-y: auto; }
+  body.gd-pixel aside :is(#nav, .sidebar-settings) .nav-item { height: 36px; }
+}
+@media (min-width: 901px) { body.gd-pixel main { margin-left: 238px !important; } }
+body.gd-pixel aside.nav-tight .brand { display: none; }
+
+/* Content moved off the old Club overview tabs: Draft room sub-tabs (scout network, watchlist
+   pipeline) and the coaching tree on Coach career. */
+#app .fd-draft-tabs { margin: 0 0 12px; }
+#app .ops-scouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+#app .ops-scout { display: grid; gap: 8px; padding: 10px; background: var(--gd-bg-2); border: 2px solid var(--gd-border); }
+#app .ops-scout header { display: flex; align-items: center; gap: 10px; padding: 0; background: none; border: 0; min-height: 0; }
+#app .ops-scout header .gd-pos { display: grid; place-items: center; width: 32px; height: 28px; flex-shrink: 0; background: var(--gd-surface-strong); border: 2px solid var(--gd-border-strong); font: 700 12px var(--gd-display); color: var(--gd-text); }
+#app .ops-scout header b { display: block; font-size: 14px; color: var(--gd-text); }
+#app .ops-scout header small { font-size: 12px; color: var(--gd-text-3); }
+#app .ops-scout label { display: grid; gap: 4px; font-size: 12px; color: var(--gd-text-2); }
+#app .fd-coaching { margin-top: 22px; }
+#app .fd-coaching > .gd-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+#app .fd-coaching .fd-section-title { margin: 0; font: 600 22px/1 var(--gd-display); text-transform: uppercase; letter-spacing: 0.04em; color: var(--gd-text); }

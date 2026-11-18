@@ -371,6 +371,312 @@ const lastName = (name) => {
   return parts.length > 1 && /^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(parts.at(-1)) ? parts.at(-2) : parts.at(-1) || "";
 };
 
+/* ------------------------------------------------------- story scenes */
+// Pixel versions of the story cinematics (title, draft night, press podium, playoff exit,
+// walk-off, locker-room talk) and the conversation stages. Same 160×90 grid and layer classes.
+
+const rnd = (seed) => {
+  let x = seed >>> 0 || 1;
+  return () => ((x = Math.imul(x ^ (x >>> 15), 2246822519) ^ Math.imul(x ^ (x >>> 13), 3266489917)), ((x ^= x >>> 16) >>> 0) / 4294967296);
+};
+const GOLD = "#ffd34d",
+  PANTS = "#e6e1d3",
+  SILVER = "#dfe5ea";
+
+function nightSky(g, h, top = "#05070d", bottom = "#18233a") {
+  for (let y = 0; y < h; y++) g.rect(0, y, g.w, 1, mix(top, bottom, Math.floor((y / h) * 5) / 4));
+  return g;
+}
+// Stadium bowl: light banks on poles and a crowd of coloured dots.
+function stadium(g, colors, seed, { top = 8, bottom = 46, lights = true } = {}) {
+  const r = rnd(seed),
+    palette = [mix(colors.primary, "#0b0d12", 0.45), mix(colors.secondary, "#0b0d12", 0.5), "#3a4252", "#2a303c", mix(colors.primary, "#0b0d12", 0.2)];
+  g.rect(0, top, g.w, bottom - top, "#141923");
+  for (let y = top + 1; y < bottom - 1; y += 2) for (let x = (y % 4) / 2; x < g.w; x += 2) if (r() < 0.82) g.set(x, y, palette[(r() * palette.length) | 0]);
+  g.rect(0, bottom - 2, g.w, 2, "#0d1118");
+  g.rect(0, bottom, g.w, 1, colors.primary);
+  if (lights)
+    for (const x of [10, 52, 100, 142]) {
+      g.rect(x, 1, 10, 4, "#fff6d2").rect(x + 1, 2, 8, 2, "#ffffff").rect(x + 4, 5, 2, top - 4, "#2a303c");
+    }
+  return g;
+}
+function turf(g, y0, line = true) {
+  for (let y = y0; y < g.h; y++) g.rect(0, y, g.w, 1, Math.floor((y - y0) / 4) % 2 ? "#2c7a3a" : "#33873f");
+  if (line) for (let x = 6; x < g.w; x += 30) g.rect(x, y0, 1, g.h - y0, "#d9e6cf");
+  return g;
+}
+// Front-facing player: head, jersey with number, white pants. arms: down | up | one | cross.
+function drawPlayer(g, cx, top, look, colors, { number = "", arms = "down", towel = false, seated = false } = {}) {
+  const x = cx - 8,
+    y = top + 16,
+    { primary, secondary, dark } = colors;
+  drawHead(g, cx, top + 8, look);
+  if (towel) g.ellipse(cx, top + 6, 8, 7, (nx, ny) => (ny < 0.1 ? "#e6e2d6" : null)).rect(cx - 8, top + 4, 2, 9, "#d4cfc2").rect(cx + 6, top + 4, 2, 9, "#d4cfc2");
+  g.rect(x + 1, y, 14, 1, primary).rect(x, y + 1, 16, 12, primary).rect(x + 14, y + 1, 2, 12, dark);
+  g.rect(cx - 3, y, 6, 2, secondary).rect(x, y + 4, 16, 1, secondary);
+  const num = String(number ?? "").replace(/\D/g, "").slice(0, 2);
+  if (num) g.text(num, cx - Math.floor(textWidth(num) / 2), arms === "cross" ? y + 5 : y + 6, secondary);
+  const sleeve = (sx, up) =>
+    up ? g.rect(sx, y - 9, 3, 10, primary).rect(sx, y - 12, 3, 3, look.skin) : g.rect(sx, y + 1, 3, 9, primary).rect(sx, y + 10, 3, 3, look.skin);
+  if (arms === "cross") g.rect(x - 2, y + 1, 3, 10, primary).rect(x + 15, y + 1, 3, 10, primary).rect(x + 1, y + 10, 14, 3, dark).rect(x + 3, y + 10, 3, 2, look.skin).rect(x + 10, y + 10, 3, 2, look.skin);
+  else {
+    sleeve(x - 3, arms === "up");
+    sleeve(x + 16, arms === "up" || arms === "one");
+  }
+  if (seated) g.rect(x, y + 13, 16, 4, PANTS).rect(x + 1, y + 17, 5, 5, PANTS).rect(x + 10, y + 17, 5, 5, PANTS).rect(x + 1, y + 22, 5, 2, "#15191f").rect(x + 10, y + 22, 5, 2, "#15191f");
+  else g.rect(x + 1, y + 13, 6, 9, PANTS).rect(x + 9, y + 13, 6, 9, PANTS).rect(x + 1, y + 22, 6, 2, primary).rect(x + 9, y + 22, 6, 2, primary).rect(x + 1, y + 24, 6, 2, "#15191f").rect(x + 9, y + 24, 6, 2, "#15191f");
+  return g;
+}
+// Suit figure (coach, commissioner, owner). arm: down | up | point.
+function drawSuited(g, cx, top, look, { tie = "#3b6cc8", cap = null, capMark = null, arm = "down", suit = "#1f2531", legs = true } = {}) {
+  drawHead(g, cx, top + 8, look, cap ? { cap, capMark } : {});
+  drawSuit(g, cx - 10, top + 16, 20, 16, tie);
+  g.rect(cx - 13, top + 17, 3, 11, suit).rect(cx - 13, top + 28, 3, 3, look.skin);
+  if (arm === "up") g.rect(cx + 10, top + 7, 3, 11, suit).rect(cx + 10, top + 4, 3, 3, look.skin);
+  else if (arm === "point") g.rect(cx + 10, top + 17, 8, 3, suit).rect(cx + 18, top + 17, 3, 3, look.skin);
+  else g.rect(cx + 10, top + 17, 3, 11, suit).rect(cx + 10, top + 28, 3, 3, look.skin);
+  if (legs) g.rect(cx - 8, top + 32, 7, 9, "#171b24").rect(cx + 1, top + 32, 7, 9, "#171b24").rect(cx - 9, top + 41, 8, 2, "#0b0d12").rect(cx + 1, top + 41, 8, 2, "#0b0d12");
+  return g;
+}
+function drawTrophy(g, cx, top) {
+  g.ellipse(cx, top + 4, 5, 3.5, (nx, ny) => (nx + ny < -0.6 ? "#ffffff" : nx > 0.4 ? "#9aa5af" : SILVER));
+  g.rect(cx - 1, top + 3, 3, 1, "#9aa5af");
+  g.rect(cx - 1, top + 8, 2, 7, SILVER).rect(cx, top + 8, 1, 7, "#aeb7bf").rect(cx - 2, top + 15, 4, 2, SILVER).rect(cx - 3, top + 17, 6, 3, "#1a1d22");
+  return g;
+}
+function confettiLayer(seed, colors, n = 70) {
+  const g = new PixelGrid(160, 90),
+    r = rnd(seed),
+    cols = [colors.primary, colors.secondary, GOLD, "#ffffff"];
+  for (let i = 0; i < n; i++) {
+    const x = (r() * 160) | 0,
+      y = (r() * 78) | 0,
+      c = cols[i % cols.length];
+    g.set(x, y, c);
+    if (i % 3 === 0) g.set(x, y + 1, shade(c, 0.8));
+  }
+  return g;
+}
+function fireworkLayer(seed, colors, at) {
+  const g = new PixelGrid(160, 90),
+    cols = [GOLD, colors.primary, "#ffffff"];
+  at.forEach(([cx, cy], k) => {
+    const c = cols[(seed + k) % cols.length];
+    g.set(cx, cy, "#ffffff");
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) for (let s = 2; s <= 4; s++) g.set(cx + dx * s, cy + dy * s, s === 4 ? shade(c, 0.7) : c);
+  });
+  return g;
+}
+const starOf = (s) => (s?.roster || []).filter((p) => !p.injury).sort((a, b) => b.ovr - a.ovr)[0];
+// The career coach's sprite from the creator appearance (same mapping as coach-avatar.mjs).
+export function coachLook(s, team) {
+  const a = s?.franchise?.userCoach?.appearance || {},
+    av = s?.franchise?.career?.avatar || {};
+  return spriteLook({ skin: a.skin || av.skin, hair: a.hair, style: { Short: 0, Curly: 1, Bald: 4 }[a.hairStyle], beard: a.beard ? a.beard === "Full" || a.beard === "Stubble" : undefined }, "coach-" + team);
+}
+
+export function championshipSceneSVG(d) {
+  const { colors } = d,
+    seed = seedOf("champ-" + d.team + (d.playerId || "")),
+    back = nightSky(new PixelGrid(160, 90), 40);
+  stadium(back, colors, seed, { top: 10, bottom: 50 });
+  turf(back, 51);
+  back.rect(34, 66, 92, 6, mix(colors.primary, "#0b0d12", 0.15)).rect(34, 66, 92, 1, colors.secondary).rect(30, 72, 100, 18, "#141923").rect(30, 72, 100, 2, colors.primary);
+  const cast = new PixelGrid(160, 90);
+  drawPlayer(cast, 42, 34, spriteLook(null, "mate-a" + seed), colors, { number: 21, arms: "up" });
+  drawPlayer(cast, 118, 34, spriteLook(null, "mate-b" + seed), colors, { number: 54, arms: "up" });
+  cast.outline();
+  const heroes = new PixelGrid(160, 90);
+  drawSuited(heroes, 70, 25, d.coachLook, { tie: colors.primary, cap: colors.primary, capMark: colors.secondary, arm: "up" });
+  drawPlayer(heroes, 92, 25, d.look, colors, { number: d.number, arms: "up" });
+  heroes.outline();
+  const cup = drawTrophy(new PixelGrid(160, 90), 82, 10).outline();
+  return sceneSVG(
+    `${d.teamName} lift the championship trophy`,
+    layer(back, "px-l-wall") + layer(fireworkLayer(seed, colors, [[24, 12], [136, 8]]), "px-l-blink-a") + layer(fireworkLayer(seed + 1, colors, [[60, 6], [110, 16]]), "px-l-blink-b") + layer(cast, "px-l-bob-b") + layer(heroes, "px-l-body") + layer(cup, "px-l-lift") + layer(confettiLayer(seed, colors), "px-l-fall-a") + layer(confettiLayer(seed + 7, colors), "px-l-fall-b"),
+  );
+}
+
+export function draftSceneSVG(d) {
+  const { colors } = d,
+    seed = seedOf("draft-" + d.name),
+    back = new PixelGrid(160, 90);
+  back.rect(0, 0, 160, 64, "#0b0f17");
+  for (let x = 0; x < 160; x += 16) back.rect(x, 0, 8, 64, "#0e131d");
+  // Draft board: team colour screen with the round and the name.
+  back.rect(28, 2, 104, 30, "#05070b").rect(30, 4, 100, 26, colors.primary).rect(30, 4, 100, 7, colors.dark);
+  const round = `ROUND ${d.round ?? 1}`,
+    nm = glyphText(lastName(d.name)).trim(),
+    scale = textWidth(nm, 2) <= 94 ? 2 : 1,
+    team = glyphText(d.teamName).trim().slice(0, 24);
+  back.text(round, 80 - Math.floor(textWidth(round) / 2), 5, colors.secondary);
+  back.text(nm, 80 - Math.floor(textWidth(nm, scale) / 2), scale === 2 ? 13 : 16, "#ffffff", scale);
+  back.text(team, 80 - Math.floor(textWidth(team) / 2), 24, colors.secondary);
+  back.rect(0, 64, 160, 26, "#1a2130").rect(0, 64, 160, 2, "#2a3446").rect(0, 70, 160, 1, colors.primary);
+  // Light cones on the stage.
+  for (const cx of [60, 98]) for (let y = 40; y < 70; y++) back.rect(cx - 4 - ((y - 40) >> 2), y, 8 + ((y - 40) >> 1), 1, mix(back.get(cx, y) || "#0b0f17", "#fff6d2", 0.12));
+  const host = new PixelGrid(160, 90);
+  drawSuited(host, 60, 33, spriteLook(null, "commissioner"), { tie: "#9aa5af", suit: "#2b2f36" });
+  host.outline();
+  const prospect = new PixelGrid(160, 90);
+  drawSuited(prospect, 98, 33, d.look, { tie: colors.primary, cap: colors.primary, capMark: colors.secondary });
+  prospect.outline();
+  const wave = new PixelGrid(160, 90);
+  drawSuited(wave, 98, 33, d.look, { tie: colors.primary, cap: colors.primary, capMark: colors.secondary, arm: "up" });
+  wave.outline();
+  const crowd = crowdLayer(seed);
+  return sceneSVG(
+    `${d.name} is drafted by the ${d.teamName}`,
+    layer(back, "px-l-wall") + layer(host, "px-l-owner") + layer(prospect, "px-l-rest") + layer(wave, "px-l-wave") + layer(crowd.g, "px-l-crowd") + flashSVG(crowd.flashes, seed),
+  );
+}
+
+export function podiumSceneSVG(d) {
+  const { colors } = d,
+    seed = seedOf("press-" + d.team + d.week),
+    wall = pressWall(new PixelGrid(160, 90), colors, d.abbr || "GD");
+  wall.rect(0, 64, 160, 26, "#2a2018").rect(0, 64, 160, 2, "#3a2c22");
+  const coach = new PixelGrid(160, 90);
+  drawSuited(coach, 80, 20, d.coachLook, { tie: colors.primary, legs: false });
+  coach.outline();
+  const point = new PixelGrid(160, 90);
+  point.rect(90, 37, 8, 3, "#1f2531").rect(98, 37, 3, 3, d.coachLook.skin).outline();
+  const podium = new PixelGrid(160, 90);
+  podium.rect(64, 50, 32, 40, "#2a3240").rect(62, 48, 36, 3, "#3a4456").rect(69, 55, 22, 14, colors.primary);
+  podium.text(d.abbr || "", 80 - Math.floor(textWidth(d.abbr || "") / 2), 59, colors.secondary);
+  for (const [x, h] of [[74, 8], [80, 10], [86, 8]]) podium.rect(x, 48 - h, 1, h, "#2a2f38").rect(x - 1, 46 - h, 3, 3, ["#c43b3b", "#454c58", "#3b6cc8"][x % 3]);
+  podium.outline();
+  const crowd = crowdLayer(seed);
+  return sceneSVG(
+    `${d.name} speaks at the podium`,
+    layer(wall, "px-l-wall") + layer(coach, "px-l-body") + layer(point, "px-l-blink-a") + layer(podium, "px-l-props") + layer(crowd.g, "px-l-crowd") + flashSVG(crowd.flashes, seed),
+  );
+}
+
+function lockerWall(g, colors, dim = 0) {
+  const tone = (c) => (dim ? mix(c, "#05070b", dim) : c);
+  g.rect(0, 0, 160, 66, tone("#232a35"));
+  for (let i = 0; i < 10; i++) {
+    const x = 2 + i * 16;
+    g.rect(x, 6, 14, 52, tone(shade(colors.primary, 0.8))).rect(x + 1, 7, 12, 50, tone(colors.primary)).rect(x + 1, 22, 12, 1, tone(colors.dark));
+    for (let v = 10; v < 20; v += 3) g.rect(x + 4, v, 6, 1, tone(colors.dark));
+    g.rect(x + 2, 30, 10, 1, tone("#0b0d12")).rect(x + 3, 26, 8, 4, tone(i % 3 ? colors.secondary : PANTS));
+  }
+  g.rect(0, 0, 160, 5, tone("#141923")).rect(0, 58, 160, 8, tone("#3a2c22")).rect(0, 58, 160, 1, tone("#5b4636"));
+  g.rect(0, 66, 160, 24, tone("#1b1f26"));
+  for (let x = 0; x < 160; x += 10) g.rect(x, 66, 1, 24, tone("#232830"));
+  return g;
+}
+
+export function lockerSceneSVG(d, { somber = false } = {}) {
+  const { colors } = d,
+    seed = seedOf("locker-" + d.team + (somber ? "s" : "")),
+    dim = somber ? 0.55 : 0,
+    wall = lockerWall(new PixelGrid(160, 90), colors, dim);
+  const team = new PixelGrid(160, 90),
+    players = (d.cast || []).slice(0, 4);
+  players.forEach((p, i) => drawPlayer(team, 22 + i * 26, somber ? 40 : 30, p.look, colors, { number: p.number, seated: somber, towel: somber && i % 2 === 0, arms: "down" }));
+  team.outline();
+  const coach = new PixelGrid(160, 90);
+  drawSuited(coach, 134, 26, d.coachLook, { tie: colors.primary, cap: somber ? null : colors.primary, capMark: colors.secondary, arm: somber ? "down" : "point" });
+  coach.outline();
+  return sceneSVG(
+    somber ? `The ${d.teamName} locker room after a playoff exit` : `${d.name} addresses the ${d.teamName} locker room`,
+    layer(wall, "px-l-wall") + layer(team, somber ? "px-l-still" : "px-l-bob-b") + layer(coach, somber ? "px-l-still" : "px-l-body"),
+  );
+}
+
+export function walkOffSceneSVG(d) {
+  const { colors } = d,
+    seed = seedOf("walkoff-" + d.team + (d.playerId || "")),
+    back = nightSky(new PixelGrid(160, 90), 36);
+  stadium(back, colors, seed, { top: 8, bottom: 44 });
+  turf(back, 45);
+  const mobA = new PixelGrid(160, 90),
+    mobB = new PixelGrid(160, 90);
+  [[22, 40], [50, 44], [110, 44], [138, 40]].forEach(([x, y], i) => drawPlayer(i % 2 ? mobB : mobA, x, y, spriteLook(null, "mob" + i + seed), colors, { number: [12, 81, 27, 95][i], arms: "up" }));
+  mobA.outline();
+  mobB.outline();
+  const hero = new PixelGrid(160, 90);
+  drawPlayer(hero, 80, 34, d.look, colors, { number: d.number, arms: "up" });
+  hero.outline();
+  return sceneSVG(
+    `${d.name} celebrates a walk-off win`,
+    layer(back, "px-l-wall") + layer(fireworkLayer(seed, colors, [[30, 10], [128, 6]]), "px-l-blink-a") + layer(fireworkLayer(seed + 3, colors, [[78, 4], [150, 18]]), "px-l-blink-b") + layer(mobA, "px-l-jump-a") + layer(mobB, "px-l-jump-b") + layer(hero, "px-l-body") + layer(confettiLayer(seed, colors, 40), "px-l-fall-a"),
+  );
+}
+
+/* ------------------------------------------------- conversation stages */
+// 240×80 strip used behind the dialogue in conversations and press conferences.
+export function conversationStageSVG(d) {
+  const { colors, setting = "office" } = d,
+    W = 240,
+    H = 80,
+    back = new PixelGrid(W, H),
+    seed = seedOf(setting + d.team + (d.playerId || ""));
+  if (setting === "press") {
+    back.rect(0, 0, W, 58, "#18202c");
+    const tile = mix(colors.primary, "#18202c", 0.45),
+      mark = mix(colors.secondary, "#18202c", 0.35);
+    for (let r = 0; r < 5; r++) for (let c = -1; c < 13; c++) back.rect(4 + c * 20 + (r % 2) * 10, 3 + r * 11, 12, 7, tile).text((d.abbr || "GD").slice(0, 2), 6 + c * 20 + (r % 2) * 10, 4 + r * 11, mark);
+    back.rect(0, 58, W, 22, "#2a2018").rect(0, 58, W, 2, "#3a2c22");
+  } else if (setting === "locker") {
+    back.rect(0, 0, W, 58, "#232a35");
+    for (let i = 0; i < 15; i++) {
+      const x = 2 + i * 16;
+      back.rect(x, 4, 14, 48, shade(colors.primary, 0.8)).rect(x + 1, 5, 12, 46, colors.primary).rect(x + 1, 20, 12, 1, colors.dark).rect(x + 3, 24, 8, 4, i % 3 ? colors.secondary : PANTS);
+      for (let v = 8; v < 18; v += 3) back.rect(x + 4, v, 6, 1, colors.dark);
+    }
+    back.rect(0, 52, W, 6, "#3a2c22").rect(0, 52, W, 1, "#5b4636").rect(0, 58, W, 22, "#1b1f26");
+  } else if (setting === "film") {
+    back.rect(0, 0, W, 80, "#0b0f17");
+    back.rect(70, 4, 100, 42, "#05070b").rect(72, 6, 96, 38, "#1f5b35");
+    for (let x = 80; x < 168; x += 12) back.rect(x, 6, 1, 38, "#2f7a4a");
+    for (const [x, y] of [[96, 20], [104, 26], [112, 20], [120, 26], [128, 20]]) back.rect(x, y, 3, 3, "#f4efe2");
+    for (const [x, y] of [[100, 12], [116, 12], [132, 14]]) back.rect(x, y, 1, 3, "#ffd34d").rect(x - 1, y + 1, 3, 1, "#ffd34d");
+    back.rect(118, 30, 1, 10, "#ffd34d").rect(118, 30, 14, 1, "#ffd34d");
+    for (let y = 46; y < 58; y++) back.rect(110 - ((y - 46) * 3), y, 20 + (y - 46) * 6, 1, "#121a28");
+    back.rect(0, 58, W, 22, "#141923");
+  } else {
+    back.rect(0, 0, W, 58, "#2b2a33");
+    back.rect(16, 6, 46, 30, "#3d4656").rect(18, 8, 42, 26, "#7fa8d8").rect(18, 26, 42, 8, "#5f8a5a").rect(38, 8, 2, 26, "#3d4656").rect(18, 20, 42, 1, "#3d4656");
+    back.rect(180, 4, 50, 48, "#3a2c22");
+    for (let r = 0; r < 4; r++) {
+      back.rect(182, 14 + r * 11, 46, 2, "#5b4636");
+      for (let b = 0; b < 9; b++) back.rect(184 + b * 5, 6 + r * 11, 4, 8, [colors.primary, "#c9b78f", "#5b6b84", colors.dark, "#8a3b33"][(b + r) % 5]);
+    }
+    back.rect(100, 8, 40, 24, "#3d4656").rect(102, 10, 36, 20, colors.primary).text(d.abbr || "", 120 - Math.floor(textWidth(d.abbr || "", 2) / 2), 15, colors.secondary, 2);
+    back.rect(0, 58, W, 22, "#3a2c22");
+    for (let x = 0; x < W; x += 12) back.rect(x, 58, 1, 22, "#33271e");
+  }
+  const people = new PixelGrid(W, H),
+    tie = colors.primary;
+  if (setting === "press") {
+    drawSuited(people, 120, 12, d.coachLook, { tie, legs: false });
+    people.rect(102, 42, 36, 38, "#2a3240").rect(100, 40, 40, 3, "#3a4456").rect(108, 47, 24, 12, colors.primary);
+    people.text(d.abbr || "", 120 - Math.floor(textWidth(d.abbr || "") / 2), 51, colors.secondary);
+    for (const x of [114, 120, 126]) people.rect(x, 33, 1, 7, "#2a2f38").rect(x - 1, 31, 3, 3, "#454c58");
+    people.outline();
+    const crowd = new PixelGrid(W, H),
+      r = rnd(seed);
+    for (let i = 0; i < 11; i++) {
+      const cx = 8 + i * 22 + ((r() * 6) | 0);
+      crowd.ellipse(cx, 76, 8, 7, "#07090d").rect(cx - 4, 66, 8, 5, "#0e1117").rect(cx - 1, 67, 3, 3, "#2b3240");
+    }
+    return `<svg class="px-conv-art" viewBox="0 0 ${W} ${H}" shape-rendering="crispEdges" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Press conference room">${layer(back, "px-l-wall")}${layer(people, "px-l-body")}${layer(crowd, "px-l-crowd")}${flashSVG([[40, 64], [92, 63], [150, 64], [200, 63]], seed)}</svg>`;
+  }
+  const seated = setting === "office" || setting === "film";
+  if (setting === "office") people.rect(84, 50, 72, 6, "#5b4636").rect(84, 50, 72, 1, "#7a5f48").rect(88, 56, 4, 16, "#3a2c22").rect(148, 56, 4, 16, "#3a2c22").rect(110, 46, 12, 4, "#e6e1d3").rect(126, 47, 6, 3, "#2a2f38");
+  (d.extras || []).slice(0, 2).forEach((p, i) => drawPlayer(people, 30 + i * 180, 30, p.look, colors, { number: p.number, seated: true, arms: "cross" }));
+  drawSuited(people, 92, 14, d.coachLook, { tie, cap: setting === "locker" ? colors.primary : null, capMark: colors.secondary, arm: d.shot ? "down" : "point", legs: !seated });
+  if (d.staff) drawSuited(people, 150, 14, d.look, { tie: "#9aa5af", suit: "#2b2f36", legs: !seated });
+  else drawPlayer(people, 150, 16, d.look, colors, { number: d.number, seated, arms: d.shot ? "down" : "cross" });
+  if (setting === "office") people.rect(84, 50, 72, 6, "#5b4636").rect(84, 50, 72, 1, "#7a5f48");
+  people.outline();
+  return `<svg class="px-conv-art" viewBox="0 0 ${W} ${H}" shape-rendering="crispEdges" preserveAspectRatio="xMidYMid slice" role="img" aria-label="${escAttr(setting)} conversation">${layer(back, "px-l-wall")}${layer(people, "px-l-body")}</svg>`;
+}
+
 /* ---------------------------------------------------------- scene copy */
 
 // Converts an arrival event (or a news card, which carries the same fields) into scene data.
@@ -380,6 +686,8 @@ export function sceneData(e, s = gameState()) {
     colors = teamColors(team, s),
     from = Number.isInteger(e.from) ? teamLabel(e.from, s) : null,
     base = { team, colors, abbr: label.abbr, teamName: label.name, city: label.city };
+  const story = storyScene(e, s, base, label);
+  if (story) return story;
   if (e.kind === "CoachingMove" || e.type === "coach") {
     const name = e.coachName || e.name || "The new head coach";
     return {
@@ -411,6 +719,32 @@ export function sceneData(e, s = gameState()) {
     sub: `#${number} · ${e.pos || "Player"}${e.ovr ? ` · ${e.ovr} OVR` : ""} — ${via === "trade" && from ? `acquired from the ${from.name}` : via === "waivers" ? "claimed off waivers" : "signed in free agency"}. Welcome to ${label.city}.`,
     svg: () => signingSceneSVG({ ...base, name, number, playerId: e.playerId, face: e.face }),
   };
+}
+
+// Story cinematics in pixel art: the same copy as the 3D versions.
+export const PIXEL_STORY_KINDS = ["Championship", "DraftPick", "PressConference", "PlayoffElimination", "LockerRoomDilemma", "ClutchFinish"];
+function storyScene(e, s, base, label) {
+  if (!PIXEL_STORY_KINDS.includes(e.kind)) return null;
+  const team = base.team,
+    star = starOf(s) || {},
+    look = spriteLook(star.face, star.id || "star"),
+    cl = coachLook(s, team),
+    coachName = s?.coach?.name || "Head coach",
+    score = Array.isArray(e.score) ? ` · ${e.score[0]}–${e.score[1]}` : "",
+    cast = (s?.roster || []).slice(0, 4).map((p) => ({ look: spriteLook(p.face, p.id), number: p.jersey ?? p.number ?? "" })),
+    common = { ...base, look, coachLook: cl, number: star.jersey ?? star.number ?? 1, playerId: star.id, cast, week: s?.week ?? 0 };
+  const kinds = {
+    Championship: () => ({ kind: "championship", name: label.name, kicker: `${s?.year ?? ""} season`.trim(), headline: "CHAMPIONS", sub: `${label.city} ${label.name}${score}`, svg: () => championshipSceneSVG({ ...common }) }),
+    DraftPick: () => {
+      const name = e.playerName || "The pick is in";
+      return { kind: "draft", name, kicker: "Draft night", headline: String(name).toUpperCase(), sub: `Round ${e.round ?? 1} · ${label.name}`, svg: () => draftSceneSVG({ ...common, name, round: e.round ?? 1, look: spriteLook(e.face, e.playerId || name) }) };
+    },
+    PressConference: () => ({ kind: "press", name: coachName, kicker: "Press conference", headline: `“${e.quote || "We move forward."}”`, sub: coachName, svg: () => podiumSceneSVG({ ...common, name: coachName }) }),
+    PlayoffElimination: () => ({ kind: "elimination", name: label.name, kicker: "Season over", headline: "THE LONG WALK", sub: `${label.name} fall ${Array.isArray(e.score) ? `${e.score[0]}–${e.score[1]}` : "in the playoffs"}`, svg: () => lockerSceneSVG({ ...common, name: coachName }, { somber: true }) }),
+    LockerRoomDilemma: () => ({ kind: "locker", name: coachName, kicker: "Locker room", headline: String(e.headline || "A word with the team").toUpperCase(), sub: coachName, svg: () => lockerSceneSVG({ ...common, name: coachName }) }),
+    ClutchFinish: () => ({ kind: "walkoff", name: star.name || label.name, kicker: "Final", headline: "WALK-OFF", sub: `${label.name}${score}`, svg: () => walkOffSceneSVG({ ...common, name: star.name || label.name }) }),
+  };
+  return { ...base, ...kinds[e.kind]() };
 }
 
 /* ------------------------------------------------------------ news cards */

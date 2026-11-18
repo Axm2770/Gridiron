@@ -39,7 +39,7 @@ Invariants kept from `AGENTS.md`:
 | `franchise/social-engine.mjs` | 8 archetypes + 6 fan voices, template grammar, anti-repetition memory, per-event casting, sentiment → fan score / drama / chemistry, bounded morale and fan-approval consequences, newsroom transaction bridge, rivalry previews |
 | `franchise/depth-systems.mjs` | Locker-room dilemmas, press conferences, coaching tree, momentum, environment, halftime deck |
 | `franchise/recruiting-pipeline.mjs` | Draft-prospect pipeline stages, evidence gates, Big Board ranking, positional need, sync with the draft, DraftPick/DraftBust narrative |
-| `franchise/dashboard-ui.mjs` | Tabbed Hub view (replaces the Overview; "Classic overview" toggle retained), Matchday game-day strip, `window.Hub2` actions |
+| `franchise/dashboard-ui.mjs` | Club overview dashboard (no tab strip: the sidebar is the only navigation), Medical & training sub-tabs, Draft room's Scout network / Watchlist pipeline sub-tabs, the coaching tree on Coach career, Matchday game-day strip, `window.Hub2` actions (`Hub2.tab(id)` now opens the sidebar screen that owns that content) |
 | `ui/kit.mjs`, `ui/design-system.css` | Reusable components: `card`, `tabs`, `stat(s)`, `meter`, `momentumBar`, `chip`, `sparkline`, `row`, `post`; tokens, glass surfaces, team-colour theming |
 | `desktop/preload.cjs` | Sandboxed IPC surface for in-game updates |
 

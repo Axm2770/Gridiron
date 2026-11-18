@@ -1,14 +1,14 @@
 // In-engine cinematics for narrative moments (title celebration, draft night, press podium,
 // playoff exit, walk-off win, locker-room confrontation). Built from the same rigged
 // characters as the conversation scenes, played full-screen with letterbox, titles and skip.
-// Signing and head-coach arrivals play as 2D pixel-art scenes (pixel-art.mjs); with the pixel
-// theme on, the 3D scenes render at low resolution and scale up crisply.
+// Signing and head-coach arrivals always play as 2D pixel-art scenes (pixel-art.mjs); with the
+// pixel theme on (the default) every other moment does too, and the classic theme keeps 3D.
 // Read-only over state and the narrative event log, apart from arrival detection.
 import * as THREE from "../vendor/three.module.js";
 import { createCharacter, appearanceFor } from "../franchise/character-stage.mjs";
 import { eventsSince } from "../franchise/event-bus.mjs";
 import { TEAM_COLORS } from "./team-colors.mjs";
-import { playPixelScene, pixelSceneActive, installPixelScenes } from "./pixel-art.mjs";
+import { playPixelScene, pixelSceneActive, installPixelScenes, PIXEL_STORY_KINDS } from "./pixel-art.mjs";
 import { detectArrivals } from "../franchise/arrivals.mjs";
 import { processSocialRound } from "../franchise/social-engine.mjs";
 
@@ -433,7 +433,9 @@ let active = null;
 
 export function playCinematic(event) {
   if (active || pixelSceneActive()) return false;
-  if (SCENES[event.kind]?.pixel) return playPixelScene(event, { duration: SCENES[event.kind].duration });
+  // Pixel theme: every story moment plays as a 2D pixel-art scene; the classic theme keeps 3D.
+  const pixelTheme = document.body.classList.contains("gd-pixel");
+  if (SCENES[event.kind]?.pixel || (pixelTheme && PIXEL_STORY_KINDS.includes(event.kind))) return playPixelScene(event, { duration: SCENES[event.kind]?.duration ?? 7 });
   const build = BUILDERS[event.kind];
   if (!build) return false;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches,

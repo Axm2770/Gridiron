@@ -3,6 +3,8 @@ import { faceSVG } from "./newgens.mjs";
 import * as S from "./state.mjs";
 import { applyRealRosters } from "./real-rosters.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
+import { pixelIcon } from "../ui/pixel-icons.mjs";
+import { officeCounts } from "./newsroom.mjs";
 const paths = {
   home: "m3 10 9-7 9 7v10H3z M9 20v-7h6v7",
   play: "m8 5 11 7-11 7z",
@@ -39,54 +41,63 @@ export const searchKey = (text) =>
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 const money = (n) => "$" + (n / S.MILLION).toFixed(1) + "M";
+// The sidebar, ordered by how often each screen is used: [route, label, pixel glyph]. The top block
+// has no heading; Settings sits apart at the bottom.
+const TOP = [
+  ["Overview", "Club overview", "home"],
+  ["Inbox", "Inbox", "inbox"],
+  ["Matchday", "Matchday", "play"],
+  ["News", "News & social", "news"],
+];
 const groups = [
   [
     "Team",
     [
-      ["Roster", "Squad", "users"],
-      ["Game plan", "Tactics", "target"],
+      ["Roster", "Squad", "squad"],
+      ["Game plan", "Tactics", "tactics"],
       ["Medical", "Medical & training", "medical"],
-      ["Development", "Player development", "chart"],
-      ["Locker room", "Locker room", "users"],
+      ["Development", "Player development", "growth"],
+      ["Locker room", "Locker room", "locker"],
     ],
   ],
   [
     "Recruitment",
     [
-      ["Scouting", "Scouting", "search"],
-      ["Draft", "Draft room", "target"],
-      ["Market", "Transfers & free agency", "chart"],
+      ["Market", "Transfers & free agency", "market"],
+      ["Draft", "Draft room", "draft"],
+      ["Scouting", "Scouting", "scout"],
     ],
   ],
   [
     "Front office",
     [
-      ["Contracts", "Contracts & salary cap", "wallet"],
-      ["Club", "Organization hub", "building"],
-      ["Staff", "Coaching staff", "users"],
-      ["Boardroom", "Boardroom", "building"],
-      ["Career", "Coach career", "briefcase"],
+      ["Contracts", "Contracts & salary cap", "cap"],
+      ["Staff", "Coaching staff", "staff"],
+      ["Club", "Organization hub", "club"],
+      ["Boardroom", "Boardroom", "board"],
+      ["Career", "Coach career", "career"],
     ],
   ],
   [
     "League",
     [
       ["Calendar", "Schedule & calendar", "calendar"],
-      ["League desk", "League snapshot", "chart"],
-      ["Records", "Records & milestones", "history"],
-      ["Statistics", "Statistics", "chart"],
-      ["Analysis", "Data & analysis", "target"],
+      ["League desk", "League snapshot", "league"],
+      ["Statistics", "Statistics", "stats"],
+      ["Analysis", "Data & analysis", "analysis"],
+      ["Records", "Records & milestones", "records"],
     ],
   ],
 ];
+const SETTINGS = ["Settings", "Settings", "settings"];
 // Screens reachable from search and in-page links but not listed in the sidebar.
 const secondary = [
-  ["Conversations", "Conversations", "mic"],
-  ["Career dossier", "Career dossier", "briefcase"],
-  ["Media room", "Media room", "mic"],
-  ["Hall of Fame", "Hall of Fame", "history"],
-  ["Awards", "Awards watch", "history"],
-  ["Transactions", "Transactions", "database"],
+  ["Conversations", "Conversations", "locker"],
+  ["Career dossier", "Career dossier", "career"],
+  ["Media room", "Media room", "news"],
+  ["Hall of Fame", "Hall of Fame", "records"],
+  ["Awards", "Awards watch", "records"],
+  ["Transactions", "Transactions", "market"],
 ];
 // Retired routes open the screen that absorbed them, on the matching tab.
 export const ROUTE_ALIASES = {
@@ -103,6 +114,13 @@ export const ROUTE_ALIASES = {
 };
 const helpControls = `<div class="page-context"><button class="icon-button" onclick="W.help()" aria-label="Help for this screen" title="Help & tutorials">?</button></div>`;
 export const NAV_GROUPS = groups;
+// Sidebar entries outside the groups (the top block and Settings).
+export const NAV_TOP = [...TOP.map((r) => r[0]), SETTINGS[0]];
+// Retired screens that now open something other than a route. "Careers & saves" became the career
+// library (the header's Careers button), which has Load, Import and Export.
+export const ROUTE_ACTIONS = {
+  "Careers & saves": () => (window.Career?.open ? window.Career.open() : window.chooseClub?.()),
+};
 const legacy = new Set(["Game plan", "Schedule", "Media room", "Matchday"]);
 // Page titles shown in the title bar (taglines were removed: the title bar is just the name).
 const descriptions = {
@@ -128,7 +146,6 @@ const descriptions = {
   Conversations: ["Conversations"],
   Database: ["Data & saves"],
   Development: ["Player development"],
-  "Careers & saves": ["Careers & saves"],
   Inbox: ["Inbox"],
   News: ["News & social"],
   Statistics: ["Statistics"],
@@ -137,7 +154,7 @@ const descriptions = {
   Debug: ["Developer console"],
 };
 const routeEntry = (route) =>
-  [...groups.flatMap((g) => g[1]), ...secondary].find(([r]) => r === route);
+  [...TOP, SETTINGS, ...groups.flatMap((g) => g[1]), ...secondary].find(([r]) => r === route);
 export const crumbLabel = (route) =>
   route === "Overview"
     ? "Club overview"
@@ -206,16 +223,17 @@ export function installPresentation({
 }) {
   let squadFilter = { query: "", unit: "All", status: "All", sort: "ovr" },
     commandQuery = "",
-    openGroups = new Set(["Team", "League"]),
+    openGroups = new Set(groups.map(([g]) => g)),
+    // True while fitNavigation() opens/closes groups, so those toggles are not saved as preferences.
+    fitting = false,
     // Visited screens for the Back button (route, tab).
     trail = [],
     returning = false;
   try {
-    // Group names changed when the sidebar was consolidated; ignore stale stored names.
-    let stored = (
-      JSON.parse(localStorage.getItem("gridiron-nav-groups")) || []
-    ).filter((name) => groups.some(([g]) => g === name));
-    if (stored.length) openGroups = new Set(stored);
+    // Groups start open (the sidebar fits without scrolling); only groups the player folded are
+    // remembered. The older "gridiron-nav-groups" list of open groups is ignored.
+    let closed = JSON.parse(localStorage.getItem("gridiron-nav-closed")) || [];
+    openGroups = new Set(groups.map(([g]) => g).filter((g) => !closed.includes(g)));
     document.body.dataset.density =
       localStorage.getItem("gridiron-density") || "comfortable";
   } catch {}
@@ -285,8 +303,26 @@ export function installPresentation({
       : view === "Overview"
         ? "Overview"
         : view;
-  const link = (route, label, glyph) =>
-    `<button class="nav-item ${active() === route ? "active" : ""}" ${active() === route ? 'aria-current="page"' : ""} onclick="W.open('${route}')">${icon(glyph)}<span>${label}</span>${route === "Matchday" && state.live ? '<i class="live-dot"></i>' : ""}${route === "Medical" && state.roster.some((p) => p.injury) ? `<small>${state.roster.filter((p) => p.injury).length}</small>` : ""}</button>`;
+  // A sidebar entry: pixel glyph, label (ellipsis + tooltip when long) and an optional pixel chip.
+  const badge = (route) => {
+    if (route === "Matchday" && state.live) return '<b class="nav-chip live">LIVE</b>';
+    if (route === "Medical") {
+      let n = state.roster.filter((p) => p.injury).length;
+      return n ? `<b class="nav-chip warn" title="${n} injured">${n}</b>` : "";
+    }
+    if (route === "Inbox") {
+      let n = 0;
+      try {
+        n = officeCounts(state).pending;
+      } catch {}
+      return n ? `<b class="nav-chip" title="${n} decision${n === 1 ? "" : "s"} waiting">${n}</b>` : "";
+    }
+    return "";
+  };
+  const link = (route, label, glyph) => {
+    let on = active() === route;
+    return `<button class="nav-item ${on ? "active" : ""}" ${on ? 'aria-current="page"' : ""} title="${esc(label)}" onclick="W.open('${route}')">${pixelIcon(glyph)}<span>${esc(label)}</span>${badge(route)}</button>`;
+  };
   function syncMobileNavigation() {
     let closed =
       window.innerWidth <= 900 &&
@@ -295,7 +331,12 @@ export function installPresentation({
     sidebar.inert = closed;
     sidebar.setAttribute("aria-hidden", String(closed));
   }
-  window.addEventListener("resize", syncMobileNavigation);
+  let fitTimer = null;
+  window.addEventListener("resize", () => {
+    syncMobileNavigation();
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(fitNavigation, 80);
+  });
   document.addEventListener("click", (e) => {
     if (
       window.innerWidth <= 900 &&
@@ -311,19 +352,66 @@ export function installPresentation({
     for (let [name, items] of groups)
       if (items.some(([route]) => active() === route)) openGroups.add(name);
     document.getElementById("nav").innerHTML =
-      link("Overview", "Club overview", "home") +
-      link("Inbox", "Inbox", "bell") +
-      link("News", "News & social", "database") +
-      link("Matchday", "Matchday", "play") +
+      `<div class="nav-top">${TOP.map((r) => link(...r)).join("")}</div>` +
       groups
         .map(
           ([name, items]) =>
-            `<details class="nav-group" ${openGroups.has(name) ? "open" : ""} ontoggle="W.group('${name}',this.open)"><summary>${name}<span>⌄</span></summary>${items.map(([r, l, i]) => link(r, l, i)).join("")}</details>`,
+            `<details class="nav-group" data-group="${name}" ${openGroups.has(name) ? "open" : ""} ontoggle="W.group('${name}',this.open)"><summary><span class="nav-caret" aria-hidden="true"></span>${name}</summary>${items.map((r) => link(...r)).join("")}</details>`,
         )
         .join("") +
       `<div class="nav-settings-divider"></div>` +
-      link("Careers & saves", "Careers & saves", "briefcase") +
-      link("Settings", "Settings", "filter");
+      link(...SETTINGS);
+    fitNavigation();
+  }
+  // The sidebar never scrolls on a desktop: shrink rows, icons and type (--nav-scale, down to 11px
+  // labels) until every entry fits; if the smallest size still overflows, fold the groups that don't
+  // hold the current screen into single header rows. The slide-in menu (under 900px) may scroll.
+  // Pure sizing; the in-game Checks and the screenshot script read #nav scrollHeight/clientHeight.
+  // At 2/3 scale rows are 20px, labels 11px (they never go smaller) and the 12×12 glyphs draw 1:1.
+  const NAV_MIN = 0.667;
+  let lastFit = { key: "", scale: 1 };
+  function fitNavigation() {
+    let aside = document.querySelector("aside"),
+      nav = document.getElementById("nav");
+    if (!aside || !nav) return;
+    let mobile = window.innerWidth <= 900,
+      over = () => nav.scrollHeight > nav.clientHeight + 1,
+      key = `${window.innerWidth}x${window.innerHeight}:${[...openGroups].join()}:${active()}`;
+    fitting = true;
+    aside.classList.remove("nav-folded", "nav-tight");
+    nav.querySelectorAll("details.nav-group[data-folded]").forEach((g) => {
+      g.open = true;
+      g.removeAttribute("data-folded");
+    });
+    let scale = mobile ? 1 : key === lastFit.key ? lastFit.scale : 1;
+    aside.style.setProperty("--nav-scale", scale);
+    if (!mobile) {
+      if (key === lastFit.key && !over() && scale < 1) {
+        // A cached size still fits; try one step larger in case the content shrank.
+        aside.style.setProperty("--nav-scale", Math.min(1, scale + 0.04));
+        if (over()) aside.style.setProperty("--nav-scale", scale);
+        else scale = Math.min(1, scale + 0.04);
+      }
+      while (over() && scale > NAV_MIN) {
+        scale = Math.max(NAV_MIN, +(scale - 0.02).toFixed(3));
+        aside.style.setProperty("--nav-scale", scale);
+      }
+      // Next, drop the decorative wordmark (the club switcher still names the club).
+      if (over()) aside.classList.add("nav-tight");
+      if (over()) {
+        aside.classList.add("nav-folded");
+        // Fold one group at a time, from the bottom, skipping the one with the current screen.
+        for (let g of [...nav.querySelectorAll("details.nav-group[open]")].reverse()) {
+          if (!over()) break;
+          if (g.querySelector(".nav-item.active")) continue;
+          g.open = false;
+          g.dataset.folded = "true";
+        }
+      }
+      lastFit = { key, scale };
+    }
+    // details toggle events fire asynchronously; ignore them until they have run.
+    setTimeout(() => (fitting = false), 0);
   }
   const previousModal = modal;
   modal = function (html) {
@@ -342,6 +430,7 @@ export function installPresentation({
   window.W = {
     open(route, tab) {
       document.body.classList.remove("nav-visible");
+      if (ROUTE_ACTIONS[route]) return ROUTE_ACTIONS[route]();
       if (ROUTE_ALIASES[route]) [route, tab] = ROUTE_ALIASES[route];
       if (tab !== undefined) window.Nav?.setTab(route, tab);
       if (legacy.has(route)) {
@@ -359,11 +448,12 @@ export function installPresentation({
       W.open(route, tab ?? undefined);
     },
     group(name, opened) {
+      if (fitting) return;
       opened ? openGroups.add(name) : openGroups.delete(name);
       try {
         localStorage.setItem(
-          "gridiron-nav-groups",
-          JSON.stringify([...openGroups]),
+          "gridiron-nav-closed",
+          JSON.stringify(groups.map(([g]) => g).filter((g) => !openGroups.has(g))),
         );
       } catch {}
     },
@@ -397,12 +487,8 @@ export function installPresentation({
     search(value) {
       commandQuery = value.toLowerCase().trim();
       let routes = [
-          ["Overview", "Club overview", "home"],
-          ["Matchday", "Matchday", "play"],
-          ["Inbox", "Inbox", "bell"],
-          ["News", "News & social", "database"],
-          ["Settings", "Settings", "filter"],
-          ["Careers & saves", "Careers & saves", "briefcase"],
+          ...TOP,
+          SETTINGS,
           ...groups.flatMap((g) => g[1]),
           ...secondary,
         ].filter((r) =>
@@ -427,6 +513,7 @@ export function installPresentation({
             ["Trim roster to 53", "Office.trimPreview()", "users", "trim cut roster 53 limit"],
             ["Assistant depth chart", "F.depth()", "users", "depth chart optimize starters lineup"],
             ["Open transactions log", "W.open('Transactions')", "database", "transactions moves signings trades log"],
+            ["Careers & saves: load, import or export", "Career.open()", "briefcase", "careers saves save load switch import export backup library"],
             ["Help & tutorials", "W.help()", "search", "help tutorial tour guide glossary"],
             ...(window.Tutorial?.tours || []).map((tour) => [`Tour: ${tour.title}`, `Tutorial.start('${tour.id}')`, "play", "tour tutorial " + tour.title]),
           ].filter(([label, , , words]) => (label + " " + words).toLowerCase().includes(commandQuery))
@@ -440,7 +527,7 @@ export function installPresentation({
           routes
             .map(
               ([route, label, glyph]) =>
-                `<button class="command-row" onclick="closeModal();W.open('${route}')">${icon(glyph)}<span>${label}</span>${icon("arrow")}</button>`,
+                `<button class="command-row" onclick="closeModal();W.open('${route}')">${pixelIcon(glyph, "ui-icon")}<span>${label}</span>${icon("arrow")}</button>`,
             )
             .join("") +
           (players.length ? '<div class="result-label">PLAYERS</div>' : "") +
@@ -530,7 +617,7 @@ export function installPresentation({
       tab = window.Nav?.tabLabel(current),
       divider = `<span class="breadcrumb-divider">/</span>`;
     document.getElementById("breadcrumb").innerHTML =
-      `<button class="mobile-menu icon-button" onclick="W.mobile()" aria-label="Toggle navigation">${icon("menu")}</button>${trail.length > 1 ? `<button class="breadcrumb-back" onclick="W.back()" aria-label="Back to ${esc(crumbLabel(trail.at(-2)[0]))}" title="Back (Alt+←)">← Back</button>` : ""}<nav class="breadcrumb-trail" aria-label="Breadcrumb"><button class="breadcrumb-club" onclick="W.open('Overview')">${esc(clubs[state.team][2])}</button>${group ? `${divider}<button class="breadcrumb-group" onclick="W.open('${group[1][0][0]}')">${esc(group[0])}</button>` : ""}${divider}${tab ? `<button class="breadcrumb-screen" onclick="W.open('${current}',null)">${esc(label)}</button>${divider}<b aria-current="page">${esc(tab)}</b>` : `<b aria-current="page">${esc(label)}</b>`}</nav>`;
+      `<button class="mobile-menu icon-button" onclick="W.mobile()" aria-label="Toggle navigation">${icon("menu")}</button>${trail.length > 1 ? `<button class="breadcrumb-back" onclick="W.back()" aria-label="Back to ${esc(crumbLabel(trail.at(-2)[0]))}" title="Back (Alt+←)">← Back</button>` : ""}<nav class="breadcrumb-trail" aria-label="Breadcrumb"><button class="breadcrumb-club" onclick="W.open('Overview')">${esc(clubs[state.team][2])}</button>${group ? `${divider}<span class="breadcrumb-group">${esc(group[0])}</span>` : ""}${divider}${tab ? `<button class="breadcrumb-screen" onclick="W.open('${current}',null)">${esc(label)}</button>${divider}<b aria-current="page">${esc(tab)}</b>` : `<b aria-current="page">${esc(label)}</b>`}</nav>`;
     document.querySelector("header>div").innerHTML =
       `<button class="search-trigger" onclick="W.command()" aria-label="Search players and screens">${icon("search")}<span>Search anything</span><kbd>⌘ K</kbd></button><button class="icon-button density-toggle" onclick="W.open('Settings')" aria-label="Settings" title="Settings">${icon("filter")}</button><span class="calendar-chip">${icon("calendar")}${state.year} · ${phaseName()}</span><button class="continue-button" onclick="advance()" ${isBusy() ? "disabled" : ""}>${state.live ? "Return to game" : state.interviewPending ? "Press conference" : state.phase === "offseason" ? "Offseason hub" : "Continue"}${icon("arrow")}</button>`;
     document.getElementById("club").innerHTML =
@@ -818,6 +905,8 @@ export function installPresentation({
       trail = trail.slice(-40);
     } else last[1] = tabNow;
     returning = false;
+    // CSS hooks (e.g. the viewport UI scale skips Matchday).
+    document.body.dataset.route = section;
     navigation();
     header();
     // Compact title bar: the page name on the left, help (and any real per-screen action) on the right.
