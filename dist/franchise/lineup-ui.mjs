@@ -1,26 +1,73 @@
 import * as S from "./state.mjs";
 import { textNotice } from "../ui/notice.mjs";
+import { pixelFace } from "../ui/pixel-face.mjs";
+import { teamColors } from "../presentation/pixel-art.mjs";
 import "./fixes.mjs";
 import {
   LINEUP_UNITS,
+  applyLineupMove,
   canEditUnit,
-  changeLineup,
   lineupBoard,
   lineupSettings,
-  slotChoices,
+  lineupSnapshot,
+  restoreLineup,
   weakestSlot,
 } from "./lineup.mjs";
+import { formationLayout } from "./lineup-layout.mjs";
 
-// Visual lineup for the Squad and Tactics screens: a pixel field with the unit's formation,
-// a slot picker and the depth order beside it. Every change goes through changeLineup, the
-// same mutation the sideline board uses, so it reaches quick sims and live games.
+// Visual lineup for the Squad and Tactics screens and the matchday Team lineup: a pixel field
+// with the unit's formation and a depth panel beside it.
+//
+// State model: the depth chart (each player's depthPriority + starter flag) is the only source
+// of truth. Slots are derived from it on every render (lineupBoard → the engine's buildActors),
+// every change goes through one write path (applyLineupMove: replace or trade places) and one
+// redraw, so the board, the depth lists, quick sims and the live engine can't disagree.
+// UI state here is only what is selected, which position tab and page is open, and the undo stack.
 
 export const VIEW_KEY = "gridiron-lineup-view";
 const UNIT_LABELS = { Offense: "Offense", Defense: "Defense", Specialists: "Special teams" };
+// Rows per page in the depth panel; the live matchday board is shorter so the page never scrolls.
+const PAGE = 7,
+  MATCH_PAGE = 4;
 const arg = (v) => esc(JSON.stringify(v));
 const pct = (n) => Math.round(n ?? 100);
 const condTone = (p) => (!p ? "" : p.injury ? "bad" : (p.fitness ?? 100) >= 80 ? "good" : (p.fitness ?? 100) >= 65 ? "warn" : "bad");
-const lastName = (p) => String(p.name || "").split(" ").slice(1).join(" ") || p.name || "";
+const quality = (ovr) => (ovr >= 85 ? "elite" : ovr >= 75 ? "good" : ovr >= 65 ? "avg" : "low");
+const pips = (p) => {
+  const f = p?.fitness ?? 100,
+    n = f >= 90 ? 4 : f >= 75 ? 3 : f >= 60 ? 2 : 1;
+  return `<span class="lu-pips cond-${condTone(p)}" aria-hidden="true">${"<i></i>".repeat(n)}${"<i class=off></i>".repeat(4 - n)}</span>`;
+};
+// Short name for a field card: the last name (suffixes like Jr. dropped); a long one steps the
+// font down ("sm"), a long hyphenated/two-word surname keeps its last part, and only a very long
+// single surname steps down again ("xs") with an ellipsis as the last resort.
+// List rows: the full name, or initial + surname when it is long ("Broderick Jones" → "B. Jones").
+export const rowName = (name) => {
+  const n = String(name || "");
+  if (n.length <= 14) return n;
+  const parts = n.split(/\s+/);
+  return parts.length > 1 ? `${parts[0][0]}. ${parts.slice(1).join(" ")}` : n;
+};
+export function shortName(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  while (parts.length > 2 && /^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(parts.at(-1))) parts.pop();
+  let last = parts.slice(1).join(" ") || parts[0] || "";
+  if (last.length <= 7) return { text: last, size: "" };
+  if (last.length <= 9) return { text: last, size: "sm" };
+  const seg = last.split(/[-\s]/).filter(Boolean);
+  if (seg.length > 1) {
+    last = seg.at(-1);
+    return { text: last, size: last.length <= 7 ? "" : last.length <= 9 ? "sm" : "xs" };
+  }
+  return { text: last, size: "xs" };
+}
+const focusQuiet = (el) => {
+  try {
+    el?.focus?.({ preventScroll: true });
+  } catch {
+    el?.focus?.();
+  }
+};
 
 // Per-device choice between the visual lineup and the table, per screen.
 export function viewMode(screen) {
@@ -39,163 +86,574 @@ function storeViewMode(screen, mode) {
   } catch {}
 }
 
-// Field positions (percent of the field box) for each slot. Offense attacks up from a line
-// of scrimmage at 40%; defense lines up across it, facing down the field.
+// Field positions (percent of the field box, token top-left) for each slot.
 export function slotPositions(actors, unit, m = {}) {
-  const LOS = 40;
-  if (unit === "Specialists")
-    return actors.map((a, i) => ({ ...a, left: i ? 64 : 36, top: i ? 70 : 58 }));
-  const seen = {},
-    nth = (role) => (seen[role] = (seen[role] ?? -1) + 1);
-  if (unit === "Defense") {
-    const dl = actors.filter((a) => a.role === "DL").length,
-      lb = actors.filter((a) => a.role === "LB").length;
-    const spread = (n, i, width) => 50 + (i - (n - 1) / 2) * (width / Math.max(1, n - 1 || 1));
-    return actors.map((a) => {
-      const i = nth(a.role);
-      let x = 50,
-        y = LOS + 6;
-      if (a.role === "DL") [x, y] = [dl === 1 ? 50 : spread(dl, i, dl > 3 ? 36 : 26), LOS + 7];
-      else if (a.role === "LB") [x, y] = [lb === 1 ? 50 : spread(lb, i, lb > 3 ? 48 : 34), LOS + 22];
-      else if (a.role === "CB") [x, y] = [[8, 92, 22, 78][i] ?? 50, i < 2 ? LOS + 9 : LOS + 17];
-      else if (a.role === "S")
-        [x, y] = m.shell === "Single-High" ? [[50, 30][i] ?? 50, i ? LOS + 26 : LOS + 46] : m.shell === "Zero" ? [[32, 68][i] ?? 50, LOS + 24] : [[30, 70][i] ?? 50, LOS + 42];
-      return { ...a, left: x, top: y };
-    });
+  const tokens = formationLayout(actors, unit, m).tokens;
+  return actors.map((a, i) => ({ ...a, left: tokens[i].left, top: tokens[i].top, label: tokens[i].label }));
+}
+
+function schemeOf(unit, m) {
+  if (unit === "Offense") return [m.offense || "Shotgun spread", `${m.personnel || "11"}${m.personnel === "Goal Line" ? "" : " personnel"}`];
+  if (unit === "Defense") return [m.defense || "Nickel", `${m.shell || "2-High"} shell`];
+  return ["Special teams", "Kicker · punter"];
+}
+
+// One controller per page (the Squad/Tactics board and the matchday board share it).
+let controller = null;
+export function lineupController({ isBusy } = {}) {
+  controller ??= createController([]);
+  if (isBusy && !controller.busyChecks.includes(isBusy)) controller.busyChecks.push(isBusy);
+  if (typeof window !== "undefined") window.Lineup = controller;
+  return controller;
+}
+
+function createController(busyChecks) {
+  let unit = "Offense",
+    sel = null, // { index, id, role }
+    suggested = null,
+    posTab = null,
+    page = 0,
+    error = "",
+    flash = [],
+    undoStack = [],
+    last = { screen: "squad", opts: {} },
+    working = false;
+  const locked = () => busyChecks.some((f) => f()) || (typeof animating !== "undefined" && animating);
+  const editable = () => canEditUnit(state, unit) && !state.live?.finished;
+  const fingerprint = () => JSON.stringify(lineupSnapshot(state));
+
+  // Redraw: data changes go through the screen's own render (the matchday modal redraws its
+  // dialog); selection/tab/page changes patch just the board in place, so nothing else on the
+  // page re-renders, flickers or jumps.
+  function redraw(full, focusSel) {
+    const el = typeof document !== "undefined" ? document.querySelector?.("[data-lu-board]") : null;
+    if (!full && el && el.outerHTML !== undefined) {
+      const html = board(last.screen, last.opts);
+      const tpl = document.createElement("template");
+      tpl.innerHTML = html;
+      el.replaceWith(tpl.content.firstElementChild || tpl.content);
+    } else if (last.opts.redraw) last.opts.redraw();
+    else if (typeof render === "function") render();
+    if (focusSel) (globalThis.requestAnimationFrame || setTimeout)(() => focusQuiet(document.querySelector?.(focusSel)));
   }
-  const formation = m.offense || "Shotgun spread",
-    under = ["Singleback", "I formation"].includes(formation),
-    ol = actors.filter((a) => a.role === "OL").length;
-  return actors.map((a) => {
-    const i = nth(a.role);
-    let x = 50,
-      y = LOS + 10;
-    if (a.role === "OL") [x, y] = [50 + (i - (ol - 1) / 2) * 8.5, LOS + 6];
-    else if (a.role === "QB") [x, y] = [50, under ? LOS + 17 : LOS + 27];
-    else if (a.role === "RB") {
-      if (formation === "Empty backfield") [x, y] = [[88, 12][i] ?? 50, LOS + 17];
-      else if (formation === "I formation") [x, y] = [50, i ? LOS + 29 : LOS + 42];
-      else if (formation === "Singleback") [x, y] = [[50, 36][i] ?? 50, LOS + 36];
-      else [x, y] = [[64, 36][i] ?? 50, LOS + 27];
-    } else if (a.role === "TE") [x, y] = [[75, 25, 84][i] ?? 50, LOS + 8];
-    else if (a.role === "WR") [x, y] = [[7, 93, 20, 80, 33][i] ?? 50, i < 2 ? LOS + 4 : LOS + 11];
-    else if (a.role === "K" || a.role === "P") [x, y] = [50, LOS + 30];
-    return { ...a, left: x, top: y };
+
+  // The one write path: put player `id` into `slot` (replace, or trade places with a teammate).
+  function move(slot, id) {
+    if (working) return;
+    if (locked()) {
+      toast("Wait for the current play or simulation to finish.");
+      return;
+    }
+    let result = null;
+    const before = lineupSnapshot(state);
+    working = true;
+    try {
+      state = S.transact(state, (s) => {
+        result = applyLineupMove(s, unit, slot, id);
+      });
+    } catch (e) {
+      error = e.message;
+      working = false;
+      redraw(false);
+      return;
+    }
+    working = false;
+    sel = null;
+    suggested = null;
+    error = "";
+    if (result.kind === "none") {
+      redraw(false, `[data-lu-slot="${slot}"]`);
+      return;
+    }
+    undoStack.push({ unit, before, after: fingerprint() });
+    undoStack = undoStack.slice(-10);
+    const other = lineupBoard(state, unit).actors.find((a) => a.p && result.outgoing && a.id === result.outgoing.id);
+    flash = [slot, other?.index].filter((n) => Number.isInteger(n));
+    save();
+    redraw(true, `[data-lu-slot="${slot}"]`);
+    flash = [];
+    toast(
+      result.kind === "swap"
+        ? `${result.incoming.name} and ${result.outgoing.name} trade places at ${result.incoming.pos}.`
+        : `${result.incoming.name} is in the lineup at ${result.incoming.pos}${result.outgoing ? `, replacing ${result.outgoing.name}` : ""}.`,
+    );
+  }
+
+  function undo() {
+    const top = undoStack.at(-1);
+    if (!top || locked()) return;
+    if (top.after !== fingerprint()) {
+      undoStack = [];
+      toast("The depth chart changed elsewhere since that edit, so there is nothing to undo.");
+      redraw(false);
+      return;
+    }
+    undoStack.pop();
+    try {
+      state = S.transact(state, (s) => restoreLineup(s, top.before));
+    } catch (e) {
+      error = e.message;
+      redraw(false);
+      return;
+    }
+    unit = top.unit;
+    sel = null;
+    error = "";
+    save();
+    redraw(true);
+    toast("Last lineup change undone.");
+  }
+
+  // ---------- markup ----------
+  function token(t, a, team) {
+    const p = a.p,
+      isSel = sel?.index === a.index,
+      label = p
+        ? `Select ${p.name} at ${a.role} (${t.label}): number ${p.jersey ?? "unknown"}, ${p.ovr} overall, condition ${pct(p.fitness)}%.${isSel ? " Selected." : ""}`
+        : `Select vacant ${t.label} slot. Assign a player.`;
+    return `<button type="button" class="lu-tok ${p ? "q-" + quality(p.ovr) + " cond-" + condTone(p) : "vacant"}${isSel ? " selected" : ""}${sel && !isSel && sel.role === a.role && a.p && editable() ? " lu-can-swap" : ""}${flash.includes(a.index) ? " flash" : ""}" style="left:${t.left}%;top:${t.top}%;width:${t.width}%;height:${t.height}%" data-lu-slot="${a.index}" data-lu-role="${a.role}" data-x="${t.x.toFixed(1)}" data-y="${t.y.toFixed(1)}" ${p ? `data-lu-player="${esc(p.id)}" data-lu-drag` : ""} aria-pressed="${isSel}" aria-label="${esc(label)}" onclick="Lineup.select(${a.index})">${
+      p
+        ? `<span class="lu-tok-top"><span class="lu-face">${pixelFace(p, { size: 40, team, label: "" })}</span><span class="lu-num">${esc(p.jersey ?? "–")}</span></span>${((n) => `<span class="lu-tok-name ${n.size}" title="${esc(p.name)}">${esc(n.text)}</span>`)(shortName(p.name))}<span class="lu-tok-meta"><i>${t.label}</i><b class="lu-ovr">${p.ovr}</b></span>${pips(p)}`
+        : `<span class="lu-tok-top"><span class="lu-face lu-face-empty">+</span></span><span class="lu-tok-name">Vacant</span><span class="lu-tok-meta"><i>${t.label}</i></span>`
+    }</button>`;
+  }
+
+  // Turf for the formation window F (layout.field): mowing stripes aligned to the LOS, yard lines
+  // every five yards (one card row) away from it, sideline numbers, hash marks, LOS and
+  // first-down lines, labels in the band on the far side of the LOS from the unit, and the end
+  // zone behind the unit (bottom for offense, top for the mirrored defense).
+  function turf(unit, F, team) {
+    const live = state.live && !state.live.finished ? state.live : null,
+      pc = (y) => ((y / F.H) * 100).toFixed(2) + "%",
+      dir = F.flip ? -1 : 1,
+      toGo = live ? Math.min(10, Math.max(1, live.toGo || 10)) : 10,
+      fd = F.los - (toGo / 10) * (F.band - 2.6),
+      yards = [];
+    for (let k = 1; ; k++) {
+      const y = F.los + dir * k * F.row;
+      if (F.flip ? y <= F.zoneBottom + 1 : y >= F.zoneTop - 1) break;
+      yards.push([y, k]);
+    }
+    if (F.los - dir * F.row > 1 && F.los - dir * F.row < F.H - 1) yards.push([F.los - dir * F.row, -1]);
+    const crest = typeof logo === "function" ? logo(team) : "",
+      name = clubs[team]?.[2] || "",
+      down = live ? `${["1ST", "2ND", "3RD", "4TH"][Math.max(0, (live.down || 1) - 1)] || "1ST"} & ${live.goal ? "GOAL" : toGo}` : "1ST & 10",
+      ball = live && typeof fieldPosition === "function" ? ` · ${fieldPosition(live)}` : "",
+      tagY = F.flip ? F.los + 1.1 : F.los - 4,
+      num = (k) => (k < 0 ? 50 : Math.max(10, 50 - k * 5)),
+      numbers = yards.filter(([, k]) => k % 2 === 0).map(([y, k]) => `<b style="top:${pc(y)}">${num(k)}</b>`).join(""),
+      fieldTop = F.flip ? F.zoneBottom : 0,
+      fieldBottom = F.flip ? F.H : F.zoneTop;
+    return `<span class="lu-turf" style="background-position:0 0,0 ${F.los.toFixed(2)}cqw" aria-hidden="true"></span><span class="lu-sideline left" aria-hidden="true">${numbers}</span><span class="lu-sideline right" aria-hidden="true">${numbers}</span>${yards.map(([y]) => `<span class="lu-yard" style="top:${pc(y)}" aria-hidden="true"></span>`).join("")}<span class="lu-hash l" style="top:${pc(fieldTop)};height:${(((fieldBottom - fieldTop) / F.H) * 100).toFixed(2)}%" aria-hidden="true"></span><span class="lu-hash r" style="top:${pc(fieldTop)};height:${(((fieldBottom - fieldTop) / F.H) * 100).toFixed(2)}%" aria-hidden="true"></span>${unit === "Offense" ? `<span class="lu-fd" style="top:${pc(fd)}" aria-hidden="true"></span>` : ""}<span class="lu-los" style="top:${pc(F.los)}" aria-hidden="true"></span><span class="lu-tag lu-tag-los" style="top:${pc(tagY)}">LOS${esc(ball)}</span><span class="lu-tag lu-tag-dir" style="top:${pc(tagY)}">${unit === "Defense" ? "▼ DEFEND" : unit === "Offense" ? "▲ ATTACK · " + down : "KICKING UNIT"}</span><span class="lu-endzone${F.flip ? " flip" : ""}" style="top:${pc(F.zoneTop)};height:${((F.zoneH / F.H) * 100).toFixed(2)}%">${crest ? `<span class="lu-crest">${crest}</span>` : ""}<b>${esc(name)}</b>${crest ? `<span class="lu-crest">${crest}</span>` : ""}</span>`;
+  }
+
+  function sidePanel(b, labels, can) {
+    const groups = b.positions,
+      tab = groups.find((g) => g.pos === posTab) || groups[0];
+    if (!tab) return "";
+    const selActor = sel ? b.actors[sel.index] : null,
+      cur = selActor?.p,
+      slotLabel = (i) => labels[i] || b.actors[i]?.role,
+      picking = selActor && selActor.role === tab.pos,
+      // Picking a replacement: the current occupant, then bench players best fit first (OVR,
+      // then condition), then teammates he could trade places with. Otherwise: depth order.
+      fit = (x, y) => y.p.ovr - x.p.ovr || (y.p.fitness ?? 100) - (x.p.fitness ?? 100),
+      healthyRows = tab.depth.map(({ p, rank, slot }) => ({ p, rank, slot, out: "" })),
+      ordered = picking
+        ? [
+            ...healthyRows.filter((r) => r.slot === sel.index),
+            ...healthyRows.filter((r) => r.slot === null).sort(fit),
+            ...healthyRows.filter((r) => r.slot !== null && r.slot !== sel.index),
+          ]
+        : healthyRows,
+      rows = [
+        ...ordered,
+        ...tab.unavailable.map(({ p, reason }) => ({ p, rank: p.injury ? "✚" : "–", slot: null, out: reason })),
+      ],
+      per = last.screen === "match" ? MATCH_PAGE : PAGE,
+      pages = Math.max(1, Math.ceil(rows.length / per));
+    page = Math.min(page, pages - 1);
+    const shown = rows.slice(page * per, page * per + per),
+      pickingHere = picking;
+    const row = ({ p, rank, slot, out }) => {
+      const onField = slot !== null,
+        mine = onField && sel?.index === slot,
+        action = out ? "" : pickingHere ? (mine ? "Now" : onField ? "Trade" : "Swap in") : onField ? slotLabel(slot) : "Bench",
+        delta = pickingHere && cur && !mine ? p.ovr - cur.ovr : null,
+        deltaChip = delta === null ? "" : `<i class="lu-delta ${delta > 0 ? "up" : delta < 0 ? "down" : "even"}" title="OVR versus ${esc(cur.name)}">${delta > 0 ? "+" : delta < 0 ? "−" : "±"}${Math.abs(delta)}</i>`,
+        tone = out ? "out" : mine ? "mine" : onField ? "on-field" : "bench";
+      if (out)
+        return `<li><div class="lu-row out" aria-disabled="true"><span class="lu-rank">${rank}</span>${pixelFace(p, { size: 28, team: state.team, label: "" })}<span class="lu-row-name" title="${esc(out)}"><b>${esc(p.name)}</b><small>${esc(out.length > 22 ? out.split(" · ")[0] : out)}</small></span><b class="lu-ovr q-${quality(p.ovr)}">${p.ovr}</b><em class="lu-row-tag bad">${p.injury ? "Injured" : "Out"}</em></div></li>`;
+      return `<li><button type="button" class="lu-row ${tone}${suggested === p.id ? " suggested" : ""}" data-lu-player="${esc(p.id)}" data-lu-pos="${p.pos}" data-lu-at="${onField ? slot : ""}" ${can ? "data-lu-drag" : ""} ${!can && !onField ? "disabled" : ""} aria-label="${esc(`${p.name}, ${p.ovr} overall, condition ${pct(p.fitness)}%, depth ${rank}. ${pickingHere && !mine ? (onField ? "Trade places with the selected slot." : "Put him in the selected slot.") : onField ? "On the field at " + slotLabel(slot) + "." : "Bench. Choose a slot for him."}`)}" onclick="Lineup.row(${arg(p.id)})"><span class="lu-rank">${rank}</span>${pixelFace(p, { size: 28, team: state.team, label: "" })}<span class="lu-row-name"><b title="${esc(p.name)}">${esc(rowName(p.name))}</b><small title="${p.age} yrs · ${p.starter ? "starter" : "reserve"}">#${esc(p.jersey ?? "–")} · <span class="cond-${condTone(p)}" title="Condition">${pct(p.fitness)}%</span>${p.status === "elevated" ? " · elev." : ""}</small></span><span class="lu-ovr-cell"><b class="lu-ovr q-${quality(p.ovr)}">${p.ovr}</b>${deltaChip}</span><em class="lu-row-tag ${tone}">${esc(action)}</em></button></li>`;
+    };
+    const head = cur
+      ? `<div class="lu-sel has-face">${pixelFace(cur, { size: 44, team: state.team, label: "" })}<div><span class="lu-kicker">Replacing · ${esc(slotLabel(sel.index))}</span><h3 tabindex="-1" data-lu-focus>${esc(cur.name)}</h3><span class="lu-sel-stats"><b class="lu-ovr q-${quality(cur.ovr)}">${cur.ovr}</b>${pips(cur)}<small>${pct(cur.fitness)}% cond · ${pct(cur.morale ?? 75)}% morale</small></span><button type="button" class="link" onclick="W.player(${arg(cur.id)})">Profile →</button></div><button type="button" class="secondary small" onclick="Lineup.close()">Cancel</button></div>`
+      : selActor
+        ? `<div class="lu-sel"><div><span class="lu-kicker">Filling · ${esc(slotLabel(sel.index))}</span><h3 tabindex="-1" data-lu-focus>Vacant slot</h3><small>Pick a healthy ${selActor.role} below.</small></div><button type="button" class="secondary small" onclick="Lineup.close()">Cancel</button></div>`
+        : `<div class="lu-sel idle"><div><span class="lu-kicker">${esc(tab.pos)} depth order</span><small>${tab.slots} on the field · ${tab.depth.length} healthy${tab.unavailable.length ? ` · ${tab.unavailable.length} out` : ""}</small></div></div>`;
+    return `<div class="lu-side" role="region" aria-label="Depth chart">${
+      groups.length > 1
+        ? `<div class="lu-pos-tabs" role="tablist" aria-label="Position">${groups
+            .map((g) => `<button type="button" role="tab" aria-selected="${g === tab}" class="${g === tab ? "active" : ""}" onclick="Lineup.tab('${g.pos}')">${g.pos}<small>${g.slots}</small></button>`)
+            .join("")}</div>`
+        : ""
+    }${head}${error ? textNotice(error, { cls: "lu-notice" }) : ""}${
+      editable() ? "" : `<p class="lu-note">${state.live?.finished ? "The game has finished. Review the result before changing personnel." : `In your ${esc(state.franchise.role)} role the ${UNIT_LABELS[unit].toLowerCase()} depth chart belongs to another coach.`}</p>`
+    }<div class="lu-label">${pickingHere ? "Available replacements" : "Depth order"} <span>${rows.length}</span></div><ol class="lu-rows">${shown.map(row).join("") || `<li class="lu-empty">Nobody at ${tab.pos}.</li>`}</ol>${
+      pages > 1
+        ? `<div class="lu-pager"><button type="button" class="secondary small" onclick="Lineup.page(-1)" ${page ? "" : "disabled"} aria-label="Previous page">◀ Prev</button><span>${page + 1} / ${pages}</span><button type="button" class="secondary small" onclick="Lineup.page(1)" ${page < pages - 1 ? "" : "disabled"} aria-label="Next page">Next ▶</button></div>`
+        : ""
+    }</div>`;
+  }
+
+  function board(screen = "squad", opts = {}) {
+    last = { screen, opts };
+    const b = lineupBoard(state, unit),
+      m = lineupSettings(state),
+      layout = formationLayout(b.actors, unit, m),
+      labels = layout.tokens.map((t) => t.label),
+      team = state.team,
+      can = editable() && !locked();
+    // Keep the selection on the same player (or at least the same position) when the
+    // formation or personnel changes underneath it; otherwise drop it.
+    if (sel) {
+      const same = sel.id ? b.actors.find((a) => a.p && a.id === sel.id) : null,
+        at = b.actors[sel.index];
+      if (same) sel = { index: same.index, id: same.id, role: same.role };
+      else sel = !sel.id && at && at.role === sel.role && !at.p ? sel : null;
+      if (!sel) suggested = null;
+    }
+    if (!posTab || !LINEUP_UNITS[unit].includes(posTab)) posTab = LINEUP_UNITS[unit][0];
+    if (sel) posTab = sel.role;
+    const colors = teamColors(team),
+      [formation, personnel] = schemeOf(unit, m),
+      healthy = b.actors.filter((a) => a.p),
+      avg = Math.round(healthy.reduce((n, a) => n + (a.p.fitness ?? 100), 0) / Math.max(1, healthy.length)),
+      canDepth = S.allowed(state, "coach") || S.allowed(state, "roster");
+    return `<section class="panel lu-board${can ? "" : " readonly"}" data-lu-board="${screen}" data-unit="${unit}" style="--lu-team:${colors.primary};--lu-team-2:${colors.secondary};--lu-team-3:${colors.dark}" aria-label="Visual lineup"><div class="lu-bar"><div class="lu-units" role="tablist" aria-label="Unit">${Object.keys(LINEUP_UNITS)
+      .map((u) => `<button type="button" role="tab" class="${unit === u ? "active" : ""}" aria-selected="${unit === u}" onclick="Lineup.unit('${u}')">${UNIT_LABELS[u]}</button>`)
+      .join("")}</div>${(typeof opts.head === "function" ? opts.head() : opts.head) || `<div class="lu-title"><b>${esc(formation)}</b><span>${esc(personnel)}</span></div>`}<span class="lu-meta"><b>${b.filled}/${b.actors.length}</b> set · <b>${avg}%</b> cond</span><button type="button" class="secondary small lu-undo" onclick="Lineup.undo()" ${undoStack.length && !locked() ? "" : "disabled"} title="Undo the last lineup change">↶ Undo</button>${
+      screen === "tactics" ? `<button type="button" class="secondary small" onclick="F.depth()" ${canDepth && !locked() ? "" : "disabled"}>Optimize depth</button>` : ""
+    }${opts.tools || ""}</div><div class="lu-layout"><div class="lu-pitch"><div class="lu-field" style="--lu-ar:${(layout.field.W / layout.field.H).toFixed(4)};aspect-ratio:${layout.field.W} / ${layout.field.H}" role="group" aria-label="${UNIT_LABELS[unit]} formation: ${esc(formation)} · ${esc(personnel)}">${turf(unit, layout.field, team)}${layout.tokens
+      .map((t, i) => token(t, b.actors[i], team))
+      .join("")}</div><ol class="lu-slot-list" aria-label="${UNIT_LABELS[unit]} slots">${b.actors
+      .map((a, i) => {
+        const p = a.p;
+        return `<li><button type="button" class="lu-slot-row ${sel?.index === a.index ? "selected" : ""}" data-lu-slot="${a.index}" data-lu-role="${a.role}" aria-pressed="${sel?.index === a.index}" onclick="Lineup.select(${a.index})"><span class="lu-pos-tag">${labels[i]}</span>${p ? pixelFace(p, { size: 28, team, label: "" }) : '<span class="lu-face-empty">+</span>'}<span class="lu-row-name">${p ? `<b>${esc(p.name)}</b><small>#${esc(p.jersey ?? "–")} · ${pct(p.fitness)}% condition</small>` : "<b>Vacant</b><small>Assign a player</small>"}</span>${p ? `<b class="lu-ovr q-${quality(p.ovr)}">${p.ovr}</b>` : "<b>—</b>"}</button></li>`;
+      })
+      .join("")}</ol><p class="lu-note">Click a player, then a replacement — or drag one onto another. Same-position starters trade places. Esc cancels. Used from the next snap and the next game.</p></div>${sidePanel(b, labels, can)}</div></section>`;
+  }
+
+  // ---------- actions ----------
+  const api = {
+    board,
+    unit(u) {
+      if (!LINEUP_UNITS[u]) return;
+      unit = u;
+      sel = null;
+      suggested = null;
+      posTab = null;
+      page = 0;
+      error = "";
+      redraw(false);
+    },
+    setUnit(u) {
+      if (LINEUP_UNITS[u] && u !== unit) {
+        unit = u;
+        sel = null;
+        suggested = null;
+        posTab = null;
+        page = 0;
+      }
+      error = "";
+    },
+    current: () => ({ unit, selected: sel?.index ?? null }),
+    select(i) {
+      const b = lineupBoard(state, unit),
+        a = b.actors[i];
+      if (!a) return;
+      // A second slot at the same position while one is selected: trade places.
+      if (sel && sel.index !== i && sel.role === a.role && a.p && b.actors[sel.index]?.p && editable()) {
+        move(sel.index, a.id);
+        return;
+      }
+      sel = sel?.index === i ? null : { index: i, id: a.p ? a.id : null, role: a.role };
+      suggested = null;
+      error = "";
+      page = 0;
+      redraw(false, sel ? `[data-lu-slot="${i}"]` : `[data-lu-slot="${i}"]`);
+    },
+    close() {
+      const was = sel?.index;
+      sel = null;
+      suggested = null;
+      error = "";
+      redraw(false, Number.isInteger(was) ? `[data-lu-slot="${was}"]` : null);
+    },
+    // A row in the depth panel: fill the selected slot, open his own slot, or (bench player)
+    // open the slot he would most likely take with him highlighted.
+    row(id) {
+      const p = state.roster.find((q) => q.id === id);
+      if (!p) return;
+      const b = lineupBoard(state, unit),
+        on = b.actors.find((a) => a.p && a.id === id);
+      if (sel && sel.role === p.pos) {
+        if (on && on.index === sel.index) return api.close();
+        move(sel.index, id);
+        return;
+      }
+      if (on) return api.select(on.index);
+      const slot = weakestSlot(state, unit, id);
+      if (slot === null) {
+        toast("This formation has no slot for his position.");
+        return;
+      }
+      if (suggested === id && sel?.index === slot) return move(slot, id);
+      sel = { index: slot, id: b.actors[slot]?.p ? b.actors[slot].id : null, role: p.pos };
+      suggested = id;
+      error = "";
+      const bench = (b.positions.find((g) => g.pos === p.pos)?.depth || []).filter((r) => r.slot === null).sort((x, y) => y.p.ovr - x.p.ovr || (y.p.fitness ?? 100) - (x.p.fitness ?? 100)),
+        at = bench.findIndex((r) => r.p.id === id) + (b.actors[slot]?.p ? 1 : 0);
+      page = Math.max(0, Math.floor(at / (last.screen === "match" ? MATCH_PAGE : PAGE)));
+      redraw(false, `.lu-row.suggested`);
+    },
+    assign(id) {
+      if (sel) move(sel.index, id);
+    },
+    move,
+    undo,
+    tab(pos) {
+      posTab = pos;
+      page = 0;
+      if (sel && sel.role !== pos) sel = null;
+      redraw(false, `.lu-pos-tabs .active`);
+    },
+    page(d) {
+      page = Math.max(0, page + d);
+      redraw(false, d > 0 ? `.lu-pager button:last-child` : `.lu-pager button:first-child`);
+    },
+    view(screen, mode) {
+      storeViewMode(screen, mode === "table" ? "table" : "lineup");
+      sel = null;
+      if (typeof render === "function") render();
+    },
+    locked,
+    editable,
+    busyChecks,
+    // Back-compat with the old HTML5 drag handlers (no longer emitted).
+    drag() {},
+    over(e) {
+      e?.preventDefault?.();
+    },
+    leave() {},
+    drop(e) {
+      e?.preventDefault?.();
+    },
+  };
+  if (typeof window !== "undefined") window.Lineup = api;
+  installPointerDrag(api);
+  return api;
+}
+
+// ---------- pointer drag & drop ----------
+// Pointer events on the document (so a re-render mid-drag can't orphan the drag), a 6px
+// threshold (mouse/pen) or a long press (touch) before a drag starts, a pixel ghost that
+// follows the pointer, hit-testing with elementFromPoint (viewport coordinates, so CSS zoom and
+// --ui-scale don't matter), highlighted valid targets, drop elsewhere or Escape to cancel.
+export function dropTargetValid(src, target) {
+  if (!src || !target || !src.id) return false;
+  if (target.kind === "slot") return target.role === src.pos && target.index !== src.at && !(target.player && target.player === src.id);
+  if (target.kind === "row") return target.pos === src.pos && target.player !== src.id && (src.at !== null || target.at !== null);
+  return false;
+}
+// What dropping `src` on `target` does: { slot, id } for applyLineupMove.
+export function dropMove(src, target) {
+  if (!dropTargetValid(src, target)) return null;
+  if (target.kind === "slot") return { slot: target.index, id: src.id };
+  if (target.at !== null) return { slot: target.at, id: src.id };
+  return { slot: src.at, id: target.player };
+}
+const describe = (el) => {
+  if (!el) return null;
+  if (el.matches?.("[data-lu-slot].lu-tok"))
+    return { kind: "slot", index: Number(el.dataset.luSlot), role: el.dataset.luRole, player: el.dataset.luPlayer || null };
+  if (el.matches?.(".lu-row[data-lu-player]")) return { kind: "row", player: el.dataset.luPlayer, pos: el.dataset.luPos, at: el.dataset.luAt === "" ? null : Number(el.dataset.luAt) };
+  return null;
+};
+function sourceOf(el) {
+  const t = describe(el);
+  if (!t) return null;
+  if (t.kind === "slot") return t.player ? { id: t.player, pos: t.role, at: t.index } : null;
+  return { id: t.player, pos: t.pos, at: t.at };
+}
+
+function installPointerDrag(api) {
+  if (typeof document === "undefined" || !document.addEventListener || globalThis.__luPointer) return;
+  globalThis.__luPointer = true;
+  let pending = null,
+    drag = null,
+    swallowClick = false;
+  const reduce = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const targets = () => [...document.querySelectorAll("[data-lu-board] .lu-tok[data-lu-slot], [data-lu-board] .lu-row[data-lu-player]")];
+  const decorate = () => {
+    const board = document.querySelector("[data-lu-board]");
+    board?.classList.add("lu-dragging");
+    for (const el of targets()) {
+      const ok = dropTargetValid(drag.src, describe(el));
+      el.classList.toggle("lu-drop-ok", ok);
+      el.classList.toggle("lu-drag-src", !!(drag.src.at !== null ? el.dataset.luSlot === String(drag.src.at) && el.classList.contains("lu-tok") : el.dataset.luPlayer === drag.src.id));
+    }
+  };
+  const clear = () => {
+    document.querySelector("[data-lu-board]")?.classList.remove("lu-dragging");
+    for (const el of document.querySelectorAll(".lu-drop-ok, .lu-drop-over, .lu-drag-src")) el.classList.remove("lu-drop-ok", "lu-drop-over", "lu-drag-src");
+  };
+  const end = () => {
+    if (pending?.timer) clearTimeout(pending.timer);
+    pending = null;
+    if (drag) {
+      drag.ghost?.remove();
+      drag = null;
+      clear();
+    }
+  };
+  const ghostFor = (el) => {
+    const g = document.createElement("div");
+    g.className = "lu-ghost" + (reduce() ? " still" : "");
+    g.setAttribute("aria-hidden", "true");
+    const face = el.querySelector(".gd-pixel-face")?.outerHTML || "",
+      name = el.querySelector(".lu-tok-name, .lu-row-name b")?.textContent || "",
+      num = el.querySelector(".lu-num")?.textContent || "",
+      ovr = el.querySelector(".lu-ovr")?.textContent || "";
+    g.innerHTML = `<span class="lu-ghost-face">${face}</span><span class="lu-ghost-text"><b>${esc(name.split(" ").at(-1))}</b><small>${esc(num ? "#" + num + " · " : "")}${esc(ovr)}</small></span>`;
+    document.body.appendChild(g);
+    return g;
+  };
+  const place = (x, y) => {
+    if (drag?.ghost) drag.ghost.style.transform = `translate(${Math.round(x + 10)}px, ${Math.round(y + 10)}px)`;
+  };
+  const start = (e) => {
+    if (!pending) return;
+    if (api.locked() || !api.editable()) {
+      toast(api.locked() ? "Wait for the current play or simulation to finish." : "This depth chart belongs to another coach in your role.");
+      end();
+      return;
+    }
+    const src = sourceOf(pending.el);
+    if (!src) return end();
+    drag = { src, ghost: ghostFor(pending.el), over: null, pointerId: pending.pointerId };
+    try {
+      pending.el.setPointerCapture?.(pending.pointerId);
+    } catch {}
+    pending = null;
+    decorate();
+    place(e.clientX, e.clientY);
+  };
+  document.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || drag) return;
+    const el = e.target?.closest?.("[data-lu-board] [data-lu-drag]");
+    if (!el || el.disabled) return;
+    pending = { el, x: e.clientX, y: e.clientY, pointerId: e.pointerId, touch: e.pointerType === "touch" };
+    if (pending.touch) pending.timer = setTimeout(() => pending && start({ clientX: pending.x, clientY: pending.y }), 320);
+  });
+  document.addEventListener("pointermove", (e) => {
+    if (pending && !drag) {
+      const d = Math.hypot(e.clientX - pending.x, e.clientY - pending.y);
+      if (pending.touch) {
+        if (d > 8) end(); // a swipe: let the page scroll
+      } else if (d > 6) start(e);
+      return;
+    }
+    if (!drag) return;
+    place(e.clientX, e.clientY);
+    if (!document.querySelector(".lu-drop-ok") && !document.querySelector(".lu-drag-src")) decorate(); // the board re-rendered mid-drag
+    const hit = document.elementFromPoint?.(e.clientX, e.clientY)?.closest?.("[data-lu-board] .lu-tok[data-lu-slot], [data-lu-board] .lu-row[data-lu-player]");
+    const ok = hit && dropTargetValid(drag.src, describe(hit)) ? hit : null;
+    if (drag.over !== ok) {
+      drag.over?.classList?.remove("lu-drop-over");
+      ok?.classList.add("lu-drop-over");
+      drag.over = ok;
+    }
+    drag.ghost.classList.toggle("bad", !ok);
+  });
+  document.addEventListener("pointerup", (e) => {
+    if (pending) {
+      end();
+      return;
+    }
+    if (!drag) return;
+    const hit = document.elementFromPoint?.(e.clientX, e.clientY)?.closest?.("[data-lu-board] .lu-tok[data-lu-slot], [data-lu-board] .lu-row[data-lu-player]"),
+      mv = dropMove(drag.src, describe(hit));
+    swallowClick = true;
+    setTimeout(() => (swallowClick = false), 0);
+    end();
+    if (mv) api.move(mv.slot, mv.id);
+  });
+  document.addEventListener("pointercancel", end);
+  globalThis.addEventListener?.("blur", end);
+  // While a touch drag is active the page must not scroll.
+  document.addEventListener(
+    "touchmove",
+    (e) => {
+      if (drag) e.preventDefault();
+    },
+    { passive: false },
+  );
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (!swallowClick) return;
+      swallowClick = false;
+      e.stopPropagation();
+      e.preventDefault();
+    },
+    true,
+  );
+  document.addEventListener("contextmenu", (e) => {
+    if (drag || pending?.touch) e.preventDefault();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && (drag || pending)) {
+      e.preventDefault();
+      e.stopPropagation();
+      end();
+      return;
+    }
+    const inBoard = e.target?.closest?.("[data-lu-board]");
+    if (!inBoard) return;
+    if (e.key === "Escape" && api.current().selected !== null) {
+      e.preventDefault();
+      e.stopPropagation();
+      api.close();
+      return;
+    }
+    // Arrow keys move between players on the field, by position on the grid.
+    const tok = e.target.closest?.(".lu-tok");
+    if (!tok || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    const x0 = +tok.dataset.x,
+      y0 = +tok.dataset.y,
+      [dx, dy] = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    let best = null,
+      bestScore = Infinity;
+    for (const el of inBoard.querySelectorAll(".lu-tok")) {
+      if (el === tok) continue;
+      const vx = +el.dataset.x - x0,
+        vy = +el.dataset.y - y0,
+        along = vx * dx + vy * dy;
+      if (along <= 0.5) continue;
+      const score = along + 2.5 * Math.abs(vx * dy + vy * dx);
+      if (score < bestScore) [best, bestScore] = [el, score];
+    }
+    focusQuiet(best);
   });
 }
 
 export function installLineupUI({ isBusy = () => false } = {}) {
   if (typeof document !== "undefined" && document.head && !document.querySelector?.('link[href="lineup.css"]'))
     document.head.insertAdjacentHTML?.("beforeend", '<link rel="stylesheet" href="lineup.css">');
-  let unit = "Offense",
-    selected = null,
-    suggested = null,
-    error = "",
-    focusAfter = null;
-  const locked = () => isBusy() || (typeof animating !== "undefined" && animating);
-  const editable = () => canEditUnit(state, unit) && !state.live?.finished;
-  const refocus = (selector) => {
-    focusAfter = selector;
-    const run = () => {
-      if (!focusAfter) return;
-      document.querySelector(focusAfter)?.focus?.();
-      focusAfter = null;
-    };
-    (globalThis.requestAnimationFrame || setTimeout)(run);
-  };
-
-  function assign(slot, id) {
-    if (locked()) {
-      toast("Wait for the current simulation to finish.");
-      return;
-    }
-    let incoming = null;
-    try {
-      state = S.transact(state, (s) => {
-        incoming = changeLineup(s, unit, slot, id);
-      });
-      save();
-      error = "";
-      selected = null;
-      suggested = null;
-      render();
-      refocus(`[data-lu-slot="${slot}"]`);
-      toast(`${incoming.name} is in the lineup at ${incoming.pos}.`);
-    } catch (e) {
-      error = e.message;
-      render();
-      refocus(".lu-picker [data-lu-focus]");
-    }
-  }
-
-  const chip = (a) => {
-    const p = a.p,
-      label = p
-        ? `${a.role} slot: number ${p.jersey || "unknown"}, ${p.name}, ${p.ovr} overall, condition ${pct(p.fitness)}%. Choose a replacement.`
-        : `Vacant ${a.role} slot. Assign a player.`;
-    return `<button type="button" class="lu-slot ${p ? "cond-" + condTone(p) : "vacant"} ${selected === a.index ? "selected" : ""}" style="--x:${a.left}%;--y:${a.top}%" data-lu-slot="${a.index}" aria-pressed="${selected === a.index}" aria-label="${esc(label)}" onclick="Lineup.select(${a.index})" ondragover="Lineup.over(event)" ondragleave="Lineup.leave(event)" ondrop="Lineup.drop(event,${a.index})"><span class="lu-jersey">${p ? esc(p.jersey ?? "–") : "+"}</span><span class="lu-chip-text"><b>${p ? esc(lastName(p)) : "Vacant"}</b><small>${a.role}${p ? " · " + p.ovr : ""}</small></span>${p ? `<i class="lu-cond" title="Condition ${pct(p.fitness)}%"></i>` : ""}</button>`;
-  };
-  const slotRow = (a) => {
-    const p = a.p;
-    return `<li><button type="button" class="lu-slot-row ${selected === a.index ? "selected" : ""}" data-lu-slot="${a.index}" aria-pressed="${selected === a.index}" onclick="Lineup.select(${a.index})"><span class="lu-pos-tag">${a.role}</span><span>${p ? `<b>${esc(p.name)}</b><small>#${esc(p.jersey ?? "–")} · ${pct(p.fitness)}% condition</small>` : "<b>Vacant</b><small>Assign a player</small>"}</span><strong>${p ? p.ovr : "—"}</strong></button></li>`;
-  };
-
-  function picker(board) {
-    const c = slotChoices(state, unit, selected);
-    if (!c.slot) return "";
-    const cur = c.slot.p,
-      can = editable() && !locked();
-    return `<div class="lu-picker" role="region" aria-label="Choose a ${c.slot.role}" onkeydown="if(event.key==='Escape'){event.preventDefault();Lineup.close()}"><div class="lu-picker-head"><div><span class="gd-eyebrow">${UNIT_LABELS[unit]} · ${c.slot.role} slot</span><h3 tabindex="-1" ${can && c.eligible.length ? "" : "data-lu-focus"}>${cur ? esc(cur.name) : "Vacant slot"}</h3>${cur ? `<small>${cur.ovr} OVR · ${pct(cur.fitness)}% condition · ${pct(cur.morale ?? 75)}% morale <button type="button" class="link" onclick="W.player(${arg(cur.id)})">Profile →</button></small>` : ""}</div><button type="button" class="secondary small" onclick="Lineup.close()">← Depth chart</button></div>${error ? textNotice(error, { cls: "lu-notice" }) : ""}${editable() ? "" : `<p class="lu-note">${state.live?.finished ? "The game has finished. Review the result before changing personnel." : `In your ${esc(state.franchise.role)} role the ${UNIT_LABELS[unit].toLowerCase()} depth chart belongs to another coach.`}</p>`}<div class="lu-label">Eligible ${c.slot.role}s · best first <span>${c.eligible.length}</span></div><ul class="lu-cands">${
-      c.eligible
-        .map(
-          (p, i) =>
-            `<li><button type="button" class="lu-cand ${suggested === p.id ? "suggested" : ""}" ${can ? "" : "disabled"} ${i === 0 || suggested === p.id ? "data-lu-focus" : ""} draggable="${can}" ondragstart="Lineup.drag(event,${arg(p.id)})" onclick="Lineup.assign(${arg(p.id)})" aria-label="Start ${esc(p.name)}, ${p.ovr} overall, condition ${pct(p.fitness)}%, morale ${pct(p.morale ?? 75)}%"><span class="lu-jersey">${esc(p.jersey ?? "–")}</span><span class="lu-cand-name"><b>${esc(p.name)}</b><small>${p.starter ? "Starter" : "Reserve"} · ${p.age} yrs${p.status === "elevated" ? " · elevated" : ""}</small></span><span class="lu-stat"><small>OVR</small><b>${p.ovr}</b></span><span class="lu-stat cond-${condTone(p)}"><small>COND</small><b>${pct(p.fitness)}%</b></span><span class="lu-stat"><small>MOR</small><b>${pct(p.morale ?? 75)}%</b></span></button></li>`,
-        )
-        .join("") || `<li class="lu-empty">No healthy ${c.slot.role} is free. Players already on the field can't fill a second slot.</li>`
-    }</ul>${
-      c.unavailable.length
-        ? `<div class="lu-label">Unavailable <span>${c.unavailable.length}</span></div><ul class="lu-cands">${c.unavailable
-            .map(({ p, reason }) => `<li><div class="lu-cand out" aria-disabled="true"><span class="lu-jersey">${esc(p.jersey ?? "–")}</span><span class="lu-cand-name"><b>${esc(p.name)}</b><small>${esc(reason)}</small></span><span class="lu-stat"><small>OVR</small><b>${p.ovr}</b></span><span class="lu-flag">${p.injury ? "✚" : "⛔"}</span></div></li>`)
-            .join("")}</ul>`
-        : ""
-    }</div>`;
-  }
-
-  function depthLists(board) {
-    const can = editable() && !locked();
-    return `<div class="lu-depth">${error ? textNotice(error, { cls: "lu-notice" }) : ""}${board.positions
-      .map(
-        (g) =>
-          `<section class="lu-pos"><h4>${g.pos} <small>${g.slots} on field · ${g.depth.length} healthy</small></h4><ol>${g.depth
-            .map(
-              ({ p, rank, slot }) =>
-                `<li><button type="button" class="lu-bench-row ${slot !== null ? "on-field" : ""}" ${slot === null && !can ? "disabled" : ""} draggable="${slot === null && can}" ondragstart="Lineup.drag(event,${arg(p.id)})" onclick="${slot !== null ? `Lineup.select(${slot})` : `Lineup.bench(${arg(p.id)})`}" aria-label="${esc(p.name)}, ${p.ovr} overall, depth ${rank}${slot !== null ? ", on the field. Open his slot." : ", bench. Choose a slot for him."}"><span class="lu-rank">${rank}</span><span class="lu-cand-name"><b>${esc(p.name)}</b><small>#${esc(p.jersey ?? "–")} · ${pct(p.fitness)}% · ${p.starter ? "starter" : "reserve"}</small></span><strong>${p.ovr}</strong><em>${slot !== null ? "On field" : "Bench"}</em></button></li>`,
-            )
-            .join("")}${g.unavailable
-            .map(({ p, reason }) => `<li><div class="lu-bench-row out" aria-disabled="true"><span class="lu-rank">${p.injury ? "✚" : "–"}</span><span class="lu-cand-name"><b>${esc(p.name)}</b><small>${esc(reason)}</small></span><strong>${p.ovr}</strong></div></li>`)
-            .join("")}${g.depth.length || g.unavailable.length ? "" : '<li class="lu-empty">Nobody at this position.</li>'}</ol></section>`,
-      )
-      .join("")}</div>`;
-  }
-
-  function board(screen) {
-    const b = lineupBoard(state, unit),
-      m = lineupSettings(state),
-      points = slotPositions(b.actors, unit, m);
-    if (selected !== null && !b.actors[selected]) selected = null;
-    const healthy = b.actors.filter((a) => a.p),
-      avg = Math.round(healthy.reduce((n, a) => n + (a.p.fitness ?? 100), 0) / Math.max(1, healthy.length)),
-      scheme =
-        unit === "Offense"
-          ? `${m.offense || "Shotgun spread"} · ${m.personnel || "11"} personnel`
-          : unit === "Defense"
-            ? `${m.defense || "Nickel"} · ${m.shell || "2-High"} shell`
-            : "Kicker and punter",
-      canDepth = S.allowed(state, "coach") || S.allowed(state, "roster");
-    return `<section class="panel lu-board" data-unit="${unit}" aria-label="Visual lineup"><div class="lu-toolbar"><div class="lu-units" role="group" aria-label="Unit">${Object.keys(LINEUP_UNITS)
-      .map((u) => `<button type="button" class="${unit === u ? "active" : ""}" aria-pressed="${unit === u}" onclick="Lineup.unit('${u}')">${UNIT_LABELS[u]}</button>`)
-      .join("")}</div><span class="lu-scheme">${esc(scheme)}</span><span class="lu-meta"><b>${b.filled}/${b.actors.length}</b> set · <b>${avg}%</b> avg condition</span>${screen === "tactics" ? `<button type="button" class="secondary small" onclick="F.depth()" ${canDepth && !locked() ? "" : "disabled"}>Optimize depth</button>` : ""}</div><div class="lu-layout"><div class="lu-field-wrap"><div class="lu-field" role="group" aria-label="${UNIT_LABELS[unit]} formation: ${esc(scheme)}"><span class="lu-endzone">${esc(clubs[state.team]?.[2] || "")}</span><span class="lu-dir" aria-hidden="true">${unit === "Defense" ? "DEFEND ▼" : "ATTACK ▲"}</span>${points.map(chip).join("")}</div><ol class="lu-slot-list" aria-label="${UNIT_LABELS[unit]} slots">${points.map(slotRow).join("")}</ol><p class="lu-note">Select a player on the field to pick his replacement, or drag a bench player onto a slot. The match engine uses this order for the next game and the next snap.</p></div><div class="lu-side">${selected !== null ? picker(b) : depthLists(b)}</div></div></section>`;
-  }
+  const ctl = lineupController({ isBusy });
+  const board = (screen) => ctl.board(screen);
 
   const toggle = (screen) => {
     const mode = viewMode(screen);
@@ -225,74 +683,8 @@ export function installLineupUI({ isBusy = () => false } = {}) {
   }
   function tacticsSection() {
     const mode = viewMode("tactics");
-    return `<section class="lu-tactics"><div class="lu-section-head"><div><span class="gd-eyebrow">Depth chart</span><h2>Starting lineup</h2></div>${toggle("tactics")}</div>${mode === "lineup" ? board("tactics") : depthTable()}</section>`;
+    return `<section class="lu-tactics"><div class="lu-section-head"><div><span class="gd-eyebrow">Depth chart</span><h2>Starting lineup</h2></div>${toggle("tactics")}</div>${mode === "lineup" ? ctl.board("tactics") : depthTable()}</section>`;
   }
-
-  window.Lineup = {
-    unit(u) {
-      if (!LINEUP_UNITS[u]) return;
-      unit = u;
-      selected = null;
-      suggested = null;
-      error = "";
-      render();
-    },
-    select(i) {
-      selected = selected === i ? null : i;
-      suggested = null;
-      error = "";
-      render();
-      refocus(selected === null ? `[data-lu-slot="${i}"]` : ".lu-picker [data-lu-focus]");
-    },
-    close() {
-      const was = selected;
-      selected = null;
-      suggested = null;
-      error = "";
-      render();
-      if (was !== null) refocus(`[data-lu-slot="${was}"]`);
-    },
-    assign(id) {
-      if (selected === null) return;
-      assign(selected, id);
-    },
-    // A bench player opens the slot he would most likely take (vacant or weakest starter).
-    bench(id) {
-      const slot = weakestSlot(state, unit, id);
-      if (slot === null) {
-        toast("This formation has no slot for his position.");
-        return;
-      }
-      selected = slot;
-      suggested = id;
-      error = "";
-      render();
-      refocus(".lu-picker .suggested");
-    },
-    drag(e, id) {
-      try {
-        e.dataTransfer.setData("text/plain", id);
-        e.dataTransfer.effectAllowed = "move";
-      } catch {}
-    },
-    over(e) {
-      e.preventDefault();
-      e.currentTarget?.classList?.add("drop");
-    },
-    leave(e) {
-      e.currentTarget?.classList?.remove("drop");
-    },
-    drop(e, slot) {
-      e.preventDefault();
-      const id = e.dataTransfer?.getData("text/plain");
-      if (id) assign(slot, id);
-    },
-    view(screen, mode) {
-      storeViewMode(screen, mode === "table" ? "table" : "lineup");
-      selected = null;
-      render();
-    },
-  };
 
   // Tactics is the legacy "Game plan" route, whose renderer (window.plan) is replaced after this
   // module installs; wrap whichever renderer is current just before each render.

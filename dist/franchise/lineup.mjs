@@ -143,6 +143,80 @@ export function lineupCandidates(s, unit, slot) {
     (p) => p.pos === a.role && !occupied.has(p.id),
   );
 }
+const liveNote = (s, text) => {
+  if (!s.live) return;
+  s.live.events.unshift({
+    text,
+    time: `Q${s.live.quarter} ${Math.floor(s.live.clock / 60)}:${String(s.live.clock % 60).padStart(2, "0")}`,
+    highlight: true,
+  });
+  s.live.events = s.live.events.slice(0, 200);
+};
+function guardEdit(s, unit) {
+  if (!LINEUP_UNITS[unit]) throw Error("Choose a valid lineup slot.");
+  if (!canEditUnit(s, unit))
+    throw Error(`The ${unit.toLowerCase()} depth chart is delegated to another coach in your ${s.franchise.role} role. Your career role was set when the career began; start a new career or accept a job offer to change it.`);
+  if (s.live?.finished) throw Error("The game has finished. Review the result before changing personnel.");
+}
+// Two starters at the same position trade slots (WR1 ↔ WR2): their places in the depth order
+// swap, so the engine assigns them the other way round on the next snap.
+export function swapLineupSlots(s, unit, a, b) {
+  guardEdit(s, unit);
+  const actors = lineupActors(s, unit),
+    x = actors[a],
+    y = actors[b];
+  if (!x || !y || a === b) throw Error("Choose two different slots.");
+  if (x.role !== y.role) throw Error(`A ${x.role} slot can only trade places with another ${x.role} slot.`);
+  if (!x.p || !y.p) throw Error("A vacant slot has nobody to swap. Pick a player for it instead.");
+  const position = sortForLineup(s.roster, s.team).filter((p) => p.pos === x.role),
+    i = position.findIndex((p) => p.id === x.id),
+    j = position.findIndex((p) => p.id === y.id);
+  [position[i], position[j]] = [position[j], position[i]];
+  position.forEach((p, k) => {
+    p.depthTeam = s.team;
+    p.depthPriority = k;
+  });
+  S.log(s, "Lineup change", `${x.p.name} and ${y.p.name} trade places at ${x.role}. Effective next snap.`);
+  liveNote(s, `Lineup: ${x.p.name} and ${y.p.name} trade places at ${x.role}.`);
+  return [x.p, y.p];
+}
+// The one write path for the lineup boards: put player `id` into `slot`. A player already on
+// the field at the same position trades places; anyone else replaces the occupant.
+// Returns { kind: "swap" | "replace" | "none", incoming, outgoing }.
+export function applyLineupMove(s, unit, slot, id) {
+  const actors = lineupActors(s, unit),
+    target = actors[slot];
+  if (!target) throw Error("Choose a valid lineup slot.");
+  if (target.p && target.id === id) return { kind: "none", incoming: target.p, outgoing: target.p };
+  const from = actors.find((a) => a.p && a.id === id);
+  if (from) {
+    if (from.role !== target.role)
+      throw Error(`${from.p.name} plays ${from.role}; this slot needs a ${target.role}.`);
+    const [incoming, outgoing] = swapLineupSlots(s, unit, from.index, slot);
+    return { kind: "swap", incoming, outgoing };
+  }
+  const outgoing = target.p,
+    incoming = changeLineup(s, unit, slot, id);
+  return { kind: "replace", incoming, outgoing };
+}
+// Undo support: the depth fields of every player, and putting them back.
+export function lineupSnapshot(s) {
+  return s.roster.map((p) => [p.id, p.depthTeam ?? null, Number.isFinite(p.depthPriority) ? p.depthPriority : null, !!p.starter]);
+}
+export function restoreLineup(s, snap) {
+  const by = new Map(snap.map((row) => [row[0], row]));
+  for (const p of s.roster) {
+    const row = by.get(p.id);
+    if (!row) continue;
+    if (row[1] === null) delete p.depthTeam;
+    else p.depthTeam = row[1];
+    if (row[2] === null) delete p.depthPriority;
+    else p.depthPriority = row[2];
+    p.starter = row[3];
+  }
+  S.log(s, "Lineup change", "The last lineup change was undone. Effective next snap.");
+  liveNote(s, "Lineup: the last change was undone.");
+}
 export function changeLineup(s, unit, slot, id) {
   if (
     !["Offense", "Defense", "Specialists"].includes(unit) ||
