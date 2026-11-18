@@ -8,6 +8,8 @@ import * as C from "./contracts.mjs";
 import { CharacterStage, appearanceFor } from "./character-stage.mjs";
 import { playerFace, previewAttributes } from "./player-ui.mjs";
 import { icon } from "./presentation.mjs";
+// The contract ledger shows a full position group per page instead of eight rows.
+const CONTRACT_PAGE = 25;
 const arg = (v) => esc(JSON.stringify(v));
 const money = (n) =>
   "$" +
@@ -188,7 +190,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
           ? a.c.start + a.c.years - (b.c.start + b.c.years) || b.p.ovr - a.p.ovr
           : S.capHit(b.c, year) - S.capHit(a.c, year),
     );
-    const pages = Math.max(1, Math.ceil(list.length / 8));
+    const pages = Math.max(1, Math.ceil(list.length / CONTRACT_PAGE));
     contractFilter.page = Math.max(0, Math.min(contractFilter.page, pages - 1));
     return `<div class="exp-workspace">${hero("FRONT OFFICE / FINANCIAL PLANNING", "Build the roster. Protect the future.", "Review commitments, meet player representatives and plan the next contract cycle.", tag("Hard cap", "blue"))}${stats(
       [
@@ -209,7 +211,7 @@ export function installExpansionUI({ views, isBusy, heritage }) {
       "Contract ledger",
       `<div class="exp-contract-table"><table><thead><tr><th>Player</th><th>Agreement</th><th>Cap charge</th><th>Guaranteed base</th><th>Actions</th></tr></thead><tbody>${
         list
-          .slice(contractFilter.page * 8, contractFilter.page * 8 + 8)
+          .slice(contractFilter.page * CONTRACT_PAGE, contractFilter.page * CONTRACT_PAGE + CONTRACT_PAGE)
           .map(({ p, c }) => {
             const i = Math.max(0, year - c.start),
               days = K.cooldownRemaining(state, "Contract review", p.id);

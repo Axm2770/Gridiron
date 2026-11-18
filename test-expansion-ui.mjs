@@ -102,8 +102,8 @@ for (const key of [
 let html = views.Contracts();
 assert.equal(
   (html.match(/<tr>/g) || []).length,
-  9,
-  "contracts show eight rows plus header",
+  26,
+  "contracts show twenty-five rows plus header",
 );
 assert(html.includes("Expansion.contractPage(1)"));
 assert(html.includes("F.release("));
