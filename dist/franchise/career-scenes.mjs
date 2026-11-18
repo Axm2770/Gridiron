@@ -2,6 +2,7 @@ import { progressionView } from "./progression-view.mjs";
 import { CharacterStage, appearanceFor } from "./character-stage.mjs";
 import * as S from "./state.mjs";
 import { faceSVG, newgenIdentity } from "./newgens.mjs";
+import { pixelFace } from "../ui/pixel-face.mjs";
 import {
   configureRatings,
   ensureCareerRatings,
@@ -174,14 +175,12 @@ export function installCareerScenes({
       const p = actor(),
         press = c.setting === "press",
         group = ["locker", "film"].includes(c.setting);
+      const moment = c.type === "pre" ? "Pregame" : c.type === "post" ? "Postgame" : c.type === "half" ? "Halftime" : "Week " + (state.week + 1),
+        place = press ? "Media theatre" : c.setting === "locker" ? "Locker room" : c.setting === "film" ? "Film room" : "Head coach’s office",
+        speaker = press ? { id: "reporter-jordan", name: c.speaker } : p;
       modal(
-        `<div class="career-cutscene ${c.setting} shot-${c.step}" aria-label="${esc(c.title)}"><div class="scene-topline"><span>GRIDIRON STORIES <i>●</i> ${esc(c.type === "pre" ? "PREGAME" : c.type === "post" ? "POSTGAME" : c.type === "half" ? "HALFTIME" : "WEEK " + (state.week + 1))}</span><button class="icon-button" aria-label="Leave conversation" onclick="closeModal()">×</button></div><div class="cinema-stage scene-volume"><div class="scene-render-host" id="conversation-scene"></div><div class="scene-filmgrain"></div><div class="scene-location"><i>●</i> ${press ? "MEDIA THEATRE" : c.setting === "locker" ? "LOCKER ROOM" : c.setting === "film" ? "FILM ROOM" : "HEAD COACH’S OFFICE"}<small>${clubs[state.team][2]}</small></div></div><div class="scene-dialogue"><div class="scene-meta"><span>${c.step ? "02" : "01"} / 02</span><h2>${esc(c.title)}</h2></div>${c.step ? `<p class="scene-reaction">${esc(c.reaction)}</p><div class="your-line"><small>YOU</small>${esc(c.choicesMade[0].text)}</div>` : ""}<div class="scene-speaker-card">${face(press ? { id: "reporter-jordan", name: c.speaker } : p)}<div><span class="speaker-label">${esc(c.speaker)}</span><small class="speaker-caption">${press ? "Gridiron Network" : "Your " + (p.pos || "staff") + " · Private meeting"}</small></div></div><div class="spoken-line"><p>“${esc(c.lines[c.step])}”</p></div><div class="dialogue-choices" aria-label="Your response">${sceneChoices(
-          c,
-        )
-          .map(
-            (choice, i) =>
-              `<button onclick="CI.choose(${i})"><kbd>${i + 1}</kbd><span>${esc(choice.text)}<small>${esc(choice.tone)}</small></span><i>↗</i></button>`,
-          )
+        `<div class="career-cutscene scn-dialog ${c.setting} shot-${c.step}" aria-label="${esc(c.title)}"><div class="scn-head"><div class="scn-head-copy"><span class="scn-label">Gridiron stories · ${esc(moment)}</span><h2>${esc(c.title)}</h2></div><span class="scn-step" aria-label="Part ${c.step + 1} of 2"><i class="${c.step >= 0 ? "on" : ""}"></i><i class="${c.step >= 1 ? "on" : ""}"></i></span><button class="icon-button scn-close" aria-label="Leave conversation" onclick="closeModal()">×</button></div><div class="cinema-stage scene-volume scn-stage"><div class="scene-render-host" id="conversation-scene"></div><div class="scn-location"><b>${esc(place)}</b><small>${esc(clubs[state.team][2])}</small></div></div><div class="scene-dialogue scn-talk">${c.step ? `<div class="scn-recap"><span class="scn-cap">You said</span><p>“${esc(c.choicesMade[0].text)}”</p><em>${esc(c.reaction)}</em></div>` : ""}<div class="scn-speech">${pixelFace(speaker, { size: 56, team: press ? null : state.team, cls: "scn-face" })}<div class="scn-bubble"><div class="scn-speaker"><b>${esc(c.speaker)}</b><small>${press ? "Gridiron Network" : "Your " + esc(p.pos || "staff") + " · Private meeting"}</small></div><p class="scn-line">“${esc(c.lines[c.step])}”</p></div></div><div class="scn-opts-head"><span class="scn-cap">Your response</span><small>Press 1–${sceneChoices(c).length} or pick a card</small></div><div class="dialogue-choices scn-opts" aria-label="Your response">${sceneChoices(c)
+          .map((choice, i) => `<button class="scn-opt" onclick="CI.choose(${i})"><span class="scn-opt-head"><kbd>${i + 1}</kbd><i>${esc(choice.tone)}</i></span><span class="scn-opt-text">${esc(choice.text)}</span></button>`)
           .join("")}</div></div></div>`,
       );
       document.getElementById("modal").classList.add("cinema-modal");
@@ -235,8 +234,14 @@ export function installCareerScenes({
         );
         save();
         render();
+        sceneStage?.dispose();
+        sceneStage = null;
+        const who = result.player || actor(),
+          outcomes = [c.type === "pre" || c.type === "post" ? "Media response recorded" : c.type === "half" ? "Second half ready" : c.type === "staff" ? "Gameplan updated" : "Morale " + (result.delta >= 0 ? "+" : "") + result.delta];
+        if (c.type === "player" && index === 2) outcomes.push("Role review promised next week");
+        const tone = c.type === "player" ? (result.delta > 0 ? "good" : result.delta < 0 ? "bad" : "warn") : "good";
         modal(
-          `<div class="scene-result"><span class="eyebrow">CONVERSATION COMPLETE</span>${face(result.player || actor(), "result-face")}<h2>${esc(c.type === "staff" ? "The plan is set." : "Your words carry weight.")}</h2><p>${esc(c.type === "player" ? (result.delta > 0 ? "The player leaves feeling heard. Your next decisions will show whether the words hold up." : "The challenge did not land as intended. This player may respond better to reassurance.") : c.type === "staff" ? "Your coordinator has enabled the chosen tactical directive. You can review it in assistant delegation." : "Your message is recorded in the career conversation log.")}</p><div class="scene-outcomes"><span>${c.type === "pre" || c.type === "post" ? "Media response recorded" : c.type === "half" ? "Second half ready" : c.type === "staff" ? "Gameplan updated" : "Morale " + (result.delta >= 0 ? "+" : "") + result.delta}</span>${c.type === "player" && index === 2 ? "<span>Role review promised next week</span>" : ""}</div><div class="modal-actions"><button onclick="closeModal()">${c.type === "half" ? "Back to the touchline" : "Return to career"} →</button></div></div>`,
+          `<div class="scene-result scn-dialog scn-result"><div class="scn-head"><div class="scn-head-copy"><span class="scn-label">Conversation complete</span><h2>${esc(c.type === "staff" ? "The plan is set." : "Your words carry weight.")}</h2></div><button class="icon-button scn-close" aria-label="Close" onclick="closeModal()">×</button></div><div class="scn-result-body">${pixelFace(who, { size: 88, team: state.team, cls: "scn-face" })}<div class="scn-result-copy"><p>${esc(c.type === "player" ? (result.delta > 0 ? "The player leaves feeling heard. Your next decisions will show whether the words hold up." : "The challenge did not land as intended. This player may respond better to reassurance.") : c.type === "staff" ? "Your coordinator has enabled the chosen tactical directive. You can review it in assistant delegation." : "Your message is recorded in the career conversation log.")}</p><div class="scene-outcomes scn-outcomes">${outcomes.map((o, i) => `<span class="gd-chip gd-${i ? "warn" : tone}">${esc(o)}</span>`).join("")}</div></div></div><div class="modal-actions scn-actions"><button onclick="closeModal()">${c.type === "half" ? "Back to the touchline" : "Return to career"} →</button></div></div>`,
         );
       } catch (e) {
         toast(e.message);
@@ -303,7 +308,7 @@ export function installCareerScenes({
       .sort((a, b) => a.morale - b.morale)
       .map(
         (p) =>
-          `<button onclick="CI.open('player','${p.id}')">${face(p)}<span><b>${esc(p.name)}</b><small>${p.pos} · ${p.holdout ? "Holdout" : p.injury ? "Injury recovery" : p.starter ? "Starter" : "Reserve"}</small></span><em>${Math.round(p.morale)}%<small>MORALE</small></em></button>`,
+          `<button onclick="CI.open('player','${p.id}')">${pixelFace(p, { size: 44, team: state.team })}<span><b>${esc(p.name)}</b><small>${p.pos} · ${p.holdout ? "Holdout" : p.injury ? "Injury recovery" : p.starter ? "Starter" : "Reserve"}</small></span><em>${Math.round(p.morale)}%<small>MORALE</small></em></button>`,
       )
       .join(
         "",
