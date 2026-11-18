@@ -9,7 +9,12 @@ import {
   COACH_BUDGET,
   BACKGROUNDS,
   DEFAULT_APPEARANCE,
+  APPEARANCE_SWATCHES,
+  PHILOSOPHY,
+  coachArchetype,
+  autoSaveName,
 } from "./coach-profile.mjs";
+import { clubOutlook, NEW_CAREER_YEAR } from "./club-outlook.mjs";
 import { saveMetadata, parseCareerSave, careerId } from "./save-store.mjs";
 import { CharacterStage } from "./character-stage.mjs";
 import { coachBadge, coachPixelAvatar } from "./coach-avatar.mjs";
@@ -57,13 +62,6 @@ const nice = (s) =>
   String(s)
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (c) => c.toUpperCase());
-const option = (values, current) =>
-  values
-    .map(
-      (v) =>
-        `<option value="${esc(v)}" ${v === current ? "selected" : ""}>${esc({ HC: "Head coach", GM: "General manager", OC: "Offensive coordinator", DC: "Defensive coordinator" }[v] || nice(v))}</option>`,
-    )
-    .join("");
 export async function installCareerManager({ views, isBusy, initialize }) {
   const store = window.careerStore,
     rawStart = startCareer;
@@ -208,11 +206,14 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     );
     document.getElementById("modal").classList.add("career-modal", "cl-modal");
   };
+  // The wizard coach; keeps its turn when the look changes and the stage is rebuilt.
   const mountAvatar = () => {
+    const orbit = avatar?.orbit;
     disposeAvatar();
     const host = document.getElementById("coach-avatar-host");
     if (host) {
       avatar = new CharacterStage(host, { appearance: wizard.appearance });
+      if (Number.isFinite(orbit)) avatar.rotate(orbit - avatar.orbit);
       window.CoachPreview = { rotate: (d) => avatar?.rotate(d) };
     }
   };
@@ -233,52 +234,257 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const field = (label, key, type = "text", extra = "") =>
-    `<label>${label}<input type="${type}" value="${esc(wizard[key])}" ${extra} oninput="Career.change('${key}',this.value)"></label>`;
-  const select = (label, key, values) =>
-    `<label>${label}<select onchange="Career.change('${key}',this.value)">${option(values, wizard[key])}</select></label>`;
-  const appearanceField = (label, key, values) =>
-    `<label>${label}<select onchange="Career.appearance('${key}',this.value)">${option(values, wizard.appearance[key])}</select></label>`;
-  const steps = [
-    "Choose franchise",
-    "Your identity",
-    "Your appearance",
-    "Coaching philosophy",
-    "Review & begin",
+  // ---------- New-career wizard ----------
+  // One shell (top bar with steps, main panel, side panel, footer) rendered once; steps repaint
+  // the parts that change so the 3D coach stays mounted and typing never loses focus.
+  const STEPS = [
+    ["Club", "Choose your club"],
+    ["Identity", "Who’s on the headset?"],
+    ["Look", "Your touchline look"],
+    ["Philosophy", "How you coach"],
+    ["Review", "Sign the contract"],
   ];
-  const wizardHTML = () => {
-    let body = "";
-    if (wizardStep === 0)
-      body = `<h2>Where does your story begin?</h2><p class="wizard-description">Choose from all 32 franchises. Your 2026 world starts with the real-player database.</p><div class="wizard-club-grid">${clubs.map((c, i) => `<button class="${wizard.team === i ? "selected" : ""}" onclick="Career.team(${i})" aria-label="Choose ${esc(c[1] + " " + c[2])}" aria-pressed="${wizard.team === i}">${logo(i)}<span>${c[2]}</span><small>${c[3]}</small></button>`).join("")}</div>`;
-    if (wizardStep === 1)
-      body = `<h2>The person behind the headset.</h2><p class="wizard-description">Give your coach an identity and choose the responsibilities you want to own.</p><div class="wizard-fields">${field("Coach name", "name", "text", 'maxlength="40"')}${field("Age", "age", "number", 'min="25" max="80"')}${field("Nationality", "nationality", "text", 'maxlength="40"')}${select("Career role", "role", ["HC", "Owner", "GM", "OC", "DC"])}</div><div class="wizard-note"><b>Your role matters</b><p>Head coaches run the whole football operation: tactics, training, the roster, contracts, scouting and the draft. Owners also control stadium projects and league votes. GMs run personnel and money without coaching; coordinators coach one unit.</p></div>`;
-    if (wizardStep === 2)
-      body = `<h2>A presence on the touchline.</h2><p class="wizard-description">Build a unified 3D coach. Drag the model to turn it and inspect your look.</p><div class="wizard-fields">${appearanceField("Outfit", "outfit", ["Polo", "Tracksuit", "Suit"])}${appearanceField("Build", "build", ["Lean", "Athletic", "Broad"])}${appearanceField("Hair style", "hairStyle", ["Short", "Curly", "Bald"])}${appearanceField("Facial hair", "beard", ["None", "Stubble", "Full"])}${["skin", "hair", "jacket"].map((k) => `<label>${nice(k)} color<input type="color" value="${wizard.appearance[k]}" onchange="Career.appearance('${k}',this.value)"></label>`).join("")}<label>Height · cm<input type="number" min="160" max="205" value="${wizard.appearance.height}" onchange="Career.appearance('height',Number(this.value))"></label><label class="wizard-check"><input type="checkbox" ${wizard.appearance.glasses ? "checked" : ""} onchange="Career.appearance('glasses',this.checked)"> Glasses</label><label class="wizard-check"><input type="checkbox" ${wizard.appearance.headset ? "checked" : ""} onchange="Career.appearance('headset',this.checked)"> Sideline headset</label></div>`;
-    if (wizardStep === 3)
-      body = `<h2>Your experience. Your approach.</h2><p class="wizard-description">Background sets a starting profile. Adjust your strengths within the shared attribute budget.</p><div class="wizard-fields">${select("Background", "background", Object.keys(BACKGROUNDS))}${select("Coaching experience", "experience", ["First appointment", "Coordinator", "Veteran head coach"])}${select("Offensive style", "style", ["Balanced", "Run-first", "Vertical offense"])}${select("Personality", "personality", ["Players coach", "Disciplinarian", "Tactician"])}</div><div class="attribute-budget"><b>Coach attributes</b><span id="coach-points-left"></span></div><div class="coach-attribute-fields">${COACH_ATTRIBUTES.map((k) => `<label>${nice(k)}<input aria-label="Coach ${k} attribute" type="number" min="1" max="20" value="${wizard.attributes[k]}" oninput="Career.attribute('${k}',Number(this.value))"></label>`).join("")}</div><p class="wizard-footnote">Development and medical coaching influence player growth and recovery. Motivation and discipline feed training quality. Tactical strengths shape your starting coaching skills.</p>`;
-    if (wizardStep === 4)
-      body = `<h2>Make it your career.</h2><p class="wizard-description">Your current careers remain in the library. This creates an independent football world.</p>${field("Career save name", "saveName", "text", 'maxlength="60"')}<div class="wizard-review">${logo(wizard.team)}<div><h3>${esc(wizard.name)}</h3><p>${esc(clubs[wizard.team][1] + " " + clubs[wizard.team][2])} · ${esc(wizard.role)}</p></div></div><div class="wizard-review-grid">${[
-        ["Age / nationality", wizard.age + " · " + wizard.nationality],
-        ["Background", wizard.background],
-        ["Experience", wizard.experience],
-        ["Playing style", wizard.style],
-        ["Personality", wizard.personality],
-        ["Starting world", "2026 · NFL roster snapshot"],
-      ]
-        .map(([k, v]) => `<div><span>${k}</span><b>${esc(v)}</b></div>`)
-        .join(
-          "",
-        )}</div><div class="wizard-note"><b>Your first day awaits</b><p>Meet the players, shape your development plans and prepare for opening day. Your head coach appearance carries into conversations.</p></div>`;
-    return `<div class="coach-wizard"><aside class="wizard-rail"><span class="eyebrow">A NEW CAREER</span><h3>Build your<br>legacy.</h3><ol>${steps.map((s, i) => `<li class="${i === wizardStep ? "current" : i < wizardStep ? "done" : ""}"><span>${i < wizardStep ? "✓" : i + 1}</span>${s}</li>`).join("")}</ol><button class="link" onclick="Career.open()">← Career library</button></aside><div class="wizard-main"><header class="wizard-header"><span>COACH CREATION <i>·</i> STEP ${wizardStep + 1} OF 5</span></header><div class="wizard-content">${body}<p id="wizard-error" role="alert"></p></div><div class="wizard-navigation"><button class="secondary" onclick="Career.step(-1)">${wizardStep ? "← Back" : "Career library"}</button><button id="wizard-next" onclick="${wizardStep === 4 ? "Career.begin()" : "Career.step(1)"}">${wizardStep === 4 ? "Begin career →" : "Continue →"}</button></div></div><aside class="wizard-preview"><div class="preview-topline"><span>YOUR HEAD COACH</span><i>3D</i></div><div id="coach-avatar-host"></div><div class="preview-orbit"><button aria-label="Rotate coach left" onclick="CoachPreview.rotate(-.4)">↶</button><span>Drag to rotate</span><button aria-label="Rotate coach right" onclick="CoachPreview.rotate(.4)">↷</button></div><div class="preview-caption"><h3 id="coach-preview-name">${esc(wizard.name)}</h3><p>${esc(clubs[wizard.team][2])} · ${esc(wizard.role)}</p><span>${esc(wizard.background)}</span></div></aside></div>`;
+  const ROLE_INFO = {
+    HC: ["Head coach", "Run the whole football operation: tactics, training, the roster, contracts, scouting and the draft."],
+    Owner: ["Owner", "Everything a head coach runs, plus stadium projects and league votes."],
+    GM: ["General manager", "Run personnel and money: roster, contracts, scouting and the draft. No coaching."],
+    OC: ["Offensive coordinator", "Coach one unit: the offense."],
+    DC: ["Defensive coordinator", "Coach one unit: the defense."],
+  };
+  const NATIONS = ["United States", "Canada", "Mexico", "United Kingdom", "Ireland", "Germany", "Australia", "Nigeria", "Jamaica", "Japan", "Brazil", "France"];
+  const LOOK_OPTIONS = [
+    ["outfit", "Outfit", ["Polo", "Tracksuit", "Suit"]],
+    ["build", "Build", ["Lean", "Athletic", "Broad"]],
+    ["hairStyle", "Hair", ["Short", "Curly", "Bald"]],
+    ["beard", "Facial hair", ["None", "Stubble", "Full"]],
+  ];
+  const REPUTATION = { "First appointment": 35, Coordinator: 55, "Veteran head coach": 75 };
+  let outlook = null,
+    outlookState = "idle",
+    saveNameAuto = true;
+  const loadOutlook = () => {
+    if (outlookState !== "idle") return;
+    outlookState = "loading";
+    fetch(new URL("../data/nfl-rosters.json", import.meta.url))
+      .then((r) => (r.ok ? r.json() : null))
+      // Let the wizard paint first; the 32-club pass takes a moment.
+      .then((data) => new Promise((done) => setTimeout(() => done(data), 30)))
+      .then((data) => {
+        outlook = clubOutlook(data);
+        outlookState = outlook ? "ready" : "failed";
+      })
+      .catch((e) => {
+        console.warn("Club outlook unavailable: " + e.message);
+        outlookState = "failed";
+      })
+      .finally(() => {
+        if (wizard && document.getElementById("nw")) paint({ main: wizardStep === 0 || wizardStep === 4 });
+      });
+  };
+  const clubFull = (i) => clubs[i][1] + " " + clubs[i][2];
+  const roleName = (r) => ROLE_INFO[r]?.[0] || r;
+  const pressed = (on) => `aria-pressed="${on ? "true" : "false"}"`;
+  const chip = (text, tone) => `<span class="nw-chip" data-tone="${tone || "neutral"}">${esc(text)}</span>`;
+  const toneOfTier = (o) =>
+    o.expectation === "Contender" ? "good" : o.expectation === "Rebuild" ? "bad" : o.expectation === "Playoff push" ? "accent" : "neutral";
+  const identityError = () =>
+    !String(wizard.name || "").trim() || !Number.isInteger(Number(wizard.age)) || wizard.age < 25 || wizard.age > 80
+      ? "Enter a coach name and an age from 25 to 80."
+      : "";
+  const budgetLeft = () => COACH_BUDGET - COACH_ATTRIBUTES.reduce((n, k) => n + Number(wizard.attributes[k] || 0), 0);
+  const topAttribute = (attrs) => COACH_ATTRIBUTES.reduce((a, k) => (attrs[k] > attrs[a] ? k : a), COACH_ATTRIBUTES[0]);
+
+  const tile = (i) => {
+    const c = clubs[i],
+      o = outlook?.[i],
+      on = wizard.team === i;
+    return `<button type="button" class="nw-tile${on ? " is-selected" : ""}" data-team="${i}" data-k="team-${i}" data-tone="${o?.difficulty.tone || ""}" role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}" onclick="Career.team(${i})" ondblclick="Career.next()" aria-label="${esc(clubFull(i))}${o ? `, overall ${o.rating}, ranked ${o.rank} of 32, ${o.difficulty.label}` : ""}"><span class="nw-tile-logo">${logo(i)}</span><span class="nw-tile-name"><b>${esc(c[0])}</b><small>${esc(c[2])}</small></span>${o ? `<span class="nw-tile-ovr" title="Opening roster overall">${o.rating}</span>` : ""}</button>`;
+  };
+  const clubStep = () =>
+    `<p class="nw-intro">Pick the club you want to lead. Ratings come from the real ${NEW_CAREER_YEAR} rosters you inherit. Use the arrow keys to browse and Enter to continue.</p><div class="nw-clubs" role="radiogroup" aria-label="Clubs">${["AFC", "NFC"]
+      .map(
+        (conf) =>
+          `<div class="nw-conf"><h3 class="nw-conf-name">${conf}</h3><div class="nw-divs">${["East", "North", "South", "West"]
+            .map(
+              (d) =>
+                `<section class="nw-div" aria-label="${conf} ${d}"><h4>${d}</h4>${clubs
+                  .map((c, i) => (c[3] === conf + " " + d ? tile(i) : ""))
+                  .join("")}</section>`,
+            )
+            .join("")}</div></div>`,
+      )
+      .join("")}</div><p class="nw-legend"><span class="nw-key" data-tone="good"></span>Easy <span class="nw-key" data-tone="neutral"></span>Normal <span class="nw-key" data-tone="warn"></span>Hard <span class="nw-key" data-tone="bad"></span>Very hard <i>·</i> Number = opening roster overall</p>`;
+
+  const roleCard = (r) =>
+    `<button type="button" class="nw-role${wizard.role === r ? " is-selected" : ""}" data-k="role-${r}" role="radio" aria-checked="${wizard.role === r}" onclick="Career.change('role','${r}')"><b>${esc(ROLE_INFO[r][0])}</b><span>${esc(ROLE_INFO[r][1])}</span></button>`;
+  // What each job may decide, read from the role permissions in state.mjs.
+  const ROLE_AREAS = [
+    ["Coaching", (r) => (r.includes("coach") ? "Full" : r.includes("offense") ? "Offense" : r.includes("defense") ? "Defense" : "")],
+    ["Roster", "roster"],
+    ["Contracts", "finance"],
+    ["Scouting", "scout"],
+    ["Media", "media"],
+    ["Stadium", "stadium"],
+    ["League", "league"],
+  ];
+  const roleCell = (rights, area) => {
+    const v = typeof area === "function" ? area(rights) : rights.includes(area) ? "Yes" : "";
+    if (!v) return `<td><span class="nw-no" aria-hidden="true">·</span><span class="nw-sr">No</span></td>`;
+    return `<td><span class="nw-yes" aria-hidden="true"></span>${v === "Yes" ? `<span class="nw-sr">Yes</span>` : esc(v)}</td>`;
+  };
+  const roleMatrix = () =>
+    `<h3 class="nw-label nw-matrix-title" id="nw-matrix-title">What each job controls</h3><table class="nw-matrix" aria-labelledby="nw-matrix-title"><thead><tr><th scope="col">Job</th>${ROLE_AREAS.map(([label]) => `<th scope="col">${esc(label)}</th>`).join("")}</tr></thead><tbody>${["HC", "Owner", "GM", "OC", "DC"]
+      .map(
+        (role) =>
+          `<tr class="${wizard.role === role ? "is-selected" : ""}"><th scope="row">${esc(ROLE_INFO[role][0])}</th>${ROLE_AREAS.map(([, area]) => roleCell(S.ROLES[role] || [], area)).join("")}</tr>`,
+      )
+      .join("")}</tbody></table>`;
+  const identityStep = () =>
+    `<p class="nw-intro">Name your coach and choose the job. Everything else has a sensible default, so you can skip straight to the contract.</p><div class="nw-form"><label class="nw-field nw-field-name"><span>Coach name</span><input id="nw-name" data-k="name" type="text" maxlength="40" autocomplete="off" spellcheck="false" value="${esc(wizard.name)}" oninput="Career.change('name',this.value)"></label><label class="nw-field nw-field-age"><span>Age</span><input data-k="age" type="number" min="25" max="80" value="${esc(wizard.age)}" oninput="Career.change('age',this.value)"></label><label class="nw-field"><span>Nationality</span><input data-k="nationality" type="text" maxlength="40" list="nw-nations" value="${esc(wizard.nationality)}" oninput="Career.change('nationality',this.value)"><datalist id="nw-nations">${NATIONS.map((n) => `<option value="${esc(n)}"></option>`).join("")}</datalist></label></div><h3 class="nw-label">Your job <small>Locked once the career begins</small></h3><div class="nw-roles" role="radiogroup" aria-label="Career role">${["HC", "Owner", "GM", "OC", "DC"].map(roleCard).join("")}</div>${roleMatrix()}`;
+
+  const swatchRow = (key, label) => {
+    const value = wizard.appearance[key],
+      list = [...(key === "jacket" ? [TEAM_COLORS[wizard.team]] : []), ...APPEARANCE_SWATCHES[key]].filter(
+        (v, i, a) => /^#[0-9a-f]{6}$/i.test(v) && a.indexOf(v) === i,
+      ),
+      custom = !list.some((v) => v.toLowerCase() === String(value).toLowerCase());
+    return `<div class="nw-look-row"><span class="nw-look-label">${label}</span><div class="nw-swatches" role="group" aria-label="${label}">${list
+      .map(
+        (v, i) =>
+          `<button type="button" class="nw-swatch${v.toLowerCase() === String(value).toLowerCase() ? " is-selected" : ""}" data-k="ap-${key}-${i}" style="--sw:${v}" ${pressed(v.toLowerCase() === String(value).toLowerCase())} aria-label="${label} ${key === "jacket" && i === 0 ? "club colour" : i + 1}" title="${key === "jacket" && i === 0 ? "Club colour" : v}" onclick="Career.appearance('${key}','${v}')"></button>`,
+      )
+      .join("")}<label class="nw-swatch nw-swatch-custom${custom ? " is-selected" : ""}" title="Custom colour" style="--sw:${esc(value)}"><input type="color" data-k="ap-${key}-custom" aria-label="Custom ${label.toLowerCase()} colour" value="${esc(value)}" onchange="Career.appearance('${key}',this.value)"><span aria-hidden="true">+</span></label></div></div>`;
+  };
+  const lookStep = () => {
+    const a = wizard.appearance;
+    return `<p class="nw-intro">Your coach appears on the touchline, in the office and in conversations. Drag the model to turn it.</p><div class="nw-look"><div class="nw-look-col">${LOOK_OPTIONS.map(
+      ([key, label, values]) =>
+        `<div class="nw-look-row"><span class="nw-look-label">${label}</span><div class="nw-seg" role="group" aria-label="${label}">${values
+          .map((v) => `<button type="button" data-k="ap-${key}-${v}" ${pressed(a[key] === v)} onclick="Career.appearance('${key}','${v}')">${esc(v)}</button>`)
+          .join("")}</div></div>`,
+    ).join(
+      "",
+    )}<div class="nw-look-row"><span class="nw-look-label">Height</span><div class="nw-range"><input type="range" data-k="ap-height" min="160" max="205" value="${a.height}" aria-label="Height in centimetres" oninput="this.nextElementSibling.textContent=this.value+' cm'" onchange="Career.appearance('height',Number(this.value))"><output>${a.height} cm</output></div></div></div><div class="nw-look-col">${swatchRow("skin", "Skin")}${swatchRow("hair", "Hair colour")}${swatchRow("jacket", "Jacket")}<div class="nw-look-row"><span class="nw-look-label">Extras</span><div class="nw-seg nw-seg-toggles"><button type="button" data-k="ap-glasses" ${pressed(a.glasses)} onclick="Career.appearance('glasses',${!a.glasses})">Glasses</button><button type="button" data-k="ap-headset" ${pressed(a.headset)} onclick="Career.appearance('headset',${!a.headset})">Headset</button></div></div><button type="button" class="secondary small nw-shuffle" data-k="ap-shuffle" onclick="Career.shuffleLook()">Shuffle look</button></div></div>`;
+  };
+
+  const optionGroup = (key, label, note = "") =>
+    `<div class="nw-group"><h3 class="nw-label">${label}${note ? ` <small>${note}</small>` : ""}</h3><div class="nw-opts" role="radiogroup" aria-label="${label}">${Object.entries(PHILOSOPHY[key])
+      .map(([value, info]) => {
+        const on = wizard[key] === value,
+          tag = key === "background" ? `${nice(topAttribute(BACKGROUNDS[value]))} ${BACKGROUNDS[value][topAttribute(BACKGROUNDS[value])]}` : info.tag;
+        return `<button type="button" class="nw-opt${on ? " is-selected" : ""}" role="radio" aria-checked="${on}" data-k="${key}-${esc(value)}" onclick="Career.change('${key}','${esc(value)}')"><b>${esc(value)}</b><small>${esc(tag)}</small><span>${esc(info.effect)}</span></button>`;
+      })
+      .join("")}</div></div>`;
+  const philosophyStep = () => {
+    const left = budgetLeft();
+    return `<div class="nw-philosophy"><div class="nw-choices">${optionGroup("background", "Background", "Resets your attributes")}${optionGroup("experience", "Experience")}${optionGroup("style", "Offensive style", "Adjustable later in Game plan")}${optionGroup("personality", "Personality")}</div><section class="nw-attrs" aria-labelledby="nw-attrs-title"><div class="nw-attrs-head"><h3 id="nw-attrs-title" class="nw-label">Coach attributes</h3><span id="coach-points-left" class="nw-budget"></span></div>${COACH_ATTRIBUTES.map((k) => {
+      const v = Number(wizard.attributes[k]) || 0;
+      return `<div class="nw-attr"><span>${nice(k)}</span><button type="button" class="nw-step-btn" data-k="attr-${k}-down" aria-label="Lower ${k}" onclick="Career.nudge('${k}',-1)" ${v <= 1 ? "disabled" : ""}>−</button><i class="nw-bar" aria-hidden="true"><em style="width:${v * 5}%"></em></i><b aria-label="${k} ${v} of 20">${v}</b><button type="button" class="nw-step-btn" data-k="attr-${k}-up" aria-label="Raise ${k}" onclick="Career.nudge('${k}',1)" ${v >= 20 || left <= 0 ? "disabled" : ""}>+</button></div>`;
+    }).join("")}<p class="nw-archetype">Archetype <b>${esc(coachArchetype(wizard.attributes))}</b></p><p class="nw-footnote">Development, motivation, discipline and medical feed weekly training and recovery. Development, offense and defense set your archetype and coaching skills; the average sets your rating as head coach.</p></section></div>`;
+  };
+
+  const lede = () => {
+    const o = outlook?.[wizard.team],
+      last = String(wizard.name).trim().split(/\s+/).pop(),
+      exp = { "First appointment": "a first senior appointment", Coordinator: "coordinator experience", "Veteran head coach": "a veteran head coach’s record" }[wizard.experience];
+    return `${esc(last)} (${esc(wizard.age)}, ${esc(wizard.nationality)}) arrives as a ${esc(wizard.background.toLowerCase())} with ${exp}, a ${esc(wizard.style.toLowerCase())} approach and a ${esc(wizard.personality.toLowerCase())} touch.${o ? ` The ${esc(clubs[wizard.team][2])} open ${NEW_CAREER_YEAR} with a roster rated ${o.rating} (#${o.rank} of 32); the board expects about ${o.projected} wins.` : ""}`;
+  };
+  const reviewStep = () => {
+    const o = outlook?.[wizard.team],
+      facts = [
+        ["Role", roleName(wizard.role)],
+        ["Archetype", coachArchetype(wizard.attributes)],
+        ["Reputation", REPUTATION[wizard.experience] + " · " + wizard.experience],
+        ["Opening roster", o ? `${o.rating} OVR · #${o.rank} of 32` : "Real " + NEW_CAREER_YEAR + " rosters"],
+        ["Board expects", o ? `${o.expectation} · ~${o.projected} wins` : "Set in your first meeting"],
+        ["Difficulty", o ? o.difficulty.label : "—"],
+      ];
+    return `<article class="nw-release" aria-labelledby="nw-release-title"><div class="nw-release-band"><span class="nw-release-logo">${logo(wizard.team)}</span><span>Official announcement</span><span>${esc(clubs[wizard.team][3])} · ${NEW_CAREER_YEAR}</span></div><div class="nw-release-body"><div class="nw-release-art">${coachPixelAvatar(wizard.appearance, { label: wizard.name + " portrait", seed: "wizard" })}</div><div class="nw-release-copy"><span class="eyebrow">${esc(clubFull(wizard.team))}</span><h2 id="nw-release-title">${esc(String(wizard.name).trim() || "Your coach")} takes charge in ${esc(clubs[wizard.team][1])}</h2><p class="nw-release-sub">Named ${esc(roleName(wizard.role).toLowerCase())} of the ${esc(clubFull(wizard.team))}</p><p class="nw-release-lede">${lede()}</p><dl class="nw-release-facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl></div></div><div class="nw-release-foot"><label class="nw-field nw-field-save"><span>Career save name</span><input data-k="saveName" type="text" maxlength="60" value="${esc(wizard.saveName)}" oninput="Career.change('saveName',this.value)"></label><div class="nw-sign"><span class="nw-sign-name">${esc(String(wizard.name).trim() || "—")}</span><small>${esc(roleName(wizard.role))} · signature</small></div></div></article>`;
+  };
+
+  const report = () => {
+    const i = wizard.team,
+      o = outlook?.[i];
+    const head = `<div class="nw-report-head"><span class="nw-report-logo">${logo(i)}</span><div><span class="eyebrow">${esc(clubs[i][3])}</span><h3>${esc(clubFull(i))}</h3></div></div>`;
+    if (!o)
+      return `${head}<p class="nw-report-wait">${outlookState === "failed" ? "Scouting data is unavailable. You can still start with this club." : "Scouting the league…"}</p>`;
+    const facts = [
+      ["Projected wins", `~${o.projected}`],
+      ["Cap room", `$${o.capRoom.toFixed(1)}M`],
+      ["Best player", o.star ? `${o.star.name} · ${o.star.pos} ${o.star.ovr}` : "—"],
+      ["Starting QB", o.qb ? `${o.qb.name} · ${o.qb.ovr}` : "—"],
+      ["Starter age", `${o.starterAge} avg`],
+      ...(o.coach ? [[wizard.role === "HC" ? "You replace" : "Head coach", o.coach]] : []),
+    ];
+    return `${head}<div class="nw-report-ovr"><b>${o.rating}</b><span>Opening OVR<small>#${o.rank} of 32 · league ${o.leagueAvg}</small></span></div><div class="nw-report-chips">${chip(o.expectation, toneOfTier(o))}${chip(o.difficulty.label, o.difficulty.tone)}</div><dl class="nw-facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd title="${esc(v)}">${esc(v)}</dd></div>`).join("")}</dl>`;
+  };
+  const summary = () => {
+    const rows = [
+      ["Background", wizard.background],
+      ["Experience", wizard.experience],
+      ["Offense", wizard.style],
+      ["Personality", wizard.personality],
+      ["Archetype", coachArchetype(wizard.attributes)],
+    ];
+    return `<div class="nw-sum-head"><span class="nw-sum-logo">${logo(wizard.team)}</span><div><b id="coach-preview-name">${esc(String(wizard.name).trim() || "Your coach")}</b><small>${esc(roleName(wizard.role))} · ${esc(clubs[wizard.team][2])}</small></div></div><dl class="nw-facts nw-facts-tight">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>`;
+  };
+  const stepsBar = () =>
+    STEPS.map(
+      ([label], i) =>
+        `<li><button type="button" class="nw-step${i === wizardStep ? " is-current" : i < wizardStep ? " is-done" : ""}" ${i === wizardStep ? 'aria-current="step"' : ""} onclick="Career.goto(${i})"><i>${i < wizardStep ? "✓" : i + 1}</i><span>${label}</span></button></li>`,
+    ).join("");
+  const footer = () =>
+    `<button class="secondary" onclick="Career.step(-1)">${wizardStep ? "← Back" : "← Career library"}</button><p id="wizard-error" role="alert"></p><span class="nw-hint" aria-hidden="true"><kbd>Enter</kbd> ${wizardStep === 4 ? "sign" : "continue"}</span>${wizardStep < 3 ? `<button class="secondary nw-skip" onclick="Career.goto(4)">Skip to contract</button>` : ""}<button id="wizard-next" class="${wizardStep === 4 ? "nw-begin" : ""}" onclick="Career.next()">${wizardStep === 4 ? "Sign &amp; begin career →" : "Continue →"}</button>`;
+  const shellHTML = () =>
+    `<div class="nw" id="nw" data-step="${wizardStep}" onkeydown="Career.key(event)"><div class="nw-top"><div class="nw-title"><button class="link nw-library" onclick="Career.open()">← Career library</button><span class="eyebrow">New career · Step <b id="nw-step-no">${wizardStep + 1}</b> of 5</span><h2 id="nw-heading">${STEPS[wizardStep][1]}</h2></div><ol class="nw-steps" id="nw-steps">${stepsBar()}</ol></div><div class="nw-body"><section class="nw-main" id="nw-main" aria-labelledby="nw-heading"></section><div class="nw-side" role="complementary" aria-label="Your career so far"><div class="nw-report" id="nw-report"></div><div class="nw-coach"><div class="nw-stage"><div id="coach-avatar-host"></div><div class="nw-orbit"><button type="button" aria-label="Rotate coach left" onclick="CoachPreview.rotate(-.4)">↶</button><button type="button" aria-label="Rotate coach right" onclick="CoachPreview.rotate(.4)">↷</button></div></div><div class="nw-summary" id="nw-summary"></div></div></div></div><div class="nw-foot" id="nw-foot"></div></div>`;
+  const STEP_VIEWS = [clubStep, identityStep, lookStep, philosophyStep, reviewStep];
+  const setHTML = (id, html) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  };
+  const paint = ({ main = true } = {}) => {
+    const root = document.getElementById("nw");
+    if (!root || !wizard) return;
+    const focusKey = root.contains(document.activeElement) ? document.activeElement?.dataset?.k : null;
+    // A close event queued just before the wizard opened can strip the dialog classes.
+    document.getElementById("modal").classList.add("career-modal", "wizard-modal");
+    root.dataset.step = wizardStep;
+    root.style.setProperty("--club", TEAM_COLORS[wizard.team] || "var(--team)");
+    document.getElementById("nw-step-no").textContent = wizardStep + 1;
+    document.getElementById("nw-heading").textContent = STEPS[wizardStep][1];
+    setHTML("nw-steps", stepsBar());
+    if (main) {
+      setHTML("nw-main", STEP_VIEWS[wizardStep]());
+      document.getElementById("nw-main").scrollTop = 0;
+    }
+    setHTML("nw-report", report());
+    setHTML("nw-summary", summary());
+    setHTML("nw-foot", footer());
+    if (wizardStep >= 1 && wizardStep <= 3 && !avatar) mountAvatar();
+    Career.budget();
+    if (focusKey) root.querySelector(`[data-k="${CSS.escape(focusKey)}"]`)?.focus();
+  };
+  // Focus the natural first control of a step after navigating to it.
+  const focusStep = () => {
+    const root = document.getElementById("nw");
+    if (!root) return;
+    const target =
+      wizardStep === 0
+        ? root.querySelector(".nw-tile.is-selected")
+        : wizardStep === 1
+          ? root.querySelector("#nw-name")
+          : document.getElementById("wizard-next");
+    target?.focus({ preventScroll: true });
+    if (wizardStep === 1) target?.select?.();
   };
   const showWizard = () => {
     disposeAvatar();
-    modal(wizardHTML());
+    modal(shellHTML());
     document
       .getElementById("modal")
       .classList.add("career-modal", "wizard-modal");
-    mountAvatar();
-    Career.budget();
+    paint();
+    focusStep();
   };
   window.Career = {
     get currentId() {
@@ -343,8 +549,11 @@ export async function installCareerManager({ views, isBusy, initialize }) {
       try {
         await flush();
         wizard = defaultCoach(Number(team));
+        saveNameAuto = true;
+        wizard.saveName = autoSaveName(wizard.name, clubs[wizard.team][2]);
         wizardStep = 0;
         showWizard();
+        loadOutlook();
       } catch (e) {
         toast(e.message);
       }
@@ -353,54 +562,122 @@ export async function installCareerManager({ views, isBusy, initialize }) {
       if (!wizard) return;
       if (["team", "age"].includes(key)) value = Number(value);
       wizard[key] = value;
-      if (key === "background") {
-        wizard.attributes = { ...BACKGROUNDS[value] };
-        showWizard();
-      }
-      const name = document.getElementById("coach-preview-name");
-      if (name) name.textContent = wizard.name;
+      if (key === "saveName") saveNameAuto = false;
+      if ((key === "name" || key === "team") && saveNameAuto)
+        wizard.saveName = autoSaveName(wizard.name, clubs[wizard.team][2]);
+      if (key === "background") wizard.attributes = { ...BACKGROUNDS[value] };
+      const err = document.getElementById("wizard-error");
+      if (err) err.textContent = "";
+      // Choices repaint the step; typed fields only refresh the summary so focus stays put.
+      if (["background", "experience", "style", "personality", "role"].includes(key)) paint();
+      else setHTML("nw-summary", summary());
     },
     team(id) {
-      wizard.team = id;
-      showWizard();
+      if (!wizard) return;
+      wizard.team = Number(id);
+      if (saveNameAuto) wizard.saveName = autoSaveName(wizard.name, clubs[wizard.team][2]);
+      for (const t of document.querySelectorAll("#nw .nw-tile")) {
+        const on = Number(t.dataset.team) === wizard.team;
+        t.classList.toggle("is-selected", on);
+        t.setAttribute("aria-checked", on);
+        t.tabIndex = on ? 0 : -1;
+      }
+      paint({ main: wizardStep !== 0 });
     },
     appearance(key, value) {
+      if (!wizard) return;
       wizard.appearance[key] = value;
+      paint();
+      mountAvatar();
+    },
+    shuffleLook() {
+      const pick = (list) => list[Math.floor(Math.random() * list.length)];
+      for (const [key, , values] of LOOK_OPTIONS) wizard.appearance[key] = pick(values);
+      for (const key of ["skin", "hair", "jacket"]) wizard.appearance[key] = pick(APPEARANCE_SWATCHES[key]);
+      wizard.appearance.height = 165 + Math.floor(Math.random() * 31);
+      paint();
       mountAvatar();
     },
     attribute(key, value) {
       wizard.attributes[key] = value;
       Career.budget();
     },
+    nudge(key, delta) {
+      const v = Number(wizard.attributes[key]) || 0,
+        next = Math.max(1, Math.min(20, v + delta));
+      if (next === v || (delta > 0 && budgetLeft() <= 0)) return;
+      wizard.attributes[key] = next;
+      paint();
+    },
     budget() {
-      const el = document.getElementById("coach-points-left");
-      if (!el) return;
-      const remaining =
-        COACH_BUDGET -
-        COACH_ATTRIBUTES.reduce(
-          (n, k) => n + Number(wizard.attributes[k] || 0),
-          0,
-        );
-      el.textContent = remaining + " points remaining";
-      el.classList.toggle("over-budget", remaining < 0);
-      document.getElementById("wizard-next").disabled = remaining < 0;
+      const el = document.getElementById("coach-points-left"),
+        next = document.getElementById("wizard-next");
+      const remaining = budgetLeft();
+      if (el) {
+        el.textContent = remaining < 0 ? `${-remaining} over budget` : remaining === 1 ? "1 point left" : `${remaining} points left`;
+        el.classList.toggle("over-budget", remaining < 0);
+      }
+      if (next) next.disabled = remaining < 0;
+    },
+    goto(target) {
+      if (!wizard) return;
+      target = Math.max(0, Math.min(4, Number(target)));
+      if (target === wizardStep) return;
+      const error = target > 1 ? identityError() : "";
+      wizardStep = error ? 1 : target;
+      paint();
+      focusStep();
+      if (error) document.getElementById("wizard-error").textContent = error;
     },
     step(delta) {
       if (wizardStep === 0 && delta < 0) {
         Career.open();
         return;
       }
-      if (
-        delta > 0 &&
-        wizardStep === 1 &&
-        (!wizard.name.trim() || wizard.age < 25 || wizard.age > 80)
-      ) {
-        document.getElementById("wizard-error").textContent =
-          "Enter a coach name and an age from 25 to 80.";
+      Career.goto(wizardStep + delta);
+    },
+    next() {
+      if (wizardStep === 4) Career.begin();
+      else if (!document.getElementById("wizard-next")?.disabled) Career.step(1);
+    },
+    // Enter continues from anywhere in the wizard; arrow keys move across the club board.
+    key(e) {
+      const t = e.target;
+      if (e.key === "Enter" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing) {
+        if (t.classList?.contains("nw-tile")) {
+          e.preventDefault();
+          Career.team(Number(t.dataset.team));
+          Career.next();
+          return;
+        }
+        if (t.tagName === "BUTTON" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.type === "color") return;
+        e.preventDefault();
+        Career.next();
         return;
       }
-      wizardStep = Math.max(0, Math.min(4, wizardStep + delta));
-      showWizard();
+      const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+      if (!dir || !t.classList?.contains("nw-tile")) return;
+      e.preventDefault();
+      const box = (el) => {
+          const r = el.getBoundingClientRect();
+          return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        },
+        from = box(t);
+      let best = null,
+        bestScore = Infinity;
+      for (const el of document.querySelectorAll("#nw .nw-tile")) {
+        if (el === t) continue;
+        const p = box(el),
+          along = (p.x - from.x) * dir[0] + (p.y - from.y) * dir[1],
+          across = Math.abs((p.x - from.x) * dir[1]) + Math.abs((p.y - from.y) * dir[0]);
+        if (along <= 4) continue;
+        const score = along + across * 3;
+        if (score < bestScore) (best = el), (bestScore = score);
+      }
+      if (best) {
+        Career.team(Number(best.dataset.team));
+        best.focus();
+      }
     },
     async begin() {
       if (!safe()) return;

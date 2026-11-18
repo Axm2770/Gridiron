@@ -205,3 +205,66 @@ export function updateCareerAppearance(s, changes = {}) {
   }
   return s;
 }
+
+/* ---------- New-career wizard helpers (read-only presets and copy) ---------- */
+// Swatches offered by the coach creator. Every value is a #rrggbb colour validateCoach accepts;
+// the wizard also offers the club colour for the jacket and a custom picker.
+export const APPEARANCE_SWATCHES = {
+  skin: ["#f1c7a5", "#e0ac84", "#c68c63", "#b77b51", "#8d5a3b", "#5e3b26"],
+  hair: ["#24201c", "#4a3426", "#7a5232", "#b98a4e", "#d9c7a0", "#8c8c8c"],
+  jacket: ["#204c68", "#1d2b3a", "#2f3a2f", "#6b1f2a", "#3a3f4a", "#d8d8d0"],
+};
+// What each coaching choice actually changes in the game (coach-profile applyCoach,
+// career-systems coachPerks, development.mjs training, match.js temperament, game-plan STYLES).
+export const PHILOSOPHY = {
+  background: {
+    "Former Player": {
+      tag: "Motivator",
+      effect: "Players buy in. Motivation lifts weekly training performance.",
+    },
+    "Analytics Guru": {
+      tag: "Game planner",
+      effect: "The sharpest tactical mind of the three, but a quieter locker room.",
+    },
+    "College Innovator": {
+      tag: "Developer",
+      effect: "Players improve faster in training. You start as a Development Wizard.",
+    },
+  },
+  experience: {
+    "First appointment": {
+      tag: "Reputation 35",
+      effect: "Under scrutiny: players ask about 3% more and are harder to recruit.",
+    },
+    Coordinator: {
+      tag: "Reputation 55",
+      effect: "Building credibility: close to neutral contract demands and recruiting.",
+    },
+    "Veteran head coach": {
+      tag: "Reputation 75",
+      effect: "Highly respected: about 5% cheaper contracts, cheaper staff, easier recruiting and prestige job offers.",
+    },
+  },
+  style: {
+    Balanced: { tag: "Default", effect: "A mix of runs and passes." },
+    "Run-first": { tag: "Ground game", effect: "Runs on early downs, then play action." },
+    "Vertical offense": { tag: "Air raid", effect: "Deep shots. More big plays, more incompletions." },
+  },
+  personality: {
+    "Players coach": { tag: "Stamina", effect: "Starters lose 10% less energy per snap." },
+    Disciplinarian: { tag: "Execution", effect: "Small execution bonus when team morale is 70% or higher." },
+    Tactician: { tag: "Scheme fit", effect: "Small execution bonus when your formation fits the play call." },
+  },
+};
+// The archetype applyCoach records for these attributes.
+export function coachArchetype(attributes) {
+  return attributes.development >= 16
+    ? "Development Wizard"
+    : attributes.offense >= attributes.defense
+      ? "Offensive Guru"
+      : "Defensive Genius";
+}
+// Default career save name until the player types their own.
+export function autoSaveName(name, club) {
+  return `${String(name || "").trim() || "Coach"} · ${club}`.slice(0, 60);
+}
