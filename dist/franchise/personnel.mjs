@@ -314,13 +314,13 @@ export function tradeDown(s) {
     `Moved down in round ${p.round} and acquired a future pick.`,
   );
 }
-export function trimRoster(s) {
-  requireRole(s, "roster");
-  if (s.live) throw Error("Finish the current match.");
+// Who a trim to 53 would move: the best player at every position stays, then the highest rated;
+// the rest go to the practice squad while it has room (16) and are released after that.
+export function trimPlan(s) {
   let a = active(s)
     .filter((p) => p.status === "active")
     .sort((a, b) => b.ovr - a.ovr);
-  if (a.length <= 53) return;
+  if (a.length <= 53) return { practice: [], release: [] };
   let required = new Set();
   for (let pos of new Set(POS)) {
     let best = a.find((p) => p.pos === pos && !p.injury);
@@ -333,16 +333,28 @@ export function trimRoster(s) {
       .slice(0, 53 - required.size)
       .map((p) => p.id),
   ]);
-  for (let p of a.filter((p) => !keep.has(p.id))) {
+  let room = Math.max(0, 16 - s.roster.filter((p) => p.status === "practice").length);
+  const plan = { practice: [], release: [] };
+  for (let p of a.filter((p) => !keep.has(p.id))) (room-- > 0 ? plan.practice : plan.release).push(p);
+  return plan;
+}
+export function trimRoster(s) {
+  requireRole(s, "roster");
+  if (s.live) throw Error("Finish the current match.");
+  const plan = trimPlan(s);
+  if (!plan.practice.length && !plan.release.length) return;
+  for (let p of plan.practice) {
     p.starter = false;
-    if (s.roster.filter((p) => p.status === "practice").length < 16)
-      p.status = "practice";
-    else cut(s, p.id, false);
+    p.status = "practice";
+  }
+  for (let p of plan.release) {
+    p.starter = false;
+    cut(s, p.id, false);
   }
   log(
     s,
     "Roster trimmed",
-    "Assistant reduced the active roster to 53. Released players retain their applicable dead cap.",
+    `Active roster reduced to 53: ${plan.practice.length} moved to the practice squad, ${plan.release.length} released. Released players retain their applicable dead cap.`,
   );
 }
 

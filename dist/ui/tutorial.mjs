@@ -298,6 +298,18 @@ export function installTutorials({ getSection, isBusy = () => false }) {
   });
   addEventListener("resize", () => active && place(findTarget(active.tour.steps[active.index].target)));
 
+  // The welcome waits for any cutscene (a new coach arrives on a new career) and dialog to finish.
+  let welcomeTimer = null;
+  function offerWelcome(tries = 0) {
+    if (welcomeTimer) return;
+    welcomeTimer = setTimeout(() => {
+      welcomeTimer = null;
+      if (loadProgress().welcomed || active) return;
+      const blocked = document.getElementById("modal")?.open || document.querySelector(".gd-cine, .px-scene") || isBusy();
+      if (blocked) return tries < 120 && offerWelcome(tries + 1);
+      api.welcome();
+    }, tries ? 1000 : 600);
+  }
   const previousRender = window.render;
   if (typeof previousRender === "function") {
     window.render = render = function () {
@@ -308,7 +320,7 @@ export function installTutorials({ getSection, isBusy = () => false }) {
       // `state` is the game's script-scope global (game.js), not a window property.
       const career = typeof state !== "undefined" && state?.franchise;
       if (!p.welcomed && !active && career && getSection?.() === "Overview" && !document.getElementById("modal")?.open && !isBusy())
-        setTimeout(() => !loadProgress().welcomed && !document.getElementById("modal")?.open && api.welcome(), 600);
+        offerWelcome();
       if (active) {
         const step = active.tour.steps[active.index];
         requestAnimationFrame(() => {

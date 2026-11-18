@@ -1,7 +1,7 @@
 // Franchise Hub: a tabbed, bento-grid replacement for the long single-column overview.
 // Everything important fits on one screen; detail lives in tabs or the existing routes.
 import * as S from "./state.mjs";
-import { officeCounts } from "./newsroom.mjs";
+import { officeCounts, ensureOffice } from "./newsroom.mjs";
 import { socialPulse, socialEnginePosts } from "./social-engine.mjs";
 import { activeDilemma, resolveDilemma, pressConference, answerPress, COACHING_TREE, treePoints, hasPerk, unlockNode, ensureDepth, momentum, environment, halftimeDeck, playHalftimeCard } from "./depth-systems.mjs";
 import { TEAM_COLORS } from "../presentation/team-colors.mjs";
@@ -115,8 +115,14 @@ function deskCard() {
     body += `<div class="gd-decision"><span class="gd-eyebrow">Locker room</span><h4>${K.escapeHTML(dilemma.title)}</h4><p>${K.escapeHTML(dilemma.body)}</p><div class="gd-choices">${dilemma.choices.map((ch) => `<button class="gd-btn" onclick="Hub2.dilemma('${dilemma.id}','${ch.id}')">${K.escapeHTML(ch.label)}</button>`).join("")}</div></div>`;
   else if (presser && !answered)
     body += `<div class="gd-decision"><span class="gd-eyebrow">Press conference</span><h4>${K.escapeHTML(presser.question)}</h4><div class="gd-choices">${presser.answers.map((a) => `<button class="gd-btn" onclick="Hub2.press('${presser.id}','${a.id}')">${K.escapeHTML(a.label)}</button>`).join("")}</div></div>`;
-  else body += K.empty("No locker-room or media decisions waiting.");
-  body += `<div style="display:flex;gap:6px;flex-wrap:wrap">${K.chip(`${c.unread} unread`)}${c.pending ? K.chip(`${c.pending} decisions`, "warn") : ""}${c.urgent ? K.chip(`${c.urgent} urgent`, "bad") : ""}</div>`;
+  else {
+    // Inbox decisions count here too, so the card never says "nothing waiting" beside a decision chip.
+    const next = ensureOffice(state).messages.find((m) => m.status === "pending");
+    body += next
+      ? `<div class="gd-decision"><span class="gd-eyebrow">${K.escapeHTML(next.source || "Inbox")}</span><h4>${K.escapeHTML(next.title)}</h4>${next.summary ? `<p>${K.escapeHTML(next.summary)}</p>` : ""}<div class="gd-choices"><button class="gd-btn" onclick="W.open('Inbox');Office.select('${next.id}')">Respond in inbox</button></div></div>`
+      : K.empty("Nothing needs your answer right now.");
+  }
+  body += `<div style="display:flex;gap:6px;flex-wrap:wrap">${K.chip(`${c.unread} unread`)}${c.pending ? K.chip(`${c.pending} decision${c.pending === 1 ? "" : "s"}`, "warn") : ""}${c.urgent ? K.chip(`${c.urgent} urgent`, "bad") : ""}</div>`;
   return K.card({ title: "Your desk", span: 4, action: K.link("Inbox", "W.open('Inbox')"), body });
 }
 
