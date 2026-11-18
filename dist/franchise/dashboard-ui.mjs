@@ -1,5 +1,7 @@
-// Franchise Hub: a tabbed, bento-grid replacement for the long single-column overview.
-// Everything important fits on one screen; detail lives in tabs or the existing routes.
+// Club overview: a bento-grid front-office dashboard. It used to carry its own tab strip (Squad,
+// Medical, Training, Market, Draft, Media & fans, Coaching) that duplicated the sidebar; the sidebar
+// is now the only way between screens. Content unique to those tabs moved to its proper screen:
+// the scout network and the watchlist pipeline to Draft room, the coaching tree to Coach career.
 import * as S from "./state.mjs";
 import { officeCounts, ensureOffice } from "./newsroom.mjs";
 import { socialPulse, socialEnginePosts } from "./social-engine.mjs";
@@ -8,7 +10,8 @@ import { TEAM_COLORS } from "../presentation/team-colors.mjs";
 import { STAGES, SCOUT_COSTS, ensurePipeline, pipelineView, addToWatchlist, removeFromPipeline, moveStage, rankOnBoard, syncPipeline, talentRange, positionalNeed } from "./recruiting-pipeline.mjs";
 import { scout, draftPick } from "./personnel.mjs";
 import * as K from "../ui/kit.mjs";
-import { medicalView, trainingView, marketView, draftView, installOps } from "./ops-ui.mjs";
+import { medicalView, trainingView, installOps } from "./ops-ui.mjs";
+import { REGIONS, ensureScouting, scoutCandidates } from "./draft-room.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
 import { teamColors } from "../presentation/pixel-art.mjs";
 import { fixtures } from "./front-office.mjs";
@@ -16,20 +19,17 @@ import { rosterLimit } from "./blockers.mjs";
 import { winChance, oddsLabel, moneyline, litBlocks, recentForm, teamForm, divisionTable, ordinal, pageOf, daysBetween, shortDate, senderInitials, loadDeskStyles } from "./hub-model.mjs";
 
 
-const TABS = [
-  ["hub", "Hub"],
-  ["squad", "Squad"],
-  ["medical", "Medical"],
-  ["training", "Training"],
-  ["market", "Market"],
-  ["draft", "Draft"],
-  ["media", "Media & fans"],
-  ["coach", "Coaching"],
-];
-const UNITS = {
-  offense: ["QB", "RB", "WR", "TE", "OL"],
-  defense: ["DL", "LB", "CB", "S"],
-  special: ["K", "P"],
+// Old Hub tab ids → the sidebar screen that now owns that content (Hub2.tab keeps old links working).
+export const HUB_TAB_ROUTES = {
+  hub: "Overview",
+  squad: "Roster",
+  medical: "Medical",
+  training: "Medical",
+  market: "Market",
+  draft: "Draft",
+  pipeline: "Draft",
+  media: "News",
+  coach: "Career",
 };
 const store = (key, fallback) => {
   try {
@@ -43,10 +43,10 @@ const remember = (key, value) => {
     localStorage.setItem(key, value);
   } catch {}
 };
-let tab = store("gridiron-hub-tab", "hub"),
-  unit = "offense",
-  feedFilter = "all",
-  feedPage = 0,
+// Medical | Training sub-tab of the Medical & training screen (an old saved Hub tab is honoured once).
+let medTab = store("gridiron-med-tab", store("gridiron-hub-tab", "") === "training" ? "training" : "medical"),
+  // Draft room sub-tab: the room itself, the regional scout network, or the watchlist pipeline.
+  draftTab = "room",
   prospectPos = "need";
 
 const millions = (cents) => `$${(cents / 1e8).toFixed(1)}M`;
@@ -240,7 +240,7 @@ function rosterCard(span = 5) {
     title: "Core players",
     span,
     cls: "fd-core",
-    action: K.link("Squad", "Hub2.tab('squad')"),
+    action: K.link("Squad", "W.open('Roster')"),
     body: `<div class="fd-players">${top
       .map((p) => {
         const m = Math.round(p.morale ?? 75);
@@ -287,9 +287,7 @@ function leadersCard(span = 4) {
 }
 
 function feedCard(span = 4, limit = 3) {
-  const posts = socialEnginePosts(state)
-    .filter((p) => feedFilter === "all" || p.archetype === feedFilter)
-    .slice(0, limit);
+  const posts = socialEnginePosts(state).slice(0, limit);
   return panel({
     title: "The timeline",
     span,
@@ -299,69 +297,14 @@ function feedCard(span = 4, limit = 3) {
   });
 }
 
-/* ------------------------------------------------------------------- tabs */
+/* -------------------------------------------------------------- overview */
 
 function hubTab() {
   return `<div class="fd-grid gd-bento">${hero()}${kpiStrip()}${deskCard(5)}${pulseCard(4)}${standingsCard(3)}${roadCard(8)}${leadersCard(4)}${rosterCard(5)}${medicalCard(3)}${feedCard(4)}</div>`;
 }
 
-function squadTab() {
-  const list = state.roster.filter((p) => UNITS[unit].includes(p.pos)).sort((a, b) => UNITS[unit].indexOf(a.pos) - UNITS[unit].indexOf(b.pos) || b.ovr - a.ovr);
-  const groups = UNITS[unit]
-    .map((pos) => {
-      const players = list.filter((p) => p.pos === pos);
-      if (!players.length) return "";
-      const avg = Math.round(players.slice(0, 3).reduce((n, p) => n + p.ovr, 0) / Math.min(3, players.length));
-      return panel({
-        title: `${pos} · ${players.length}`,
-        span: 4,
-        action: `<span class="fd-head-chips">${K.chip(`Top 3 avg ${avg}`, avg >= 80 ? "good" : avg < 70 ? "warn" : "")}</span>`,
-        body: `<div class="fd-players">${players
-          .slice(0, 8)
-          .map(
-            (p) =>
-              `<button class="fd-player ${p.injury ? "hurt" : ""}" onclick="W.player('${p.id}',${state.team})">${face(p, 32)}<span class="fd-player-copy"><b>${p.starter ? '<i class="fd-pos fd-star" title="Starter">★</i>' : ""}${h(p.name)}</b><small>${p.age} yrs${p.injury ? ` · out ${p.injury}w` : ""}${p.holdout ? " · holdout" : ""}</small></span><span class="fd-ovr ${p.injury ? "down" : ""}">${p.ovr}</span></button>`,
-          )
-          .join("")}${players.length > 8 ? `<button class="gd-link fd-more" onclick="W.open('Roster')">+${players.length - 8} more in the roster →</button>` : ""}</div>`,
-      });
-    })
-    .join("");
-  return `<div class="gd-toolbar fd-subbar">${K.tabs(
-    [
-      ["offense", "Offense"],
-      ["defense", "Defense"],
-      ["special", "Special teams"],
-    ],
-    unit,
-    "Hub2.unit('$id')",
-    { small: true, label: "Unit" },
-  )}<button class="gd-btn" onclick="W.open('Roster')">Full roster & depth chart →</button></div><div class="fd-grid">${groups || panel({ title: "Unit", span: 12, body: K.empty("No players at these positions.") })}${leadersCard(12)}</div>`;
-}
-
-const FEED_PAGE = 6;
-function mediaTab() {
-  const filters = [
-      ["all", "All"],
-      ["insider", "Insiders"],
-      ["beat", "Beat"],
-      ["hottake", "Hot takes"],
-      ["fan", "Fans"],
-      ["rival", "Rivals"],
-    ],
-    posts = socialEnginePosts(state).filter((p) => feedFilter === "all" || p.archetype === feedFilter),
-    pg = pageOf(posts, feedPage, FEED_PAGE);
-  feedPage = pg.page;
-  const feed = panel({
-    title: "The timeline",
-    span: 8,
-    cls: "fd-feed fd-tall",
-    action: `<span class="fd-head-chips">${K.chip(`${pg.total} posts`)}</span>`,
-    body: `${pg.rows.length ? pg.rows.map(K.post).join("") : `<div class="fd-clear"><b>Quiet so far</b><small>The timeline lights up after your first game.</small></div>`}<div class="fd-pager"><button class="gd-btn" onclick="Hub2.feedPage(-1)" ${pg.page <= 0 ? "disabled" : ""}>◀ Prev</button><span>${pg.total ? `${pg.from}–${pg.to} of ${pg.total}` : "0 posts"} · page ${pg.page + 1}/${pg.pages}</span><button class="gd-btn" onclick="Hub2.feedPage(1)" ${pg.page >= pg.pages - 1 ? "disabled" : ""}>Next ▶</button></div>`,
-  });
-  return `<div class="gd-toolbar fd-subbar">${K.tabs(filters, feedFilter, "Hub2.feed('$id')", { small: true, label: "Feed filter" })}<button class="gd-btn" onclick="W.open('News')">News & social →</button></div><div class="fd-grid">${feed}${pulseCard(4)}${deskCard(4)}</div>`;
-}
-
-function coachTab() {
+// Coaching tree, locker-room decisions and press record: shown on Coach career.
+export function coachingSection() {
   const points = treePoints(state),
     d = ensureDepth(state),
     branches = [...new Set(COACHING_TREE.map((n) => n.branch))];
@@ -385,7 +328,16 @@ function coachTab() {
     .slice(0, 6)
     .map((x) => K.row({ lead: `W${x.week + 1}`, title: x.title, sub: x.outcome }))
     .join("");
-  return `<div class="gd-toolbar"><span>${K.chip(`${points} coaching point${points === 1 ? "" : "s"} available`, points ? "good" : "")} <small style="color:var(--gd-text-3)">Earn points through career XP each round.</small></span></div><div class="gd-bento fd-coach">${tree}${K.card({ title: "Locker-room decisions", span: 6, body: history ? `<div class="gd-rows">${history}</div>` : K.empty("No locker-room decisions yet.") })}${K.card({ title: "Press record", span: 6, body: d.pressers.length ? `<div class="gd-rows">${d.pressers.slice(0, 6).map((x) => K.row({ lead: `W${x.week + 1}`, title: `"${x.quote}"`, sub: x.answer })).join("")}</div>` : K.empty("No press conferences answered yet.") })}</div>`;
+  return `<section class="gd-hub fd-coaching"><div class="gd-toolbar"><h2 class="fd-section-title">Coaching tree</h2><span>${K.chip(`${points} coaching point${points === 1 ? "" : "s"} available`, points ? "good" : "")} <small style="color:var(--gd-text-3)">Earn points through career XP each round.</small></span></div><div class="gd-bento fd-coach">${tree}${K.card({ title: "Locker-room decisions", span: 6, body: history ? `<div class="gd-rows">${history}</div>` : K.empty("No locker-room decisions yet.") })}${K.card({ title: "Press record", span: 6, body: d.pressers.length ? `<div class="gd-rows">${d.pressers.slice(0, 6).map((x) => K.row({ lead: `W${x.week + 1}`, title: `"${x.quote}"`, sub: x.answer })).join("")}</div>` : K.empty("No press conferences answered yet.") })}</div></section>`;
+}
+
+// Regional scouts for the draft class (hire, region, focus); reports raise prospect confidence.
+function scoutNetwork() {
+  const n = ensureScouting(state),
+    e = K.escapeHTML,
+    money = (c) => `$${(c / S.MILLION).toFixed(2)}M`;
+  const scouts = n.scouts.map((sc) => `<article class="ops-scout"><header><span class="gd-pos">SC</span><span><b>${e(sc.name)}</b><small>Skill ${sc.skill}</small></span></header><label>Region<select onchange="Ops.assign('${sc.id}',this.value,null)">${REGIONS.map((r) => `<option ${r === sc.region ? "selected" : ""}>${r}</option>`).join("")}</select></label><label>Focus<select onchange="Ops.assign('${sc.id}',null,this.value)">${["All", "QB", "Skill", "Line", "Front 7", "Secondary", "Specialist"].map((f) => `<option ${f === sc.focus ? "selected" : ""}>${f}</option>`).join("")}</select></label></article>`).join("");
+  return `<div class="gd-bento">${K.card({ title: `Your scouts (${n.scouts.length}/5)`, span: 8, accent: true, body: `<div class="ops-scouts">${scouts}</div>` })}${K.card({ title: "Available scouts", span: 4, body: `<div class="gd-rows">${scoutCandidates(state).map((c) => K.row({ lead: "SC", title: c.name, sub: `${c.region} · ${c.focus} · skill ${c.skill}`, trail: `<button class="gd-btn" onclick="Ops.scout('${c.id}')">${money(c.salary)}</button>` })).join("") || K.empty("No candidates.")}</div>` })}${K.card({ title: "Latest reports", span: 12, body: n.log.length ? `<div class="gd-rows">${n.log.slice(0, 10).map((r) => K.row({ lead: "↑", title: `${r.scout} on ${r.prospect}`, sub: `Confidence ${r.from}% → ${r.to}%` })).join("")}</div>` : K.empty("Reports arrive after the next game week.") })}</div>`;
 }
 
 /* --------------------------------------------------------------- pipeline */
@@ -437,16 +389,12 @@ function pipelineTab() {
       ? `<div class="gd-pool">${pool.map(({ p, r }) => `<button class="gd-node" onclick="Hub2.pipe('add','${p.id}')"><b>${K.escapeHTML(p.pos)} · ${K.escapeHTML(p.name)}</b><small>${r.low}–${r.high} · ${r.confidence}% · ${p.age} yrs</small>${rangeBar(r)}${K.chip("+ Watchlist", "team")}</button>`).join("")}</div>`
       : K.empty("No untracked prospects at this filter."),
   });
-  return `<div class="gd-toolbar"><span style="display:flex;gap:6px;flex-wrap:wrap">${K.chip(`${v.points} scouting points`, v.points ? "good" : "warn")}${K.chip(`${v.visits}/30 private visits`)}${onClock ? K.chip(`On the clock · round ${pick.round}`, "bad") : d ? K.chip(d.cursor >= d.picks.length ? "Draft complete" : `Round ${pick?.round ?? "–"} in progress`) : K.chip("Draft opens in the offseason")}${v.lost.length ? K.chip(`${v.lost.length} targets taken elsewhere`, "warn") : ""}${canScout ? "" : K.chip(`${state.franchise.role}: the front office makes the picks — your board guides them`)}</span><button class="gd-btn" onclick="W.open('Scouting')">Classic scouting →</button></div><div class="gd-kanban">${columns}</div><div class="gd-bento">${add}</div>`;
+  return `<div class="gd-toolbar"><span style="display:flex;gap:6px;flex-wrap:wrap">${K.chip(`${v.points} scouting points`, v.points ? "good" : "warn")}${K.chip(`${v.visits}/30 private visits`)}${onClock ? K.chip(`On the clock · round ${pick.round}`, "bad") : d ? K.chip(d.cursor >= d.picks.length ? "Draft complete" : `Round ${pick?.round ?? "–"} in progress`) : K.chip("Draft opens in the offseason")}${v.lost.length ? K.chip(`${v.lost.length} targets taken elsewhere`, "warn") : ""}${canScout ? "" : K.chip(`${state.franchise.role}: the front office makes the picks — your board guides them`)}</span></div><div class="gd-kanban">${columns}</div><div class="gd-bento">${add}</div>`;
 }
 
 export function hubView() {
   theme();
-  // The recruiting pipeline now lives under Draft → Big board; old saved "pipeline" tabs land there.
-  if (tab === "pipeline") tab = "draft";
-  const views = { squad: squadTab, medical: medicalView, training: trainingView, market: marketView, draft: () => draftView({ pipeline: pipelineTab }), media: mediaTab, coach: coachTab };
-  const body = (views[tab] ?? hubTab)();
-  return `<div class="gd-hub fd-hub fd-tab-${tab}"><div class="gd-toolbar fd-tabbar">${K.tabs(TABS, tab, "Hub2.tab('$id')", { label: "Franchise hub" })}</div>${body}</div>`;
+  return `<div class="gd-hub fd-hub fd-tab-hub">${hubTab()}</div>`;
 }
 
 /* -------------------------------------------------------------- matchday */
@@ -475,9 +423,16 @@ export function installDashboard({ views, isBusy }) {
   installOps({ isBusy });
   // The sidebar's "Medical & training" route opens the new medical and training planner.
   const classicMedical = views.Medical;
-  views.Medical = () => `<div class="gd-hub"><div class="gd-toolbar">${K.tabs([["medical", "Medical"], ["training", "Training"]], tab === "training" ? "training" : "medical", "Hub2.tab('$id')", { label: "Medical and training" })}<button class="gd-link" onclick="Hub2.tab('${tab === "training" ? "training" : "medical"}');W.open('Overview')">Open in Hub</button></div>${tab === "training" ? trainingView() : medicalView()}${classicMedical ? `<details class="gd-classic"><summary>Classic preparation controls</summary>${classicMedical()}</details>` : ""}</div>`;
+  views.Medical = () => `<div class="gd-hub"><div class="gd-toolbar">${K.tabs([["medical", "Medical"], ["training", "Training"]], medTab, "Hub2.tab('$id')", { label: "Medical and training" })}</div>${medTab === "training" ? trainingView() : medicalView()}${classicMedical ? `<details class="gd-classic"><summary>Classic preparation controls</summary>${classicMedical()}</details>` : ""}</div>`;
   // The Hub is the only club overview; an old "gridiron-classic-overview" preference is ignored.
   views.Overview = hubView;
+  // Draft room gains two sub-tabs for content that only the old Hub "Draft" tab had.
+  const draftRoom = views.Draft;
+  views.Draft = () =>
+    `<div class="gd-toolbar fd-draft-tabs">${K.tabs([["room", "Draft room"], ["scouts", "Scout network"], ["pipeline", "Watchlist pipeline"]], draftTab, "Hub2.draftTab('$id')", { label: "Draft room sections" })}</div>${draftTab === "scouts" ? scoutNetwork() : draftTab === "pipeline" ? pipelineTab() : draftRoom()}`;
+  // The coaching tree (and decision / press record) lives on Coach career.
+  const careerView = views.Career;
+  if (careerView) views.Career = () => careerView() + coachingSection();
   // Copy/mutate/validate through state.transact; the toast only fires once the change commits.
   const mutate = (fn, message) => {
     if (isBusy()) return;
@@ -492,25 +447,25 @@ export function installDashboard({ views, isBusy }) {
     }
   };
   window.Hub2 = {
+    // Old Hub tab ids open the sidebar screen that owns that content; medical/training pick the
+    // Medical & training sub-tab, media opens News & social on the fan network.
     tab(id) {
-      tab = TABS.some(([t]) => t === id) ? id : "hub";
-      window.__gdHubTab = tab;
-      remember("gridiron-hub-tab", tab);
+      if (id === "medical" || id === "training") {
+        medTab = id;
+        remember("gridiron-med-tab", id);
+      }
+      if (id === "draft" || id === "pipeline") draftTab = id === "pipeline" ? "pipeline" : "room";
+      W.open(HUB_TAB_ROUTES[id] || "Overview");
+      if (id === "media") window.Hub?.mediaTab?.("Fan network");
+    },
+    draftTab(id) {
+      draftTab = ["room", "scouts", "pipeline"].includes(id) ? id : "room";
       render();
     },
-    feedPage(delta) {
-      feedPage = Math.max(0, feedPage + Number(delta || 0));
-      render();
-    },
-    unit(id) {
-      unit = UNITS[id] ? id : "offense";
-      render();
-    },
-    feed(id) {
-      feedFilter = id;
-      feedPage = 0;
-      render();
-    },
+    // Kept so old onclick handlers do nothing harmful.
+    feedPage() {},
+    unit() {},
+    feed() {},
     dilemma: (id, choice) => mutate((s) => resolveDilemma(s, id, choice), (r) => `Decision made: ${r.outcome}`),
     press: (id, answer) => mutate((s) => answerPress(s, id, answer), (r) => `"${r.quote}"`),
     unlock: (id) => mutate((s) => unlockNode(s, id), (r) => `Unlocked: ${r.name}`),

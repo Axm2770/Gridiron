@@ -22,11 +22,10 @@ export const TOURS = [
       {
         target: "#nav",
         title: "The sidebar is your map",
-        body: "Every area of the club is listed here, grouped by job: Team, Recruitment, Front office and League. Click any entry to open it. On a small screen, the ☰ button shows and hides it.",
+        body: "The sidebar is the one way between screens. The everyday ones sit at the top (Club overview, Inbox, Matchday, News & social); the rest are grouped by job: Team, Recruitment, Front office and League, with Settings at the bottom. Click a group heading to fold it. On a small screen, the ☰ button shows and hides it.",
       },
       {
         route: "Overview",
-        prepare: () => window.Hub2?.tab?.("hub"),
         target: [".gd-hero", ".gd-bento", "#app .panel"],
         title: "Club overview",
         body: "Your home screen. It shows the next game, your record, cap room and team morale, plus shortcuts into the screens that need you this week.",
@@ -76,12 +75,12 @@ export const TOURS = [
         body: "Every player under contract is here. OVR is current ability (0–99); POT is the ceiling he could grow into. Starters play most snaps; everyone else is depth.",
       },
       {
-        target: ["#app .squad-filters", "#app .table-search", "#app .segmented"],
+        target: ["#app .squad-filters", "#app .table-search", "#app .segmented", "#app .lu-toolbar", "#app .squad-workspace-controls"],
         title: "Filter and search",
         body: "Narrow the list by unit (offense, defense, special teams), status or position, or type a name or jersey number.",
       },
       {
-        target: ["#app table tbody tr", "#app .player-row", "#app [data-player-id]"],
+        target: ["#app table tbody tr", "#app .player-row", "#app [data-player-id]", "#app .lu-bench-row .player-name-link", "#app .player-name-link"],
         click: true,
         title: "Open a player",
         body: "Click a player to open his profile: ratings, stats, contract, scouting and transaction history, with actions to promote, bench, extend or release him. Click the highlighted row, or press Next.",
@@ -119,7 +118,7 @@ export const TOURS = [
         body: "Every club has the same spending limit each league year. The total of your players' cap hits must stay under it. Cap room is what is left, and you need room to sign anyone.",
       },
       {
-        target: ["#app .exp-stats", "#app .gd-stats", "#app .panel"],
+        target: ["#app .exp-stats", "#app .gd-stats", "#app .panel", "#app .fp-capsheet", "#app .fp-panel"],
         title: "Cap hit is not salary",
         body: "A player's cap hit for a season is his base salary plus his share of any signing bonus, which is spread evenly over the first years of the deal. That's why a big bonus makes a contract cheaper now and more expensive later.",
       },
@@ -281,7 +280,6 @@ export const SCREEN_HELP = {
   Records: { text: "Champions, the record book, awards and the Hall of Fame.", tour: "season" },
   Statistics: { text: "Season and career statistics for every player; sort any column.", tour: "season" },
   Analysis: { text: "Team and player analytics: efficiency, tendencies and comparisons.", tour: "season" },
-  "Careers & saves": { text: "Switch careers, export a backup or import a save." },
   Settings: { text: "Display, sound, match and data options. Tutorial progress can be reset from Help & tutorials (the ? button)." },
   Conversations: { text: "One-to-one talks with players: promises, playing time, contracts and morale.", tour: "roster" },
   "Career dossier": { text: "Your coaching record, reputation and the history of your career.", tour: "organization" },

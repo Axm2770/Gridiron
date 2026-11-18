@@ -898,6 +898,13 @@ async function checkRoutes() {
   try {
     G.W.open(original);
   } catch {}
+  // The desktop sidebar must never scroll (presentation.mjs fitNavigation scales it to fit).
+  const navBox = document.getElementById("nav");
+  if (navBox && window.innerWidth > 900) {
+    const fits = navBox.scrollHeight <= navBox.clientHeight + 1,
+      scale = getComputedStyle(document.querySelector("aside")).getPropertyValue("--nav-scale") || "1";
+    results.push({ name: "Sidebar fits", ok: fits, detail: `${window.innerWidth}×${window.innerHeight} · scale ${scale}${document.querySelector("aside.nav-folded") ? " · groups folded" : ""}${fits ? "" : ` · ${navBox.scrollHeight - navBox.clientHeight}px overflow`}` });
+  }
   return results;
 }
 async function checkTours() {
