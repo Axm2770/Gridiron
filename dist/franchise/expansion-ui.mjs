@@ -30,6 +30,10 @@ function faceFor(id, name, team, size) {
   }
   return pixelFace(p || { id: id || name || "player", name }, { size, team: known ? team : null });
 }
+import * as Cap from "./cap-sheet.mjs";
+import { coachAppearance, coachPixelAvatar } from "./coach-avatar.mjs";
+import * as fp from "./fo-pixel.mjs";
+import { ensureFrontDeskStyles } from "./fo-pixel.mjs";
 // The contract ledger shows a full position group per page instead of eight rows.
 const CONTRACT_PAGE = 25;
 const arg = (v) => esc(JSON.stringify(v));
@@ -188,8 +192,10 @@ export function installExpansionUI({ views, isBusy, heritage }) {
     mountStage(subject, board, shot);
   }
   function contractsView() {
+    ensureFrontDeskStyles();
     const year = S.financeYear(state),
       cap = S.capLedger(state),
+      split = Cap.capBreakdown(cap),
       list = state.roster
         .map((p) => ({ p, c: state.franchise.contracts[p.id] }))
         .filter(
@@ -214,102 +220,129 @@ export function installExpansionUI({ views, isBusy, heritage }) {
     );
     const pages = Math.max(1, Math.ceil(list.length / CONTRACT_PAGE));
     contractFilter.page = Math.max(0, Math.min(contractFilter.page, pages - 1));
-    return `<div class="exp-workspace">${hero("FRONT OFFICE / FINANCIAL PLANNING", "Build the roster. Protect the future.", "Review commitments, meet player representatives and plan the next contract cycle.", tag("Hard cap", "blue"))}${stats(
-      [
-        ["Cap limit", money(cap.limit)],
-        ["Committed", money(cap.used)],
-        ["Available", money(cap.room)],
-        ["Dead money", money(cap.dead || 0)],
-      ],
-    )}<div class="exp-toolbar"><input aria-label="Search contracts" type="search" value="${esc(contractFilter.query)}" placeholder="Search player contracts…" onchange="Expansion.contractFilter('query',this.value)"><label class="exp-select">Position<select aria-label="Contract position" onchange="Expansion.contractFilter('position',this.value)">${options(["All", ...new Set(state.roster.map((p) => p.pos))], contractFilter.position)}</select></label><label class="exp-select">Registration<select aria-label="Contract registration" onchange="Expansion.contractFilter('status',this.value)">${options(
-      [
-        ["All", "All registrations"],
-        ["active", "Active"],
-        ["practice", "Practice squad"],
-        ["ir", "Injured reserve"],
-      ],
-      contractFilter.status,
-    )}</select></label>${segments(["Cap charge", "Expiry", "Name"], contractFilter.sort, "Expansion.contractSort")}</div>${panel(
-      "Contract ledger",
-      `<div class="exp-contract-table"><table><thead><tr><th>Player</th><th>Agreement</th><th>Cap charge</th><th>Guaranteed base</th><th>Actions</th></tr></thead><tbody>${
-        list
-          .slice(contractFilter.page * CONTRACT_PAGE, contractFilter.page * CONTRACT_PAGE + CONTRACT_PAGE)
-          .map(({ p, c }) => {
-            const i = Math.max(0, year - c.start),
-              days = K.cooldownRemaining(state, "Contract review", p.id);
-            return `<tr><td><button class="exp-contract-player" ${previewAttributes(p, state.team)} onclick="W.player(${arg(p.id)},${state.team})">${playerFace(p)}<span><b>${esc(p.name)}</b><small>${p.realPosition || p.pos} · ${p.ovr} OVR · ${esc(p.status)}</small></span></button></td><td><b>${c.start}–${c.start + c.years - 1}</b><small>${c.noTrade ? "No-trade clause" : c.voidYears ? c.voidYears + " void years" : Math.max(0, c.start + c.years - year) + " years remaining"}</small></td><td><strong>${money(S.capHit(c, year))}</strong></td><td>${money(c.guarantees.slice(i).reduce((n, v) => n + v, 0))}<small>${days ? `Review in ${days} days` : "Available for review"}</small></td><td><div class="exp-contract-actions"><button class="secondary small" onclick="F.contract(${arg(p.id)})">Structure</button><button class="small" onclick="Expansion.extension(${arg(p.id)})" ${disabled("finance") || days || year < c.start || year >= c.start + c.years ? "disabled" : ""}>Extend</button><button class="exp-text-button" onclick="F.release(${arg(p.id)})" ${disabled("roster")}>Waive</button></div></td></tr>`;
-          })
-          .join("") || '<tr><td colspan="5">No matching contracts.</td></tr>'
-      }</tbody></table></div><div class="exp-pagination exp-panel-footer"><span>${list.length} contracts</span><button class="secondary small" onclick="Expansion.contractPage(-1)" ${contractFilter.page === 0 ? "disabled" : ""}>Previous</button><b>${contractFilter.page + 1} / ${pages}</b><button class="secondary small" onclick="Expansion.contractPage(1)" ${contractFilter.page >= pages - 1 ? "disabled" : ""}>Next</button></div>`,
-    )}${panel(
-      "Forward commitments",
-      `<div class="exp-forward-grid">${[year + 1, year + 2, year + 3]
-        .map((y) => {
-          const l = S.capLedger(state, state.team, y);
-          return `<div><span class="eyebrow">${y} SEASON</span><b>${money(l.room)} <small>projected room</small></b><div class="exp-cap-bar"><i style="width:${Math.max(0, Math.min(100, (l.used / l.limit) * 100))}%"></i></div><p>${money(l.used)} committed · ${money(l.limit)} limit</p></div>`;
-        })
-        .join("")}</div>`,
-    )}</div>`;
+    const all = state.roster.map((p) => state.franchise.contracts[p.id]).filter((c) => c && !c.ended),
+      expiring = all.filter((c) => Cap.contractStatus(c, year).finalYear).length,
+      biggest = Math.max(1, ...all.map((c) => S.capHit(c, year))),
+      roomTone = split.over ? "bad" : split.room < cap.limit * 0.03 ? "warn" : "good";
+    // Cap sheet: four numbers over one stacked bar (live | dead | adjustments | room).
+    const sheet = fp.panel({
+      kicker: `${year} LEAGUE YEAR · HARD CAP`,
+      title: "Cap sheet",
+      extra: `${fp.chip(all.length + " contracts")}${fp.chip(expiring ? expiring + " in final year" : "No deals expiring", expiring ? "warn" : "")}`,
+      cls: "fp-capsheet",
+      body: `<div class="fp-tiles">${fp.tile("Cap limit", money(cap.limit), "League year " + year)}${fp.tile("Committed", money(cap.used), Math.round((cap.used / Math.max(1, cap.limit)) * 100) + "% of the limit", { tone: "accent" })}${fp.tile("Available", money(cap.room), split.over ? "Over the cap — resolve before advancing" : "Room to sign and extend", { tone: roomTone })}${fp.tile("Dead money", money(cap.dead || 0), cap.dead ? "Released or traded contracts" : "Nothing accelerated", { tone: cap.dead ? "bad" : "" })}</div>${fp.stackBar(
+        [
+          { pct: split.pct.live, tone: "live", label: "Live contracts " + money(split.live) },
+          { pct: split.pct.dead, tone: "dead", label: "Dead money " + money(split.dead) },
+          { pct: split.pct.adjustments, tone: "adj", label: "Adjustments " + money(Math.max(0, split.adjustments)) },
+          { pct: split.pct.room, tone: "room", label: "Cap room " + money(Math.max(0, split.room)) },
+        ],
+        "fp-capbar",
+      )}<div class="fp-legend"><span class="live"><i></i>Live contracts <b>${money(split.live)}</b></span><span class="dead"><i></i>Dead money <b>${money(split.dead)}</b></span>${split.adjustments ? `<span class="adj"><i></i>Incentive adjustments <b>${money(split.adjustments)}</b></span>` : ""}<span class="room"><i></i>${split.over ? "Over the cap" : "Cap room"} <b>${money(Math.abs(split.room))}</b></span></div>`,
+    });
+    // Multi-year commitments: one pixel column per league year.
+    const years = Cap.commitments(state, year, 5),
+      top = Math.max(...years.map((y) => Math.max(y.limit, y.used)), 1);
+    const forward = fp.panel({
+      kicker: "NEXT FIVE LEAGUE YEARS",
+      title: "Forward commitments",
+      cls: "fp-forward",
+      body: `<div class="fp-columns" role="list">${years
+        .map(
+          (y) =>
+            `<div class="fp-col ${y.room < 0 ? "over" : ""}" role="listitem" aria-label="${y.year}: ${money(y.used)} committed, ${money(y.room)} room"><b class="fp-col-room ${y.room < 0 ? "bad" : y.room > y.limit * 0.25 ? "good" : ""}">${money(y.room)}<small>room</small></b><div class="fp-col-track"><i class="room" style="height:${Math.max(0, (y.room / top) * 100)}%"></i><i class="dead" style="height:${(y.dead / top) * 100}%"></i><i class="live" style="height:${(y.live / top) * 100}%"></i></div><span>${y.year}</span><small>${money(y.used)} · ${y.contracts} deals</small></div>`,
+        )
+        .join("")}</div><p class="fp-note">Projected room against today's limit. Expiring deals free their space; extensions, tags and rollover change it.</p>`,
+    });
+    // Extension watch: the soonest-expiring deals, best players first.
+    const watch = Cap.extensionWatch(state, year, 6);
+    const extensions = fp.panel({
+      kicker: "EXPIRING SOONEST",
+      title: "Extension watch",
+      extra: `<button class="secondary small" onclick="Expansion.contractSort('Expiry')">Sort by expiry</button>`,
+      cls: "fp-watch",
+      flush: true,
+      body: watch.length
+        ? `<ul class="fp-watch-list">${watch
+            .map(({ p, c }) => {
+              const st = Cap.contractStatus(c, year),
+                days = K.cooldownRemaining(state, "Contract review", p.id);
+              return `<li class="${st.finalYear ? "final" : ""}">${pixelFace(p, { size: 34, team: state.team })}<span class="fp-watch-name"><button class="link" onclick="W.player(${arg(p.id)},${state.team})">${esc(p.name)}</button><small>${esc(p.realPosition || p.pos)} · ${p.age} yrs · ${money(st.hit)}</small></span><span class="fp-ovr">${p.ovr}</span>${fp.chip(st.finalYear ? "Final year" : st.left + " seasons left", st.finalYear ? "warn" : "")}<button class="small" onclick="Expansion.extension(${arg(p.id)})" ${disabled("finance") || days ? "disabled" : ""} title="${days ? `Review in ${days} days` : "Open an extension meeting"}">Extend</button></li>`;
+            })
+            .join("")}</ul>`
+        : `<p class="fp-note fp-pad">No contracts to extend yet.</p>`,
+    });
+    const rows = list
+      .slice(contractFilter.page * CONTRACT_PAGE, contractFilter.page * CONTRACT_PAGE + CONTRACT_PAGE)
+      .map(({ p, c }) => {
+        const i = Math.max(0, year - c.start),
+          st = Cap.contractStatus(c, year),
+          days = K.cooldownRemaining(state, "Contract review", p.id),
+          extendBlocked = disabled("finance") || days || !st.extendable,
+          timeline = Cap.contractTimeline(c, year);
+        return `<tr><td><button class="exp-contract-player link" ${previewAttributes(p, state.team)} onclick="W.player(${arg(p.id)},${state.team})">${pixelFace(p, { size: 34, team: state.team })}<span><b>${esc(p.name)}</b><small><em class="fp-pos">${esc(p.realPosition || p.pos)}</em>${p.ovr} OVR · ${esc(p.status === "ir" ? "IR" : p.status)}</small></span></button></td><td><span class="fp-term ${st.finalYear ? "final" : ""}" title="${timeline.map((t) => t.year + " " + t.kind).join(", ")}">${timeline.map((t) => `<i class="${t.kind}"></i>`).join("")}</span><small class="fp-term-label">${c.start}–${c.start + c.years - 1} · ${st.finalYear ? '<b class="fp-warn">Final year</b>' : st.left + " yrs left"}${c.noTrade ? " · No-trade" : ""}${c.voidYears ? " · " + c.voidYears + " void" : ""}</small></td><td class="fp-num"><strong>${money(st.hit)}</strong>${fp.blocks(st.hit, biggest, 8)}</td><td class="fp-num"><b>${money(c.guarantees.slice(i).reduce((n, v) => n + v, 0))}</b><small>${days ? `Review in ${days} days` : st.dead ? `Cut: ${money(st.dead)} dead` : "No dead money if cut"}</small></td><td><div class="exp-contract-actions"><button class="secondary small" onclick="F.contract(${arg(p.id)})" title="Cap schedule, restructure and tags">Structure</button><button class="small" onclick="Expansion.extension(${arg(p.id)})" ${extendBlocked ? "disabled" : ""} title="${days ? `Contract review in ${days} days` : !st.extendable ? "Not under contract this league year" : "Add seasons to this deal"}">Extend</button><button class="exp-text-button link fp-danger" onclick="F.release(${arg(p.id)})" ${disabled("roster")} title="${st.dead ? `Releasing now accelerates ${money(st.dead)} of dead money` : "Release to waivers"}">Waive</button></div></td></tr>`;
+      })
+      .join("");
+    const ledger = fp.panel({
+      kicker: "PLAYER CONTRACTS",
+      title: "Contract ledger",
+      cls: "fp-ledger",
+      flush: true,
+      extra: `<span class="fp-count">${list.length} contracts</span>`,
+      body: `<div class="fp-toolbar"><input aria-label="Search contracts" type="search" value="${esc(contractFilter.query)}" placeholder="Search player contracts…" onchange="Expansion.contractFilter('query',this.value)"><label class="exp-select">Position<select aria-label="Contract position" onchange="Expansion.contractFilter('position',this.value)">${options(["All", ...new Set(state.roster.map((p) => p.pos))], contractFilter.position)}</select></label><label class="exp-select">Registration<select aria-label="Contract registration" onchange="Expansion.contractFilter('status',this.value)">${options(
+        [
+          ["All", "All registrations"],
+          ["active", "Active"],
+          ["practice", "Practice squad"],
+          ["ir", "Injured reserve"],
+        ],
+        contractFilter.status,
+      )}</select></label><span class="fp-sort"><small>Sort</small>${segments(["Cap charge", "Expiry", "Name"], contractFilter.sort, "Expansion.contractSort")}</span></div><div class="exp-contract-table fp-table"><table><colgroup><col class="c-player"><col class="c-term"><col class="c-cap"><col class="c-gtd"><col class="c-act"></colgroup><thead><tr><th>Player</th><th>Agreement</th><th class="fp-num">Cap charge</th><th class="fp-num">Guaranteed · if cut</th><th>Actions</th></tr></thead><tbody>${
+        rows || '<tr><td colspan="5">No matching contracts.</td></tr>'
+      }</tbody></table></div><div class="fp-term-key"><span><i class="past"></i>Played</span><span><i class="now"></i>This season</span><span><i class="future"></i>Remaining</span><span><i class="void"></i>Void year</span></div>${fp.pager({ label: `${list.length} contracts · ${CONTRACT_PAGE} per page`, page: contractFilter.page, pages, prev: "Expansion.contractPage(-1)", next: "Expansion.contractPage(1)" })}`,
+    });
+    return `<div class="exp-workspace fp-page fp-contracts">${sheet}<div class="fp-grid-2">${forward}${extensions}</div>${ledger}</div>`;
   }
 
   function careerView() {
+    ensureFrontDeskStyles();
     const f = K.ensureCareerSystems(state),
       rep = f.coachReputation,
       perks = K.coachPerks(state),
       rifts = f.relationshipRifts.filter((r) => r.active);
     K.generateJobOffers(state);
-    return `<div class="exp-workspace">${hero("COACHING CAREER / DOSSIER", esc(state.coach.name || "Your coaching career"), "Every decision builds a reputation. Results, development and relationships shape the opportunities ahead.", `<div class="exp-rep-orb"><b>${number(rep.value)}</b><span>${perks.label}</span></div>`)}${stats(
-      [
-        ["Standing", perks.label],
-        [
-          "Recruitment appeal",
-          rep.value >= 60
-            ? "Attractive"
-            : rep.value < 40
-              ? "Under pressure"
-              : "Balanced",
-        ],
-        [
-          "Contract leverage",
-          rep.value >= 75
-            ? "Strong"
-            : rep.value >= 60
-              ? "Improved"
-              : "Standard",
-        ],
-        ["Active rifts", rifts.length],
-      ],
-    )}<div class="exp-two-col">${panel(
-      "Reputation ledger",
-      `<div class="exp-list">${
-        rep.ledger
-          .slice(0, 10)
-          .map(
-            (r) =>
-              `<div class="exp-record-row"><span class="exp-event ${r.delta > 0 ? "positive" : "negative"}">${r.delta > 0 ? "↗" : "↘"}</span><span><b>${esc(r.reason)}</b><small>${r.year} W${r.week + 1} · ${esc(r.category)}</small></span>${tag(r.delta > 0 ? "Respect earned" : "Trust affected", r.delta > 0 ? "green" : "red")}</div>`,
-          )
-          .join("") ||
-        empty(
-          "Your story is ahead of you",
-          "Adapt your tactics, develop talent and deliver on commitments.",
+    const offers = rep.jobOffers.filter((o) => o.year === state.year),
+      v = Math.max(0, Math.min(99, Number(rep.value) || 0)),
+      ladder = [
+        [0, 40, "Under scrutiny", "bad"],
+        [40, 60, "Building credibility", "warn"],
+        [60, 75, "Established", ""],
+        [75, 90, "Highly respected", "good"],
+        [90, 100, "League icon", "good"],
+      ];
+    const header = `<section class="fp-panel fp-dossier-head"><div class="fp-coach-card">${`<span class="fp-coach-bust">${coachPixelAvatar(coachAppearance(state), { label: (state.coach.name || "Coach") + " avatar" })}</span>`}<div class="fp-coach-id"><span class="fp-kicker">COACHING CAREER / DOSSIER</span><h2>${esc(state.coach.name || "Your coaching career")}</h2><p>${esc(name(state.team))} · ${esc(S.ROLE_TITLES[state.franchise.role] || state.franchise.role)}</p><p class="fp-note">Every decision builds a reputation. Results, development and relationships shape the opportunities ahead.</p></div><div class="fp-rep-score"><small>Reputation</small><b>${number(rep.value)}</b><span>${esc(perks.label)}</span></div></div><div class="fp-ladder" role="img" aria-label="Reputation ${number(rep.value)}: ${esc(perks.label)}">${ladder.map(([a, b, label, tone]) => `<div class="fp-rung ${tone} ${v >= a && v < b ? "here" : v >= b ? "past" : ""}" style="flex:${b - a}"><span class="fp-rung-bar">${Array.from({ length: Math.round((b - a) / 5) }, (_, i) => `<i class="${v >= a + i * 5 + 2.5 ? "on" : ""}"></i>`).join("")}</span><small>${label}</small></div>`).join("")}<span class="fp-ladder-mark" style="left:${v}%"></span></div><p class="fp-note">Offseason job interest grows from 65 reputation. 75+ unlocks prestige opportunities.</p></section>`;
+    const tiles = `<div class="fp-tiles fp-tiles-4">${fp.tile("Recruitment appeal", rep.value >= 60 ? "Attractive" : rep.value < 40 ? "Under pressure" : "Balanced", "Free agents and staff", { tone: rep.value >= 60 ? "good" : rep.value < 40 ? "bad" : "" })}${fp.tile("Contract leverage", rep.value >= 75 ? "Strong" : rep.value >= 60 ? "Improved" : "Standard", "Demands at the table", { tone: rep.value >= 75 ? "good" : "" })}${fp.tile("Active rifts", rifts.length, rifts.length ? "Need a private meeting" : "A united building", { tone: rifts.length ? "bad" : "good" })}${fp.tile("Job offers", offers.length, offers.length ? "This year" : "None this year", { tone: offers.length ? "accent" : "" })}</div>`;
+    const ledger = `<ul class="fp-ledger-list">${
+      rep.ledger
+        .slice(0, 10)
+        .map(
+          (r) =>
+            `<li class="${r.delta > 0 ? "good" : "bad"}"><span class="fp-delta">${r.delta > 0 ? "▲" : "▼"}${Number.isFinite(r.delta) ? Math.abs(Math.round(r.delta * 10) / 10) : ""}</span><span><b>${esc(r.reason)}</b><small>${r.year} W${r.week + 1} · ${esc(r.category)}</small></span>${fp.chip(r.delta > 0 ? "Respect earned" : "Trust affected", r.delta > 0 ? "good" : "bad")}</li>`,
         )
-      }</div>`,
-    )}${panel("Relationships & trust", rifts.map((r) => `<div class="exp-rift"><div><b>${esc(r.name)}</b>${tag(r.severity >= 3 ? "Strained" : "Needs attention", "red")}</div><p>${esc(r.reason)}</p><button class="secondary small" onclick="${state.roster.some((p) => p.id === r.personId) ? `CI.open('player',${arg(r.personId)})` : `CI.open('staff')`}">Meet privately →</button></div>`).join("") || empty("A united building", "There are no unresolved relationship rifts."))}</div>${panel(
-      "Head-coaching opportunities",
-      `<div class="exp-job-grid">${
-        rep.jobOffers
-          .filter((o) => o.year === state.year)
+        .join("") || ""
+    }</ul>${rep.ledger.length ? "" : '<p class="fp-note">Your story is ahead of you. Adapt your tactics, develop talent and deliver on commitments.</p>'}`;
+    const relations = rifts.length
+      ? `<ul class="fp-ledger-list">${rifts.map((r) => `<li class="bad"><span class="fp-delta">!</span><span><b>${esc(r.name)}</b><small>${esc(r.reason)}</small></span><button class="secondary small" onclick="${state.roster.some((p) => p.id === r.personId) ? `CI.open('player',${arg(r.personId)})` : `CI.open('staff')`}">Meet privately →</button></li>`).join("")}</ul>`
+      : '<p class="fp-note">A united building. There are no unresolved relationship rifts.</p>';
+    const jobs = offers.length
+      ? `<div class="fp-card-grid fp-jobs">${offers
           .map(
             (o) =>
-              `<article><div>${logo(o.team)}${tag(o.prestige, "blue")}</div><h3>${esc(name(o.team))}</h3><p>Head coach · ${money(o.salary)} annually</p>${tag(o.status, o.status === "offered" ? "green" : "")}<div>${["invited", "interview"].includes(o.status) ? `<button onclick="Expansion.job(${arg(o.id)})" ${disabled()}>${o.status === "interview" ? "Resume interview" : "Attend interview"}</button>` : o.status === "offered" ? `<button onclick="Expansion.job(${arg(o.id)})" ${disabled()}>Review written offer →</button>` : ""}</div></article>`,
+              `<article class="fp-card fp-job ${o.status}"><div class="fp-card-top"><span class="fp-club-logo small">${logo(o.team)}</span><div class="fp-card-id"><small>Head coach · ${esc(o.prestige)}</small><h3>${esc(name(o.team))}</h3><span>${fp.chip(o.status, o.status === "offered" ? "good" : o.status === "declined" || o.status === "rejected" ? "bad" : "accent")}</span></div></div><div class="fp-card-facts two"><span><small>Annual salary</small><b>${money(o.salary)}</b></span><span><small>Owner</small><b>${esc(state.franchise.clubs[o.team]?.owner?.name || "Ownership")}</b></span></div><div class="fp-card-actions">${["invited", "interview"].includes(o.status) ? `<button class="small" onclick="Expansion.job(${arg(o.id)})" ${disabled()}>${o.status === "interview" ? "Resume interview" : "Attend interview"}</button>` : o.status === "offered" ? `<button class="small" onclick="Expansion.job(${arg(o.id)})" ${disabled()}>Review written offer →</button>` : '<span class="fp-note">This opportunity has concluded.</span>'}</div></article>`,
           )
-          .join("") ||
-        empty(
-          "Build your next opportunity",
-          "Offseason interest grows from 65 reputation. Higher standing attracts stronger teams.",
-        )
-      }</div>`,
-    )}</div>`;
+          .join("")}</div>`
+      : `<div class="fp-empty-slot"><b>Build your next opportunity</b><p class="fp-note">Offseason interest grows from 65 reputation. Higher standing attracts stronger teams.</p></div>`;
+    return `<div class="exp-workspace fp-page fp-dossier">${header}${tiles}<div class="fp-grid-2">${fp.panel({ kicker: "RECENT EVENTS", title: "Reputation ledger", body: ledger, cls: "fp-scroll-panel" })}${fp.panel({ kicker: "PEOPLE", title: "Relationships & trust", body: relations })}</div>${fp.panel({ kicker: state.year + " OFFSEASON", title: "Head-coaching opportunities", body: jobs, extra: fp.chip(offers.length + " offers", offers.length ? "accent" : "") })}</div>`;
   }
   function recordsView() {
     const b = R.ensureRecordBook(state),

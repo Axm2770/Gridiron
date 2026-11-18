@@ -20,6 +20,8 @@ import { officeCounts, ensureOffice } from "./newsroom.mjs";
 import { installCareerManager } from "./career-manager.mjs";
 import { careerSetupLocked, updateCareerAppearance } from "./coach-profile.mjs";
 import { coachAppearance, coachPixelAvatar } from "./coach-avatar.mjs";
+import * as fp from "./fo-pixel.mjs";
+import { staffBust, ensureFrontDeskStyles } from "./fo-pixel.mjs";
 import { installNavigationUI } from "./navigation-ui.mjs";
 import { installDevelopmentUI } from "./development-ui.mjs";
 import { installCareerScenes } from "./career-scenes.mjs";
@@ -469,21 +471,37 @@ function overviewView() {
 function situation() {
   return state.franchise.calendar.stage + " · " + phaseName();
 }
+// Coach career: a pixel coach card, reputation and XP meters, skill trees as level tracks and
+// the coaching department at a glance. Actions are unchanged (F.action profile/skill/interview).
+const SKILL_NOTES = {
+  offense: "Offensive coaching tree",
+  defense: "Defensive coaching tree",
+  development: "Adds to weekly player development",
+  cap: "Improves your appeal in contract talks",
+};
 function careerView() {
+  ensureFrontDeskStyles();
   let f = state.franchise,
     c = f.career,
-    club = f.clubs[state.team];
-  return `<div class="two">${panel(
-    "Your career",
-    `<div class="coach-card"><div class="coach-portrait coach-portrait-pixel">${coachPixelAvatar(coachAppearance(state), { label: state.coach.name + " avatar" })}</div><div><h2>${esc(state.coach.name)}</h2><p class="subtitle">${esc(S.ROLE_TITLES[f.role] ? S.ROLE_TITLES[f.role][0].toUpperCase() + S.ROLE_TITLES[f.role].slice(1) : f.role)} · ${esc(clubs[state.team][1] + " " + clubs[state.team][2])}</p></div></div><dl class="career-setup-facts"><div><dt>Career role</dt><dd>${esc(S.ROLE_TITLES[f.role] || f.role)}</dd></div><div><dt>Background</dt><dd>${esc(c.origin || "—")}</dd></div><div><dt>Archetype</dt><dd>${esc(c.archetype || "—")}</dd></div></dl><p class="career-setup-note">Chosen when the career began. Start a new career, or accept a job offer, to take a different role.</p><p class="subtitle">${esc((S.ROLES[f.role] || []).join(" · "))}</p><div class="f-form-grid"><label>Avatar shirt<input type="color" id="career-shirt" value="${esc(coachAppearance(state).jacket)}"></label><label>Avatar skin<input type="color" id="career-skin" value="${esc(coachAppearance(state).skin)}"></label></div>${button("Save appearance", "F.action('profile',{avatar:{shirt:document.getElementById('career-shirt').value,skin:document.getElementById('career-skin').value}})")}<div class="kv"><span>Reputation / development XP</span><b>${c.reputation} / ${c.xp}</b></div>${["OC", "DC"].includes(f.role) ? button("Interview for a head coach role", "F.action('interview')") : ""}${Object.entries(
-      c.skills,
+    club = f.clubs[state.team],
+    look = coachAppearance(state),
+    title = S.ROLE_TITLES[f.role] ? S.ROLE_TITLES[f.role][0].toUpperCase() + S.ROLE_TITLES[f.role].slice(1) : f.role,
+    points = Math.floor(c.xp / 100),
+    staff = (club.staff || []).slice().sort((a, b) => b.rating - a.rating),
+    rep = f.coachReputation?.value ?? c.reputation;
+  const card = `<div class="fp-coach-card"><span class="fp-coach-bust">${coachPixelAvatar(look, { label: state.coach.name + " avatar" })}</span><div class="fp-coach-id"><span class="fp-kicker">${esc(title.toUpperCase())}</span><h2>${esc(state.coach.name)}</h2><p>${esc(clubs[state.team][1] + " " + clubs[state.team][2])}</p><span class="fp-chip-row">${fp.chip(c.origin || "—")}${fp.chip(c.archetype || "—", "accent")}</span></div></div><div class="fp-tiles fp-tiles-2">${fp.tile("Reputation", c.reputation, rep >= 75 ? "Highly respected" : rep >= 60 ? "Established" : rep >= 40 ? "Building credibility" : "Under scrutiny", { tone: c.reputation >= 60 ? "good" : c.reputation >= 40 ? "" : "warn", meter: fp.blocks(c.reputation, 100, 10, c.reputation >= 60 ? "good" : "") })}${fp.tile("Development XP", c.xp, points ? `${points} skill point${points === 1 ? "" : "s"} ready to spend` : `${100 - (c.xp % 100)} XP to the next skill point`, { tone: points ? "accent" : "", meter: fp.blocks(c.xp % 100 || (points ? 100 : 0), 100, 10, points ? "" : "warn") })}</div><dl class="career-setup-facts fp-facts"><div><dt>Career role</dt><dd>${esc(S.ROLE_TITLES[f.role] || f.role)}</dd></div><div><dt>Background</dt><dd>${esc(c.origin || "—")}</dd></div><div><dt>Archetype</dt><dd>${esc(c.archetype || "—")}</dd></div></dl><div><span class="fp-label">Your responsibilities</span><span class="fp-chip-row">${(S.ROLES[f.role] || []).map((r) => fp.chip(r)).join("")}</span></div><p class="career-setup-note fp-note">Chosen when the career began. Start a new career, or accept a job offer, to take a different role.</p>${["OC", "DC"].includes(f.role) ? button("Interview for a head coach role", "F.action('interview')") : ""}`;
+  const skills = `<div class="fp-skills">${Object.entries(c.skills)
+    .map(
+      ([k, v]) =>
+        `<div class="fp-skill"><div class="fp-track-head"><b>${esc(k[0].toUpperCase() + k.slice(1))}</b><strong>Level ${v}</strong></div><span class="fp-levels">${Array.from({ length: Math.max(10, v) }, (_, i) => `<i class="${i < v ? "on" : ""}"></i>`).join("")}</span><small>${esc(SKILL_NOTES[k] || "Coaching skill")}</small><button class="small" onclick="F.action('skill','${k}')" ${busy || c.xp < 100 ? "disabled" : ""} title="${c.xp < 100 ? "A skill point costs 100 XP" : "Spend 100 XP"}">Train · 100 XP</button></div>`,
     )
-      .map(
-        ([k, v]) =>
-          `<div class="kv"><span>${esc(k)} · level ${v}</span>${button("Train · 100 XP", `F.action('skill','${k}')`)}</div>`,
-      )
-      .join("")}`,
-  )}${panel("Coaching department", `<p>Review your staff, conduct interviews and manage appointments in the dedicated staff hub.</p><button onclick="W.open('Staff')">Open coaching staff →</button>`)}</div>`;
+    .join("")}</div><p class="fp-note">Earn XP through results and development. Each level costs 100 XP.</p>`;
+  const look2 = `<div class="fp-look"><span class="fp-coach-bust small">${coachPixelAvatar(look, { label: "Avatar preview" })}</span><div class="f-form-grid fp-look-form"><label>Avatar shirt<input type="color" id="career-shirt" value="${esc(look.jacket)}"></label><label>Avatar skin<input type="color" id="career-skin" value="${esc(look.skin)}"></label></div>${button("Save appearance", "F.action('profile',{avatar:{shirt:document.getElementById('career-shirt').value,skin:document.getElementById('career-skin').value}})")}</div>`;
+  const dept = `<ul class="fp-people">${staff
+    .slice(0, 5)
+    .map((p) => `<li>${staffBust(p, { size: 36, team: state.team, appearance: p.userControlled ? look : null })}<span><small>${esc(p.role)}</small><b>${esc(p.name)}</b></span><span class="fp-ovr">${p.rating}</span></li>`)
+    .join("")}</ul><p class="fp-note">Review your staff, conduct interviews and manage appointments in the dedicated staff hub.</p><button onclick="W.open('Staff')">Open coaching staff →</button>`;
+  return `<div class="fp-page fp-career"><div class="fp-grid-21">${fp.panel({ kicker: "YOUR CAREER", title: "Coach card", body: card })}<div class="fp-stack-col">${fp.panel({ kicker: "CAREER", title: "Dossier", body: `<p class="fp-note">Your record, reputation ledger, relationships and head-coaching offers.</p><button class="secondary small" onclick="W.open('Career dossier')">Open career dossier →</button>` })}${fp.panel({ kicker: "PEOPLE", title: "Coaching department", body: dept })}</div></div><div class="fp-grid-21">${fp.panel({ kicker: "SKILL TREE", title: "Coaching skills", body: skills, extra: fp.chip(points ? points + " point" + (points === 1 ? "" : "s") + " ready" : c.xp + " XP", points ? "good" : "") })}${fp.panel({ kicker: "APPEARANCE", title: "Your look", body: look2 })}</div></div>`;
 }
 
 function contractsView() {
