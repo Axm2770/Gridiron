@@ -29,6 +29,9 @@ function faceFor(id, name, team, size) {
   return pixelFace(p || { id: id || name || "player", name }, { size, team: known ? team : null });
 }
 import * as Cap from "./cap-sheet.mjs";
+import { capShortfall } from "./blockers.mjs";
+import { blockerNotice } from "../ui/notice.mjs";
+import "./fixes.mjs";
 import { coachAppearance, coachPixelAvatar } from "./coach-avatar.mjs";
 import * as fp from "./fo-pixel.mjs";
 import { ensureFrontDeskStyles } from "./fo-pixel.mjs";
@@ -873,7 +876,13 @@ export function installExpansionUI({ views, isBusy, heritage }) {
       "Career systems controls",
       `<div class="exp-debug-controls"><label>Coach reputation<input id="exp-debug-rep" type="number" min="0" max="99" value="${K.coachReputation(state)}"></label><button class="secondary small" onclick="Expansion.debug('reputation',document.getElementById('exp-debug-rep').value)">Set reputation</button><button class="secondary small" onclick="Expansion.debug('clock')">Advance action clock 7 days</button><button class="secondary small" onclick="Expansion.debug('rumor')">Create trade rumor</button></div>`,
     );
-  views.Contracts = contractsView;
+  // Over the cap: say so above the cap sheet with the release / restructure that clears it.
+  views.Contracts = () => {
+    const room = S.capLedger(state).room,
+      over = room < 0 ? capShortfall(state, -room) : null;
+    if (over) over.fixes = over.fixes.filter((f) => f.kind !== "open");
+    return `${over ? `<div class="fp-cap-notice">${blockerNotice({ ...over, reason: `Over the salary cap by ${over.reason.match(/\$[\d.]+M/)?.[0] || "a little"}.`, fix: `${over.fix.replace(/ in Contracts\.$/, ".")} The calendar won't advance until the cap is clear.` })}</div>` : ""}${contractsView()}`;
+  };
   views["Career dossier"] = careerView;
   views.Records = recordsView;
   views.Awards = awardsView;

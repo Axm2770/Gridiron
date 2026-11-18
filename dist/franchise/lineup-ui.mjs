@@ -1,4 +1,6 @@
 import * as S from "./state.mjs";
+import { textNotice } from "../ui/notice.mjs";
+import "./fixes.mjs";
 import {
   LINEUP_UNITS,
   canEditUnit,
@@ -143,7 +145,7 @@ export function installLineupUI({ isBusy = () => false } = {}) {
     if (!c.slot) return "";
     const cur = c.slot.p,
       can = editable() && !locked();
-    return `<div class="lu-picker" role="region" aria-label="Choose a ${c.slot.role}" onkeydown="if(event.key==='Escape'){event.preventDefault();Lineup.close()}"><div class="lu-picker-head"><div><span class="gd-eyebrow">${UNIT_LABELS[unit]} · ${c.slot.role} slot</span><h3 tabindex="-1" ${can && c.eligible.length ? "" : "data-lu-focus"}>${cur ? esc(cur.name) : "Vacant slot"}</h3>${cur ? `<small>${cur.ovr} OVR · ${pct(cur.fitness)}% condition · ${pct(cur.morale ?? 75)}% morale <button type="button" class="link" onclick="W.player(${arg(cur.id)})">Profile →</button></small>` : ""}</div><button type="button" class="secondary small" onclick="Lineup.close()">← Depth chart</button></div>${error ? `<p class="lu-error" role="alert">${esc(error)}</p>` : ""}${editable() ? "" : `<p class="lu-note">${state.live?.finished ? "The game has finished. Review the result before changing personnel." : `In your ${esc(state.franchise.role)} role the ${UNIT_LABELS[unit].toLowerCase()} depth chart belongs to another coach.`}</p>`}<div class="lu-label">Eligible ${c.slot.role}s · best first <span>${c.eligible.length}</span></div><ul class="lu-cands">${
+    return `<div class="lu-picker" role="region" aria-label="Choose a ${c.slot.role}" onkeydown="if(event.key==='Escape'){event.preventDefault();Lineup.close()}"><div class="lu-picker-head"><div><span class="gd-eyebrow">${UNIT_LABELS[unit]} · ${c.slot.role} slot</span><h3 tabindex="-1" ${can && c.eligible.length ? "" : "data-lu-focus"}>${cur ? esc(cur.name) : "Vacant slot"}</h3>${cur ? `<small>${cur.ovr} OVR · ${pct(cur.fitness)}% condition · ${pct(cur.morale ?? 75)}% morale <button type="button" class="link" onclick="W.player(${arg(cur.id)})">Profile →</button></small>` : ""}</div><button type="button" class="secondary small" onclick="Lineup.close()">← Depth chart</button></div>${error ? textNotice(error, { cls: "lu-notice" }) : ""}${editable() ? "" : `<p class="lu-note">${state.live?.finished ? "The game has finished. Review the result before changing personnel." : `In your ${esc(state.franchise.role)} role the ${UNIT_LABELS[unit].toLowerCase()} depth chart belongs to another coach.`}</p>`}<div class="lu-label">Eligible ${c.slot.role}s · best first <span>${c.eligible.length}</span></div><ul class="lu-cands">${
       c.eligible
         .map(
           (p, i) =>
@@ -161,7 +163,7 @@ export function installLineupUI({ isBusy = () => false } = {}) {
 
   function depthLists(board) {
     const can = editable() && !locked();
-    return `<div class="lu-depth">${error ? `<p class="lu-error" role="alert">${esc(error)}</p>` : ""}${board.positions
+    return `<div class="lu-depth">${error ? textNotice(error, { cls: "lu-notice" }) : ""}${board.positions
       .map(
         (g) =>
           `<section class="lu-pos"><h4>${g.pos} <small>${g.slots} on field · ${g.depth.length} healthy</small></h4><ol>${g.depth

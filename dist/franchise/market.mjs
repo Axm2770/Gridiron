@@ -9,7 +9,7 @@ import { setCooldown, cooldownRemaining, fanReaction, coachReputation } from "./
 import { reactTo } from "./social-engine.mjs";
 import { ensureCalendar, leagueDates, seasonAnchor, addDays } from "./calendar-core.mjs";
 import { scoutRange } from "./scouting.mjs";
-import { roleBlocker, capShortfall, rosterFull, rosterLimit, activeCount, blockerText, moneyText } from "./blockers.mjs";
+import { roleBlocker, capShortfall, rosterFull, rosterLimit, activeCount, blockerText, moneyText, liveFixes } from "./blockers.mjs";
 import { clubStanding, conductProfile, injuryProfile, yearsPastPeak } from "./market-profile.mjs";
 
 // Clubs live in a classic-script global in the browser; Node tests run without it.
@@ -394,7 +394,7 @@ export function tradeBlockers(s, proposal) {
     role = roleBlocker(s, "roster");
   if (role) out.push(role);
   const window = marketWindows(s).trade;
-  if (!window.open) out.push({ reason: `Trading is closed. ${window.detail}`, fix: s.live ? "Finish or quick-sim the game first." : null });
+  if (!window.open) out.push({ reason: `Trading is closed. ${window.detail}`, fix: s.live ? "Finish or quick-sim the game first." : null, fixes: s.live ? liveFixes() : [] });
   if (partner === s.team || !s.franchise.clubs[partner]) {
     out.push({ reason: "Choose another club to trade with.", fix: null });
     return out;
@@ -410,21 +410,21 @@ export function tradeBlockers(s, proposal) {
     out.push({ reason: err.message, fix: null });
     return out;
   }
-  for (const a of give) if (a.kind === "player" && s.franchise.contracts[a.id]?.noTrade) out.push({ reason: `${a.player.name} has a no-trade clause.`, fix: "Remove him from the deal." });
-  for (const a of get) if (a.kind === "player" && s.franchise.contracts[a.id]?.noTrade) out.push({ reason: `${a.player.name} has a no-trade clause and cannot be acquired.`, fix: "Choose a different player." });
+  for (const a of give) if (a.kind === "player" && s.franchise.contracts[a.id]?.noTrade) out.push({ reason: `${a.player.name} has a no-trade clause.`, fix: "Remove him from the deal.", fixes: [{ kind: "dealRemove", side: "give", id: a.id, label: `Remove ${a.player.name}` }] });
+  for (const a of get) if (a.kind === "player" && s.franchise.contracts[a.id]?.noTrade) out.push({ reason: `${a.player.name} has a no-trade clause and cannot be acquired.`, fix: "Choose a different player.", fixes: [{ kind: "dealRemove", side: "get", id: a.id, label: `Remove ${a.player.name}` }] });
   const capUs = capLedger(s).room - capDelta(s, s.team, get, give),
     capThem = capLedger(s, partner).room - capDelta(s, partner, give, get);
   if (capUs < 0) out.push(capShortfall(s, -capUs, { exclude: giveIds }));
   if (capThem < 0) out.push({ reason: `The ${clubName(s, partner)} would be ${moneyText(-capThem)} over the cap.`, fix: "Take more salary back from them, or send a cheaper player." });
   const moving = (list) => list.filter((a) => a.kind === "player" && (!a.player.status || a.player.status === "active")).length,
-    full = rosterFull(s, activeCount(s) - moving(give) + moving(get));
-  if (full) out.push({ reason: full.reason, fix: `${full.fix.replace(/ first\.$/, "")}, or add more of your players to the deal.` });
+    full = rosterFull(s, activeCount(s) - moving(give) + moving(get), { exclude: giveIds });
+  if (full) out.push({ reason: full.reason, fix: `${full.fix.replace(/ first\.$/, "")}, or add more of your players to the deal.`, fixes: full.fixes });
   // In season, a deal must not leave a position with nobody healthy to play it: games could not start.
   if (s.phase !== "offseason")
     for (const pos of new Set(give.filter((a) => a.kind === "player").map((a) => a.player.pos))) {
       const healthy = (list) => list.filter((q) => q.pos === pos && !q.injury && !q.holdout && (!q.status || q.status === "active")).length,
         left = healthy(s.roster.filter((q) => !giveIds.includes(q.id))) + healthy(get.filter((a) => a.kind === "player").map((a) => a.player));
-      if (left < 1) out.push({ reason: `This would leave you without a healthy ${pos}, so your next game could not be played.`, fix: `Keep him, add a ${pos} from them to the deal, or sign one first.` });
+      if (left < 1) out.push({ reason: `This would leave you without a healthy ${pos}, so your next game could not be played.`, fix: `Keep him, add a ${pos} from them to the deal, or sign one first.`, fixes: give.filter((a) => a.kind === "player" && a.player.pos === pos).map((a) => ({ kind: "dealRemove", side: "give", id: a.id, label: `Keep ${a.player.name}` })).concat([{ kind: "freeAgents", pos, label: `Find a free-agent ${pos}` }]) });
     }
   return out;
 }

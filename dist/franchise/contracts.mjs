@@ -6,7 +6,7 @@ import {
 } from "./career-systems.mjs";
 import { consumeBoardPermit, isBlockbuster } from "./boardroom.mjs";
 import { signingFactors } from "./market.mjs";
-import { roleBlocker, rosterFull, capShortfall, blockerText } from "./blockers.mjs";
+import { roleBlocker, rosterFull, capShortfall, blockerText, liveFixes } from "./blockers.mjs";
 import {
   MILLION,
   capLedger,
@@ -175,7 +175,7 @@ export function offerBlockers(s, id, terms = null) {
   const out = [],
     role = roleBlocker(s, "finance");
   if (role) out.push(role);
-  if (s.live) out.push({ reason: "A live game is in progress.", fix: "Finish or quick-sim the game before contract business." });
+  if (s.live) out.push({ reason: "A live game is in progress.", fix: "Finish or quick-sim the game before contract business.", fixes: liveFixes() });
   const p = s.agents.find((p) => p.id === id);
   if (!p) {
     out.push({ reason: "He has already signed elsewhere or left the market.", fix: null });

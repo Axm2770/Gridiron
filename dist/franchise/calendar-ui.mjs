@@ -4,6 +4,9 @@ import {beginCalendarHoliday,nextCalendarAction,prepareCalendarGame,advanceCalen
 import {officeCounts,syncOffice,ensureOffice,decisionOptions} from './newsroom.mjs';
 import {assertCanAdvance} from './compliance.mjs';
 import {icon,crumbLabel} from './presentation.mjs';
+import {notice,noticeText} from '../ui/notice.mjs';
+import {issueFixes} from './blockers.mjs';
+import './fixes.mjs';
 const arg=v=>esc(JSON.stringify(v));
 const label=(date,opts={})=>new Date(dayNumber(date)*86400000).toLocaleDateString('en-US',{timeZone:'UTC',month:'short',day:'numeric',...opts});
 export function installCalendarUI({views,initialize,isBusy,setBusy,settleRound}){
@@ -17,8 +20,9 @@ export function installCalendarUI({views,initialize,isBusy,setBusy,settleRound})
   if(session?.status==='running'){const from=session.started||c.date,total=Math.max(1,dayNumber(session.target)-dayNumber(from)),done=Math.max(0,dayNumber(c.date)-dayNumber(from)),share=Math.min(1,done/total),filled=Math.round(share*20);
    return `<div class="calendar-progress" role="status"><span class="calendar-banner-icon" aria-hidden="true">▶▶</span><span class="calendar-banner-copy"><b>Simulating to ${label(session.target,{year:'numeric'})}</b><small>${label(c.date,{weekday:'short'})} · ${session.rounds} round${session.rounds===1?'':'s'} completed</small><span class="calendar-blocks" role="img" aria-label="${Math.round(share*100)}% of the way">${Array.from({length:20},(_,i)=>`<i class="${i<filled?'on':''}"></i>`).join('')}</span></span><span class="calendar-banner-actions"><button class="secondary small" onclick="Calendar.stop()">${stopping?'Stopping…':'Stop simulation'}</button></span></div>`;}
   if(session?.status!=='paused')return '';
-  const inbox=/inbox/i.test(session.message||''),fix=inbox?`<button class="secondary small" onclick="W.open('Inbox')">Open inbox</button>`:/Begin next season/.test(session.message||'')?`<button class="secondary small" onclick="W.open('Draft')">Open Draft room</button>`:session.route?`<button class="secondary small" onclick="W.open('${esc(session.route)}')">Fix in ${esc(crumbLabel(session.route))}</button>`:'';
-  return `<div class="calendar-paused" role="status"><span class="calendar-banner-icon" aria-hidden="true">❚❚</span><span class="calendar-banner-copy"><b>Holiday paused</b><small>${esc(session.message)}</small><em>Return date ${label(session.target,{weekday:'short',year:'numeric'})}</em></span><span class="calendar-banner-actions">${fix}<button class="small" onclick="Calendar.resume()" ${busy?'disabled':''}>Resume →</button></span></div>${inbox?waitingDecisions():''}`;
+  const inbox=/inbox/i.test(session.message||''),{title,detail}=noticeText(session.message||'The holiday is paused.');
+  // The reason is the headline; its fixes (inline cap/roster fixes or the screen to open) sit beside Resume.
+  return notice({tone:'warn',cls:'calendar-paused-notice',title:`Holiday paused: ${title}`,detail:[detail,`Return date ${label(session.target,{weekday:'short',year:'numeric'})}.`].filter(Boolean).join(' '),fixes:issueFixes(state,{route:session.route,message:session.message}),actions:[{label:'Resume →',onclick:'Calendar.resume()',disabled:busy}]})+(inbox?waitingDecisions():'');
  }
  function dayCell(date,c){const e=eventsOn(state,date),game=e.find(e=>e.game),isToday=date===c.date;let body='';
   if(game){const g=game.game,home=g.a===state.team,o=home?g.b:g.a,k=home?0:1,res=g.score?(g.score[k]>g.score[1-k]?'W':g.score[k]<g.score[1-k]?'L':'T'):'';body=`<img src="${logoSource(o)}" alt="${esc(clubs[o][2])}"><em class="calendar-evchip game ${res?'res-'+res.toLowerCase():home?'home':''}">${res?`${res} ${g.score[k]}–${g.score[1-k]}`:`${home?'vs':'@'} ${esc(clubs[o][0])}`}</em>`;}

@@ -22,7 +22,7 @@ export function complianceReport(s, { game = false, camp = false } = {}) {
     add(
       "CAP_OVER",
       "Salary cap",
-      `Clear $${(-cap.room / S.MILLION).toFixed(2)}M before advancing.`,
+      `Over the salary cap by $${(-cap.room / S.MILLION).toFixed(2)}M. Clear it before advancing.`,
       "Contracts",
     );
   const counts = Object.fromEntries(
