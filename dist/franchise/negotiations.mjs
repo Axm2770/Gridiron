@@ -1,6 +1,7 @@
 import { coachPerks } from "./career-systems.mjs";
 import * as S from "./state.mjs";
 import * as C from "./contracts.mjs";
+import { signingFactors } from "./market.mjs";
 const round = (n) => Math.round(n * 10) / 10;
 export const NEGOTIATION_PITCHES = {
   Security: "We want to build this around meaningful guaranteed money.",
@@ -136,6 +137,10 @@ export function evaluateNegotiation(s, id, terms) {
   if (best > score)
     n.line +=
       " Another current bid is more attractive under our overall evaluation.";
+  // Beyond the money: what the player weighs about your club (role, contention, coach, scheme).
+  const pull = signingFactors(s, p, s.team);
+  n.factors = pull.reasons.slice(0, 3);
+  if (n.factors.length) n.line += ` Beyond the money: ${n.factors.map((r) => r.text.replace(/\.$/, "")).join("; ")}.`;
   n.counter = {
     ...terms,
     annual: round(
