@@ -4,6 +4,15 @@ import {
   changeCoachReputation,
 } from "./career-systems.mjs";
 import { clamp } from "../engine/random.mjs";
+import {
+  pressContext,
+  pressTopic,
+  pressQuestion,
+  pressAnswers,
+  toneReaction,
+  applyPressConference,
+  closeInterview,
+} from "./press-consequences.mjs";
 const playerOf = (s, id) => s.roster.find((p) => p.id === id);
 export function conversationValid(s, c) {
   return (
@@ -33,7 +42,7 @@ export function createConversation(s, type = "player", id) {
     .sort(
       (a, b) => (b.persona?.leadership || 0) - (a.persona?.leadership || 0),
     )[0];
-  let title, setting, speaker, lines, choices;
+  let title, setting, speaker, lines, choices, press = null;
   const opts = (a, b, c) => [
     { tone: "Support", text: a },
     { tone: "Challenge", text: b },
@@ -110,31 +119,12 @@ export function createConversation(s, type = "player", id) {
       type === "pre" ? "Before the lights come on" : "At the final whistle";
     setting = "press";
     speaker = "Jordan Ellis · Gridiron Network";
-    const m = s.lastMatch,
-      k = m?.a === s.team ? 0 : 1,
-      won = m?.score[k] > m?.score[1 - k];
-    lines = [
-      type === "pre"
-        ? "Coach, what should supporters expect from your team today?"
-        : won
-          ? "Your team found a way to win. What made the difference?"
-          : "A difficult result today. Where do you take responsibility?",
-      "And what is your message to the players listening to this interview?",
-    ];
-    choices =
-      type === "pre"
-        ? opts(
-            "We trust our preparation and each other.",
-            "We are here to make a statement.",
-            "We will let our performance do the talking.",
-          )
-        : opts(
-            won
-              ? "The players earned this. They executed together."
-              : "That starts with me. We will learn and improve.",
-            "We have to be sharper. Our standard is higher.",
-            "We will review the film before drawing conclusions.",
-          );
+    // Context-aware questions; the second one is about a named player when there is a story.
+    const context = pressContext(s, type),
+      topic = pressTopic(s, type, context);
+    press = { id: `${key}#${(s.franchise.pressRoom?.serial ?? 0) + 1}`, context, topic };
+    lines = [pressQuestion(s, type, context), topic.question];
+    choices = pressAnswers(type, context);
   } else throw Error("Unknown conversation.");
   return {
     key,
@@ -151,9 +141,11 @@ export function createConversation(s, type = "player", id) {
     speakerId: p?.id || (["team", "half"].includes(type) ? lead?.id : null),
     lines,
     choices,
+    ...(press ? { press } : {}),
   };
 }
 export function sceneChoices(c) {
+  if (c.step !== 0 && c.press?.topic?.options) return c.press.topic.options;
   return c.step === 0
     ? c.choices
     : [
@@ -181,11 +173,18 @@ export function chooseResponse(s, index) {
   if (!Number.isInteger(index) || index < 0 || index >= sceneChoices(c).length)
     throw Error("Choose an available response.");
   const chosen = sceneChoices(c)[index];
-  c.choicesMade.push({ index, text: chosen.text, tone: chosen.tone });
+  c.choicesMade.push({
+    index,
+    text: chosen.text,
+    tone: chosen.tone,
+    ...(chosen.key ? { key: chosen.key } : {}),
+    ...(chosen.id ? { id: chosen.id } : {}),
+  });
   if (c.step === 0) {
     c.step = 1;
-    c.reaction =
-      index === 0
+    c.reaction = c.press
+      ? toneReaction[chosen.key] || "The room waits for the next question."
+      : index === 0
         ? "A nod. The tension in the room eases."
         : index === 1
           ? "The room grows quiet. Your challenge has landed."
@@ -251,7 +250,12 @@ export function chooseResponse(s, index) {
     s.franchise.directives[keys[first]] = true;
     delta = 0;
   }
-  if (["pre", "post", "team", "half", "staff"].includes(c.type)) {
+  let press = null;
+  if (c.press) {
+    press = applyPressConference(s, c);
+    closeInterview(s, c, press);
+  }
+  else if (["pre", "post", "team", "half", "staff"].includes(c.type)) {
     const people =
       c.type === "staff"
         ? s.franchise.clubs[s.team].staff.filter((x) =>
@@ -283,11 +287,12 @@ export function chooseResponse(s, index) {
     week: s.week,
     choices: structuredClone(c.choicesMade),
     delta,
+    ...(press ? { press: press.changes } : {}),
   };
   cinema.history.unshift(record);
   cinema.history = cinema.history.slice(0, 80);
   cinema.active = null;
-  return { complete: true, scene: c, record, first, delta, player };
+  return { complete: true, scene: c, record, first, delta, player, press };
 }
 export function reviewPromises(s) {
   for (const promise of s.franchise.cinema?.promises || []) {
@@ -299,6 +304,31 @@ export function reviewPromises(s) {
       continue;
     const p = playerOf(s, promise.playerId);
     promise.dueNow = true;
+    if (promise.type === "Playing time") {
+      // A public promise of snaps: kept if he is starting by the due week.
+      if (!p) {
+        promise.done = true;
+        promise.outcome = "Player left the club";
+      } else if (p.starter) {
+        promise.done = true;
+        promise.outcome = "Kept: starting role";
+        p.coachTrust = clamp((p.coachTrust ?? 60) + 4, 0, 99);
+        p.morale = clamp(p.morale + 3, 20, 99);
+      } else if (promise.year < s.year || s.week > promise.due) {
+        promise.done = true;
+        promise.outcome = "Broken: still not starting";
+        changeCoachReputation(
+          s,
+          `promise:snaps:${promise.playerId}:${promise.year}:${promise.week}`,
+          -0.8,
+          "A public promise of playing time was broken",
+          "Relationships",
+        );
+        p.coachTrust = clamp((p.coachTrust ?? 60) - 10, 0, 99);
+        p.morale = clamp(p.morale - 6, 20, 99);
+      }
+      continue;
+    }
     if (!p) {
       promise.done = true;
       promise.outcome = "Player left the club";
