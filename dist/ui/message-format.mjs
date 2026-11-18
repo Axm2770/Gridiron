@@ -14,12 +14,30 @@ const TONES = [
 ];
 const toneOf = (label) => TONES.find(([re]) => re.test(label))?.[1] || "";
 
-// Highlight signed numbers (+12, −10, -18, +5%) and percentages.
-function inline(text) {
-  return escHTML(text)
-    .replace(/(^|[\s(])([+＋][0-9]+(?:\.[0-9]+)?%?)/g, '$1<b class="mf-num mf-pos">$2</b>')
-    .replace(/(^|[\s(])([−–-][0-9]+(?:\.[0-9]+)?%?)(?=[\s).,;]|$)/g, '$1<b class="mf-num mf-neg">$2</b>');
+// Which way is "better" for a metric: +1 when up is good (morale, chemistry, fans, owner
+// patience, trust, job security…), −1 when up is bad (drama, injury risk, dead money, fatigue…).
+const UP_BAD = /drama|injur|\brisk\b|dead (money|cap)|fatigue|workload|weeks? out|cap hit|win target|losses|losing streak|tension|distraction|holdout/i;
+export const metricDirection = (label) => (UP_BAD.test(String(label || "")) ? -1 : 1);
+// "good" | "bad" | "flat" for a signed change (drama +7 is bad, trust −15 is bad, 0 is flat).
+export function metricTone(label, delta) {
+  const d = Number(delta);
+  if (!Number.isFinite(d) || d === 0) return "flat";
+  return d * metricDirection(label) > 0 ? "good" : "bad";
 }
+
+// Highlight signed numbers (+12, −10, -18, +5%) and colour them by what they measure: the label
+// is the clause before the number, so "drama +7" is bad and "owner patience −10 (−18 …)" is bad
+// twice. mf-pos / mf-neg mean a good / bad outcome, not the sign.
+export function inlineTone(text) {
+  const src = escHTML(text);
+  return src.replace(/(^|[\s(])([+＋−–-])([0-9]+(?:\.[0-9]+)?%?)(?=[\s).,;]|$)/g, (all, pre, sign, n, at) => {
+    const clause = src.slice(Math.max(0, at - 48), at).split(/[,;.:!?]|&quot;/).pop(),
+      delta = (/[+＋]/.test(sign) ? 1 : -1) * parseFloat(n),
+      tone = metricTone(clause, delta) === "bad" ? "mf-neg" : "mf-pos";
+    return pre + '<b class="mf-num ' + tone + '">' + sign + n + "</b>";
+  });
+}
+const inline = inlineTone;
 
 function item(text) {
   let t = text.trim(), tag = "";
@@ -34,7 +52,7 @@ function item(text) {
 }
 
 // Unfold "Lead text. Targets: • a • b Consequences: • c" into lines.
-function unfold(block) {
+export function unfold(block) {
   if (block.includes("\n") || !/\s•\s/.test(" " + block)) return block;
   const parts = block.split(/\s*•\s*/);
   const out = [];

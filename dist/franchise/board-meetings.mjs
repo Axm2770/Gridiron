@@ -5,7 +5,7 @@
 // consequences through owner patience, which drives job security in the boardroom.
 import { ensureCareerSystems, changeCoachReputation } from "./career-systems.mjs";
 import { capLedger, MILLION } from "./state.mjs";
-import { ensureBoard, boardOverview, projectedWins, winTarget, BUDGET_STEP } from "./boardroom.mjs";
+import { ensureBoard, boardOverview, projectedWins, winTarget, BUDGET_STEP, PACE_READY_GAMES } from "./boardroom.mjs";
 import { postMessage, applyMood, ensureOffice } from "./newsroom.mjs";
 import { ensureSocial } from "./social-engine.mjs";
 
@@ -99,6 +99,19 @@ export function ensureSeasonExpectations(s, { post = true } = {}) {
       priority: "important",
       source: "Ownership",
       route: "Boardroom",
+      data: {
+        kind: "targets",
+        lead: `${club.owner.name} has set out what ownership expects this season.`,
+        mandate: r.mandate,
+        facts: [
+          { label: "Roster rating", value: `${r.rating} OVR · ${ordinal(r.rank)}` },
+          { label: "Projected wins", value: String(r.projected) },
+          { label: "Win target", value: String(r.target) },
+        ],
+        items: r.items.map((x) => ({ label: x.label, required: x.required, progress: "" })),
+        bands: r.bands.map((b) => ({ label: b.label, text: `${b.when}. ${b.effect}` })),
+        note: "The board will call a meeting if results fall clearly behind. Track progress in the Boardroom.",
+      },
     });
     logMeeting(s, { kind: "Expectations", title: `Expectations set: ${r.headline.replace(/^.*?: /, "")}`, agreed: null, outcome: "Set", messageId: m?.id });
   }
@@ -160,6 +173,24 @@ export function boardPulse(s) {
   };
 }
 
+// Status-only targets (playoffs, a playoff win) as a chip: tone and pixel glyph from the wording.
+// Waiting states ("Season not started", "Awaiting the postseason") are pending, not failures.
+const PENDING_TEXT = /not started|awaiting/i;
+export function statusVisual(item) {
+  const text = item.progress,
+    pending = PENDING_TEXT.test(text) && item.state !== "done" && item.state !== "missed";
+  const [tone, icon] = pending
+    ? ["pending", "clock"]
+    : item.state === "done"
+      ? ["good", "check"]
+      : item.state === "missed"
+        ? ["bad", "cross"]
+        : item.state === "risk"
+          ? ["warn", "alert"]
+          : ["good", "dot"];
+  return { kind: "status", text, tone, icon, pending };
+}
+
 // Read model for the Boardroom card. Never mutates state.
 export function expectationsReport(s) {
   const b = ensureBoard(s),
@@ -181,12 +212,16 @@ export function expectationsReport(s) {
     over = s.phase !== "season",
     items = [];
   const state = (done, risk, missed) => (done ? "done" : missed ? "missed" : risk ? "risk" : "on");
+  // Pace says nothing before a few games (one loss reads "on pace for 0.0"), so the text and the
+  // visual hold it back until PACE_READY_GAMES; the risk state itself is unchanged.
+  const paceReady = p.pace !== null && p.played >= PACE_READY_GAMES;
   items.push({
     key: "wins",
     label: `Win at least ${minWins} regular-season games`,
-    progress: `${p.w} / ${minWins}${p.pace === null || over ? "" : ` · on pace for ${p.pace.toFixed(1)}`}`,
+    progress: `${p.w} / ${minWins}${over ? "" : p.played === 0 ? " · season starts week 1" : paceReady ? ` · on pace for ${p.pace.toFixed(1)}` : ` · pace after ${PACE_READY_GAMES} games`}`,
     state: state(p.w >= minWins, p.pace !== null && p.paceGap < -1, over && p.w < minWins),
     required: true,
+    visual: { kind: "progress", value: p.w, target: minWins, max: p.games, unit: "wins", pace: p.pace, played: p.played, over, ready: PACE_READY_GAMES },
   });
   if (needPlayoffs || ps.qualified)
     items.push({
@@ -196,6 +231,7 @@ export function expectationsReport(s) {
       state: state(ps.qualified, p.pace !== null && p.pace < 10, ps.decided && !ps.qualified),
       required: needPlayoffs,
     });
+  if (items.at(-1).key === "playoffs") items.at(-1).visual = statusVisual(items.at(-1));
   if (needPlayoffWin)
     items.push({
       key: "playoffWin",
@@ -204,12 +240,14 @@ export function expectationsReport(s) {
       state: state(ps.wins > 0, false, (s.phase === "offseason" || (ps.decided && !ps.qualified)) && !ps.wins),
       required: true,
     });
+  if (items.at(-1).key === "playoffWin") items.at(-1).visual = statusVisual(items.at(-1));
   items.push({
     key: "cap",
     label: "Keep the cap under control",
     progress: cap.room >= 0 ? `$${(cap.room / MILLION).toFixed(1)}M room` : "Over the cap",
     state: cap.room >= 0 ? "on" : "risk",
     required: true,
+    visual: { kind: "money", used: cap.used / MILLION, cap: cap.limit / MILLION },
   });
   items.push({
     key: "youth",
@@ -217,6 +255,7 @@ export function expectationsReport(s) {
     progress: `${young} / ${youthNeed} starting`,
     state: young >= youthNeed ? "done" : over ? "missed" : "risk",
     required: rebuild || tier === "Rebuilding",
+    visual: { kind: "ratio", value: young, need: youthNeed, unit: "starting" },
   });
   items.push({
     key: "fans",
@@ -224,6 +263,7 @@ export function expectationsReport(s) {
     progress: `${p.fans}%`,
     state: p.fans >= 45 ? "on" : "risk",
     required: false,
+    visual: { kind: "percent", value: p.fans, threshold: 45 },
   });
   const headParts = [`at least ${minWins} wins`];
   if (needPlayoffWin) headParts.push("a playoff win");
@@ -336,6 +376,24 @@ export function callBoardMeeting(s, p = boardPulse(s), reasons = []) {
     decision: "boardMeeting",
     route: "Boardroom",
     meta: terms,
+    data: {
+      kind: "meeting",
+      lead: `${club.owner.name} and the club president have called you in. The season is not going to plan.`,
+      status: p.status,
+      statusTone: p.security < 40 ? "bad" : "warn",
+      facts: [
+        { label: "Record", value: `${p.w}–${p.l}` },
+        { label: "Win target", value: `${p.target} · pace ${p.pace.toFixed(1)}` },
+        { label: "Point diff", value: `${p.pointDiff >= 0 ? "+" : ""}${p.pointDiff}` },
+        { label: "Losing streak", value: String(p.streak) },
+        { label: "Fan approval", value: `${p.fans}%` },
+        { label: "Team morale", value: `${p.morale}%` },
+        { label: "Drama", value: `${p.drama}%` },
+        { label: "Job security", value: `${p.security}%` },
+      ],
+      reasons,
+      note: "Ownership wants an agreed plan with a checkpoint. If you do not answer within two league rounds, the first plan is agreed on your behalf.",
+    },
   });
   if (m) logMeeting(s, { kind: "Board", title: `Board meeting called at ${p.w}–${p.l}`, agreed: null, outcome: "Awaiting your answer", messageId: m.id });
   return m;
@@ -358,6 +416,21 @@ export function callTeamMeeting(s, p = boardPulse(s), reasons = []) {
     playerId: group[0]?.id,
     leaders: group.map((x) => x.id),
     route: "Locker room",
+    data: {
+      kind: "meeting",
+      title: "The room",
+      lead: `${who} have asked for a meeting with you and the leadership group.`,
+      facts: [
+        { label: "Record", value: `${p.w}–${p.l}` },
+        { label: "Losing streak", value: String(p.streak) },
+        { label: "Team morale", value: `${p.morale}%` },
+        { label: "Chemistry", value: `${p.chemistry}%` },
+        { label: "Drama", value: `${p.drama}%` },
+      ],
+      reasons,
+      reasonsLabel: "What they raised",
+      note: "How you lead this meeting changes morale, trust and chemistry in the room.",
+    },
   });
   if (m) logMeeting(s, { kind: "Team", title: `Team meeting with ${who}`, agreed: null, outcome: "Awaiting your answer", messageId: m.id });
   return m;
@@ -492,6 +565,17 @@ function evaluatePlan(s) {
     priority: met ? "important" : "urgent",
     source: "Ownership",
     route: "Boardroom",
+    data: {
+      kind: "checkpoint",
+      lead: `${club.owner.name} reviewed the plan agreed at the board meeting.`,
+      met,
+      measure: plan.measure,
+      value: pr.value,
+      need: plan.need,
+      unit: plan.metric === "wins" ? "wins" : "young starters",
+      security: [before, after],
+      effects: met ? [{ label: "Owner patience", delta: plan.reward }, { label: "Fan approval", delta: 2 }] : [{ label: "Owner patience", delta: -plan.penalty }, { label: "Fan approval", delta: -3 }],
+    },
   });
   logMeeting(s, { kind: "Checkpoint", title: plan.measure, agreed: plan.label, outcome: met ? "Met" : "Missed", detail: `${progress}. Security ${before} → ${after}.`, messageId: m?.id });
   const entry = e.meetings.find((x) => x.messageId === plan.messageId);
@@ -518,6 +602,14 @@ function finalWarning(s, security) {
     priority: "urgent",
     source: "Ownership",
     route: "Boardroom",
+    data: {
+      kind: "meeting",
+      title: count === 1 ? "Final warning" : "Ultimatum",
+      lead: count === 1 ? `${club.owner.name} has issued a formal final warning. Results must improve immediately; the next board meeting will not be a discussion.` : `${club.owner.name} has delivered an ultimatum: another missed target this season and the board will consider a change of direction.`,
+      status: "On record",
+      statusTone: "bad",
+      facts: [{ label: "Job security", value: `${security}%` }, { label: "Warnings this season", value: String(count) }],
+    },
   });
   logMeeting(s, { kind: "Warning", title: count === 1 ? "Final warning issued" : "Ultimatum issued", agreed: null, outcome: "On record", detail: `Job security ${security}.`, messageId: m?.id });
 }
@@ -551,6 +643,20 @@ function seasonReview(s) {
     source: "Ownership",
     decision: "seasonReview",
     route: "Boardroom",
+    data: {
+      kind: "targets",
+      title: `${s.year} season review`,
+      lead: `${club.owner.name} has reviewed the ${s.year} season against the expectations set in preseason.`,
+      verdict: `Expectations ${band.toLowerCase()}`,
+      facts: [
+        { label: "Record", value: `${r.pulse.w}–${r.pulse.l}` },
+        { label: "Win target", value: String(r.minWins) },
+        { label: "Owner patience", value: `${delta >= 0 ? "+" : ""}${delta}` },
+        { label: "Job security", value: `${security}%` },
+      ],
+      items: r.items.map((x) => ({ label: x.label, required: x.required, progress: x.progress, state: x.state === "done" || x.state === "on" ? "done" : "missed" })),
+      note: "Set the tone for next season.",
+    },
   });
   logMeeting(s, { kind: "Review", title: `${s.year} season review: ${band}`, agreed: null, outcome: band, detail: `${r.pulse.w}–${r.pulse.l} vs ${r.minWins} wins. Patience ${delta >= 0 ? "+" : ""}${delta}.`, messageId: m?.id });
   if (band === "Missed" && security < MEETING_RULES.finalWarning) finalWarning(s, security);

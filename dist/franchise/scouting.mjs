@@ -8,6 +8,8 @@ import { identitySeed } from "./newgens.mjs";
 import { requireRole, allowed } from "./state.mjs";
 import { ensurePlayerRatings } from "./ratings.mjs";
 import { postMessage } from "./newsroom.mjs";
+import { measuredAttributes } from "./ceremonies.mjs";
+export const COMBINE_CONFIDENCE = 90;
 
 export const REPORT_DAYS = 3;
 export const REPORT_GAIN = 35;
@@ -110,13 +112,16 @@ const POSITION_ATTRS = {
 export function attributeRanges(s, p, team) {
   const c = confidence(s, p, team),
     attrs = ensurePlayerRatings(p).attributes || {};
-  const keys = POSITION_ATTRS[p.pos] || ATHLETIC;
+  const keys = POSITION_ATTRS[p.pos] || ATHLETIC,
+    // Combine drills (ceremonies.mjs) are public testing: the attributes they measure narrow to ±1.
+    measured = c < 100 ? measuredAttributes(p) : new Set();
   return keys
     .filter((k) => Number.isFinite(attrs[k]))
     .map((k) => [k, attrs[k]])
     .map(([k, v]) => {
-      const b = band(v, c, p.id, k);
-      return { key: k, value: c >= 100 ? v : null, lo: b.lo, hi: b.hi, estimate: c >= 100 ? v : b.estimate };
+      const kc = measured.has(k) ? Math.max(c, COMBINE_CONFIDENCE) : c,
+        b = band(v, kc, p.id, k);
+      return { key: k, value: c >= 100 ? v : null, lo: b.lo, hi: b.hi, estimate: c >= 100 ? v : b.estimate, combine: measured.has(k) };
     });
 }
 
@@ -221,6 +226,23 @@ export function deliverReports(s) {
       category: "Scouting",
       playerId: p.id,
       scoutTeam: team,
+      // Inbox report card (ui/message-cards.mjs).
+      data: {
+        kind: "scouting",
+        playerId: p.id,
+        name: p.name,
+        pos: p.pos,
+        age: p.age,
+        scout: r.scout,
+        before: fmtRange(before.ovr),
+        ovr: fmtRange(after.ovr),
+        pot: fmtRange(after.pot),
+        verdict: after.prospect ? `${draftProjection(s, p).label} · #${draftProjection(s, p).rank} on our board` : potentialLabel(after),
+        strengths: attrs.slice(0, 3).map((a) => ({ label: attrName(a.key), range: fmtRange([a.lo, a.hi]) })),
+        concerns: attrs.slice(-2).map((a) => ({ label: attrName(a.key), range: fmtRange([a.lo, a.hi]) })),
+        confidence: [before.confidence, after.confidence],
+        exact: !!after.exact,
+      },
     });
     const entry = { playerId: p.id, name: p.name, date, from: before.confidence, to: after.confidence };
     d.delivered.unshift(entry);

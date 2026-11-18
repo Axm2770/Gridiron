@@ -11,9 +11,14 @@ import {
   canEditUnit,
   unavailableReason,
   sortForLineup,
+  applyLineupMove,
+  swapLineupSlots,
+  lineupSnapshot,
+  restoreLineup,
 } from "./dist/franchise/lineup.mjs";
+import { formationLayout, tokenRects, overlappingPairs, FIELD } from "./dist/franchise/lineup-layout.mjs";
 import { SQUAD_SORTS, compareSquad, sortSquad, defaultDirection } from "./dist/franchise/squad-sort.mjs";
-import { installLineupUI, slotPositions, viewMode } from "./dist/franchise/lineup-ui.mjs";
+import { installLineupUI, slotPositions, viewMode, dropMove, dropTargetValid, shortName, rowName } from "./dist/franchise/lineup-ui.mjs";
 
 // A fresh career built the same way the browser builds one.
 const ctx = {
@@ -155,6 +160,125 @@ s.franchise.role = "DC";
 assert(canEditUnit(s, "Defense") && !canEditUnit(s, "Offense"));
 s.franchise.role = role;
 
+// 2b. The one write path (applyLineupMove): trade places, replace, undo, formation changes.
+s.coach.offense = "Shotgun spread";
+s.coach.personnel = "11";
+const unique = (u) => {
+  const ids = lineupActors(s, u).filter((a) => a.p).map((a) => a.id);
+  return new Set(ids).size === ids.length;
+};
+let wrs = lineupActors(s, "Offense").filter((a) => a.role === "WR");
+const [wr1, wr2] = [wrs[0], wrs[1]];
+const snapBefore = lineupSnapshot(s);
+let res = applyLineupMove(s, "Offense", wr2.index, wr1.id);
+assert.equal(res.kind, "swap", "a starter dropped on a same-position slot trades places");
+wrs = lineupActors(s, "Offense").filter((a) => a.role === "WR");
+assert.equal(wrs[0].id, wr2.id, "WR1 <-> WR2: the old WR2 is now WR1");
+assert.equal(wrs[1].id, wr1.id, "WR1 <-> WR2: the old WR1 is now WR2");
+assert(unique("Offense"), "no duplicates after a swap");
+assert.deepEqual(starters(s), baseline, "a swap keeps starter counts");
+// Persists to the depth chart the engine reads (and survives a save round-trip).
+assert.equal(sortForLineup(s.roster, s.team).filter((p) => p.pos === "WR")[0].id, wr2.id);
+assert.equal(lineupActors(JSON.parse(JSON.stringify(s)), "Offense").filter((a) => a.role === "WR")[0].id, wr2.id);
+assert.throws(() => swapLineupSlots(s, "Offense", wrs[0].index, lineupActors(s, "Offense").find((a) => a.role === "QB").index), /only trade places/);
+assert.equal(applyLineupMove(s, "Offense", wrs[0].index, wrs[0].id).kind, "none", "dropping a player on his own slot changes nothing");
+// A bench player replaces the occupant; no one appears twice.
+const benchWr2 = lineupBoard(s, "Offense").positions.find((g) => g.pos === "WR").depth.find((d) => d.slot === null).p;
+res = applyLineupMove(s, "Offense", wrs[1].index, benchWr2.id);
+assert.equal(res.kind, "replace");
+assert.equal(lineupActors(s, "Offense")[wrs[1].index].id, benchWr2.id);
+assert(unique("Offense"));
+assert.deepEqual(starters(s), baseline);
+// Injured players can't start through the write path either.
+const hurtWr = lineupBoard(s, "Offense").positions.find((g) => g.pos === "WR").depth.find((d) => d.slot === null).p;
+hurtWr.injury = 2;
+assert.throws(() => applyLineupMove(s, "Offense", wrs[0].index, hurtWr.id), /injured/);
+hurtWr.injury = 0;
+// Undo puts the whole depth chart back.
+restoreLineup(s, snapBefore);
+assert.equal(lineupActors(s, "Offense").filter((a) => a.role === "WR")[0].id, wr1.id, "undo restores the order");
+assert.deepEqual(starters(s), baseline);
+// Formation and personnel changes keep a valid, duplicate-free, healthy lineup.
+for (const offense of ["Shotgun spread", "Singleback", "I formation", "Empty backfield"])
+  for (const personnel of ["11", "12", "21", "10", "Goal Line"]) {
+    s.coach.offense = offense;
+    s.coach.personnel = personnel;
+    assert(unique("Offense"), offense + " " + personnel + " duplicates");
+    assert(lineupActors(s, "Offense").every((x) => !x.p || (x.p.pos === x.role && !x.p.injury)), offense + " " + personnel + " invalid slot");
+  }
+s.coach.offense = "Shotgun spread";
+s.coach.personnel = "11";
+// Drag and drop resolves to the same write path.
+assert.deepEqual(dropMove({ id: "a", pos: "WR", at: null }, { kind: "slot", index: 3, role: "WR", player: "b" }), { slot: 3, id: "a" });
+assert.deepEqual(dropMove({ id: "a", pos: "WR", at: 2 }, { kind: "row", player: "c", pos: "WR", at: null }), { slot: 2, id: "c" });
+assert.deepEqual(dropMove({ id: "a", pos: "WR", at: null }, { kind: "row", player: "b", pos: "WR", at: 10 }), { slot: 10, id: "a" });
+assert.equal(dropMove({ id: "a", pos: "WR", at: null }, { kind: "slot", index: 0, role: "QB", player: "q" }), null, "wrong position is not a target");
+assert.equal(dropMove({ id: "a", pos: "WR", at: null }, { kind: "row", player: "c", pos: "WR", at: null }), null, "bench onto bench is not a target");
+assert(!dropTargetValid({ id: "a", pos: "WR", at: 2 }, { kind: "slot", index: 2, role: "WR", player: "a" }), "own slot is not a target");
+
+// 2c. Layout: no two player tokens overlap for any formation or front, at the field widths the
+// board gets at 1440 (739px) and 1280 (649px) wide and in the live matchday tab (570px); the
+// templates are clean before the collision safety net; everything stays inside the field.
+const OFF_ROLES = (pers) => {
+  const r = ["QB", "RB", "WR", "WR", "TE", "OL", "OL", "OL", "OL", "OL", "WR"];
+  if (pers === "12") r[10] = "TE";
+  if (pers === "21") r[10] = "RB";
+  if (pers === "10") r[4] = "WR";
+  if (pers === "Goal Line") r[2] = r[3] = "TE";
+  return r.map((role, index) => ({ role, index }));
+};
+const DEF_ROLES = (front) => {
+  const r = ["DL", "DL", "DL", "DL", "LB", "LB", "LB", "CB", "CB", "S", "S"];
+  if (front === "3–4 base") r[3] = "LB";
+  if (front === "Nickel" || front === "Dime") r[6] = "CB";
+  if (front === "Dime") r[5] = "CB";
+  return r.map((role, index) => ({ role, index }));
+};
+const layouts = [];
+for (const offense of ["Shotgun spread", "Singleback", "I formation", "Empty backfield"])
+  for (const personnel of ["11", "12", "21", "10", "Goal Line"]) layouts.push([offense + " " + personnel, formationLayout(OFF_ROLES(personnel), "Offense", { offense, personnel })]);
+for (const defense of ["4–3 base", "3–4 base", "Nickel", "Dime"])
+  for (const shell of ["2-High", "Single-High", "Zero"]) layouts.push([defense + " " + shell, formationLayout(DEF_ROLES(defense), "Defense", { defense, shell })]);
+layouts.push(["Specialists", formationLayout([{ role: "K", index: 0 }, { role: "P", index: 1 }], "Specialists", {})]);
+for (const offense of ["Shotgun spread", "I formation"]) {
+  s.coach.offense = offense;
+  layouts.push(["engine " + offense, formationLayout(lineupActors(s, "Offense"), "Offense", { offense, personnel: "11" })]);
+}
+s.coach.offense = "Shotgun spread";
+for (const [name, layout] of layouts) {
+  assert.equal(layout.adjusted, 0, name + ": template needed the collision safety net");
+  for (const width of [739, 649, 570]) assert.deepEqual(overlappingPairs(tokenRects(layout, width)), [], name + " overlaps at " + width + "px");
+  const F = layout.field;
+  // The field window shows the formation: the LOS a quarter to a third of the way in from the
+  // far edge (offense from the top, the mirrored defense from the bottom), no big empty band.
+  const losShare = (F.flip ? F.H - F.los : F.los) / F.H;
+  assert(losShare >= 0.2 && losShare <= 0.36, name + " LOS at " + Math.round(losShare * 100) + "%");
+  const deepest = F.flip ? Math.min(...layout.tokens.map((t) => t.y)) - F.zoneBottom : F.zoneTop - Math.max(...layout.tokens.map((t) => t.y + t.h));
+  assert(deepest >= 0 && deepest <= F.pad + 0.01, name + " leaves " + deepest.toFixed(1) + " units of empty turf above the end zone");
+  for (const t of layout.tokens) {
+    assert(t.x - t.w / 2 >= FIELD.side && t.x + t.w / 2 <= FIELD.W - FIELD.side, name + " " + t.label + " outside the sidelines");
+    if (F.flip) assert(t.y >= F.zoneBottom && t.y + t.h < F.los, name + " " + t.label + " crosses the LOS or the end zone");
+    else assert(t.y > F.los && t.y + t.h <= F.zoneTop, name + " " + t.label + " crosses the LOS or the end zone");
+  }
+}
+// The safety net separates a deliberately crowded layout.
+const crowded = formationLayout(Array.from({ length: 11 }, (_, index) => ({ role: "OL", index: 5 + (index % 5) })), "Offense", {});
+assert.deepEqual(overlappingPairs(tokenRects(crowded, 739)), [], "collision avoidance separates stacked tokens");
+
+// Card names: last name, smaller type for long ones, last part of compound surnames, suffixes dropped.
+assert.deepEqual(shortName("Bo Nix"), { text: "Nix", size: "" });
+assert.deepEqual(shortName("Garett Bolles"), { text: "Bolles", size: "" });
+assert.deepEqual(shortName("Jake Ferguson"), { text: "Ferguson", size: "sm" });
+assert.deepEqual(shortName("Luke Wattenberg"), { text: "Wattenberg", size: "xs" });
+assert.deepEqual(shortName("Brevyn Spann-Ford"), { text: "Ford", size: "" });
+assert.deepEqual(shortName("Jalen Spann-Fofanaso"), { text: "Fofanaso", size: "sm" });
+assert.deepEqual(shortName("Luke Schoonmaker"), { text: "Schoonmaker", size: "xs" });
+assert.deepEqual(shortName("Jaylon Porter Jr."), { text: "Porter", size: "" });
+assert.deepEqual(shortName("Amon-Ra St. Brown"), { text: "St. Brown", size: "sm" });
+
+assert.equal(rowName("Dak Prescott"), "Dak Prescott");
+assert.equal(rowName("Broderick Jones"), "B. Jones", "long list names become initial + surname");
+
 // 3. Squad sort comparator: every metric, nulls last in both directions, reverse.
 const P = (id, o) => ({ id, name: "Player " + id, pos: "WR", ovr: 70, age: 25, ...o });
 const ctxSort = {
@@ -227,7 +351,8 @@ globalThis.localStorage = { getItem: () => null, setItem() {} };
 assert.equal(viewMode("squad"), "lineup", "lineup is the default without storage");
 const ui = installLineupUI({ isBusy: () => false });
 const html = ui.board("squad");
-assert.equal((html.match(/class="lu-slot /g) || []).length, 11);
+assert.equal((html.match(/class="lu-tok /g) || []).length, 11, "one token per slot");
+assert(!/draggable=/.test(html), "no HTML5 drag (pointer events instead)");
 assert.equal((html.match(/class="lu-slot-row/g) || []).length, 11);
 assert(html.includes("Shotgun spread"));
 assert(/data-no-sort/.test(ui.depthTable()), "the depth table opts out of generic header sorting");
@@ -240,4 +365,4 @@ assert.equal(viewMode("squad"), "lineup");
 globalThis.localStorage = { getItem() { throw Error("blocked"); }, setItem() { throw Error("blocked"); } };
 assert.equal(viewMode("tactics"), "lineup", "blocked storage falls back to the lineup");
 window.Lineup.view("squad", "table");
-console.log("PASS: lineup slots per formation, picker order, swaps keep starter counts, unavailable players rejected, role limits, squad sort metrics/nulls/reverse, board render and view memory");
+console.log("PASS: lineup swap model (trade places, replace, undo, drag targets), layout without overlaps for every formation/front, lineup slots per formation, picker order, swaps keep starter counts, unavailable players rejected, role limits, squad sort metrics/nulls/reverse, board render and view memory");

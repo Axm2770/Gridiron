@@ -17,6 +17,8 @@ import {
   financeYear,
   bonusCharge,
   validateContract,
+  playerSnap,
+  capMillions,
 } from "./state.mjs";
 export function proposal(s, p, terms) {
   let years = Number(terms.years),
@@ -143,6 +145,8 @@ export function cut(s, id, postJune = false) {
     s,
     "Player waived",
     `${p.name} enters waivers. Dead cap is retained in the ledger.`,
+    "club",
+    { kind: "transaction", type: "waiver", outgoing: [playerSnap(p)], note: "Dead cap is retained in the ledger." },
   );
 }
 export function restructure(s, id, amount) {
@@ -266,7 +270,7 @@ export function tag(s, id, type) {
   c.tag = { type, year: financeYear(s) };
   s.franchise.tagYear = financeYear(s);
   if (capLedger(s).room < 0) throw Error("Tag would exceed next year’s cap.");
-  log(s, "Tag applied", `${type} tender offered to ${p.name}.`);
+  log(s, "Tag applied", `${type} tender offered to ${p.name}.`, "club", { kind: "transaction", type: "tag", incoming: [playerSnap(p)], terms: [{ label: "Tender", value: type }, { label: "Salary", value: capMillions(value) }] });
 }
 export function trade(s, id, other, targetId) {
   if (
@@ -357,7 +361,7 @@ export function trade(s, id, other, targetId) {
     `${a.name} exchanged for ${b.name}`,
     { topic: "Trades", detail: `${b.pos} · ${b.ovr} overall · age ${b.age}` },
   );
-  log(s, "Trade agreed", `${a.name} is exchanged for ${b.name}.`);
+  log(s, "Trade agreed", `${a.name} is exchanged for ${b.name}.`, "club", { kind: "transaction", type: "trade", incoming: [playerSnap(b)], outgoing: [playerSnap(a)], partner: s.franchise.clubs[other]?.identity?.name || "" });
   return true;
 }
 
@@ -427,6 +431,17 @@ export function extendContract(s, id, terms) {
     "Contract extension agreed",
     `${p.name} commits to ${extension.years} additional seasons from ${start}.`,
     "club",
+    {
+      kind: "transaction",
+      type: "extension",
+      incoming: [playerSnap(p)],
+      terms: [
+        { label: "Added years", value: String(extension.years) },
+        { label: "Starts", value: String(start) },
+        { label: "Base, year 1", value: capMillions(extension.base[0]) },
+        ...(extension.bonus ? [{ label: "Signing bonus", value: capMillions(extension.bonus) }] : []),
+      ],
+    },
   );
   return c;
 }

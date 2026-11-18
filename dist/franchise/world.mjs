@@ -17,6 +17,7 @@ import {
   POS,
   basicContract,
   financeYear,
+  playerSnap,
 } from "./state.mjs";
 import { hireStaff } from "./staff.mjs";
 import { assertCanAdvance } from "./compliance.mjs";
@@ -171,6 +172,9 @@ export function marketDay(s, {calendarManaged=false, compliance=true}={}) {
           `${p.name} accepted the ${teamName(s, winning.team)} offer; $${(winning.contract.base[0] / MILLION).toFixed(1)}M annual base.`,
           // Other clubs' signings go to League snapshot → Transactions, not your inbox.
           winning.team === s.team ? "club" : "league-move",
+          winning.team === s.team
+            ? { kind: "transaction", type: "signing", incoming: [playerSnap(p)], terms: [{ label: "Annual base", value: `${(winning.contract.base[0] / MILLION).toFixed(1)}M` }, { label: "Years", value: String(winning.contract.years ?? winning.contract.base.length) }, ...(winning.contract.bonus ? [{ label: "Signing bonus", value: `${(winning.contract.bonus / MILLION).toFixed(1)}M` }] : [])] }
+            : null,
         );
       }
       // Tell the user why their own bid did not land.
@@ -244,6 +248,8 @@ export function meeting(s, id, tone) {
     s,
     "Player meeting",
     `${p.name}: ${tone}. Morale ${delta > 0 ? "+" : ""}${delta}.`,
+    "club",
+    { kind: "effects", lead: `You met ${p.name} one-on-one: ${String(tone).toLowerCase()}.`, groups: [{ name: p.name, playerId: p.id, rows: [{ label: "Morale", delta }, { label: "Team morale", delta: Math.round(delta / 3) }] }] },
   );
 }
 export function stadiumProject(s, area, funding) {

@@ -5,7 +5,7 @@
 // franchise.reports so the classic scouting screen and the pipeline board stay in sync.
 import { random, clamp } from "../engine/random.mjs";
 import { identitySeed } from "./newgens.mjs";
-import { log, MILLION, requireRole } from "./state.mjs";
+import { log, MILLION, requireRole, playerSnap } from "./state.mjs";
 import { draftOne, beginDraft, ensureDraftRoom } from "./personnel.mjs";
 import { slotValue } from "./market.mjs";
 import { scoutRange } from "./scouting.mjs";
@@ -73,7 +73,8 @@ const profile = (p) => {
 // Consensus big board: the public ranking the media and CPU clubs lean on.
 export function consensusBoard(s) {
   return (s.prospects || [])
-    .map((p) => ({ p, score: profile(p).consensusScore }))
+    // Combine testing (ceremonies.mjs) moves public stock: risers climb, fallers slide.
+    .map((p) => ({ p, score: profile(p).consensusScore + (Number(p.combine?.stock) || 0) }))
     .sort((a, b) => b.score - a.score)
     .map((x, i) => ({ ...x, rank: i + 1 }));
 }
@@ -91,7 +92,8 @@ export function scoutedView(s, p) {
     region: pr.region,
     storyline: pr.story.text,
     archetype: p.archetype ?? null,
-    combine: reveal(40, pr.combine),
+    // Real combine results are public once the combine has run; before it, scouts project them.
+    combine: p.combine?.drills ? { forty: p.combine.drills.forty ?? null, bench: p.combine.drills.bench ?? null, vertical: p.combine.drills.vertical ?? null, cone: p.combine.drills.cone ?? null, official: true, status: p.combine.status } : reveal(40, pr.combine),
     film: reveal(55, pr.film),
     medical: reveal(70, pr.medical ?? "No red flags"),
     personality: reveal(70, pr.personality),
@@ -272,7 +274,7 @@ export function makeUserPick(s, prospectId) {
   recordSelection(s, pick, p, d.cursor + 1);
   draftOne(s, pick, p);
   d.cursor++;
-  log(s, "Draft selection", `${p.name} (${p.pos}, ${p.college ?? "college"}) joins the franchise.`);
+  log(s, "Draft selection", `${p.name} (${p.pos}, ${p.college ?? "college"}) joins the franchise.`, "club", { kind: "transaction", type: "draft", incoming: [{ ...playerSnap(p), college: p.college || "" }], terms: [{ label: "Pick", value: `#${d.cursor}` }, ...(pick.round ? [{ label: "Round", value: String(pick.round) }] : [])] });
   return p;
 }
 

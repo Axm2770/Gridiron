@@ -358,7 +358,8 @@ assert(html.includes("touch-play-grid"));
 Touch.tab("Team lineup");
 const board = matchScreen();
 assert(board.includes("Select " + replacement.name));
-assert(board.includes("Available replacements"));
+assert(board.includes('data-lu-board="match"'), "the matchday tab is the shared lineup board");
+assert(board.includes("Depth order"));
 assert(!board.includes("NaN"));
 const points = lineupCoordinates(lineupActors(s, "Offense"), "Offense", m);
 assert(

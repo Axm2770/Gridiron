@@ -169,8 +169,14 @@ export function openCase(s, p) {
   m.cases[p.id] = c;
   p.injury = trueWeeks;
   p.medical = { ...(p.medical || {}), bodyPart: def.part, diagnosis: def.label, weeks: trueWeeks, caseId: c.id };
-  log(s, "Medical report", `${p.name}: ${def.label}. Estimated ${c.estimate[0]}–${c.estimate[1]} weeks. A treatment decision is needed.`);
+  log(s, "Medical report", `${p.name}: ${def.label}. Estimated ${c.estimate[0]}–${c.estimate[1]} weeks. A treatment decision is needed.`, "club", injuryCard(s, p, { weeks: trueWeeks, estimate: c.estimate, lead: "A treatment decision is needed in the Medical centre." }));
   return c;
+}
+
+// Inbox injury card data (ui/message-cards.mjs) for a medical log entry.
+function injuryCard(s, p, extra = {}) {
+  const md = p.medical || {};
+  return { kind: "injury", playerId: p.id, name: p.name, pos: p.realPosition || p.pos, diagnosis: md.diagnosis || "", bodyPart: md.bodyPart || "", treatment: md.treatment || "", week: s.week, status: "out", total: extra.weeks, ...extra };
 }
 
 /* -------------------------------------------------------------------- treatment */
@@ -219,7 +225,7 @@ export function chooseTreatment(s, playerId, option, { delegated = false } = {})
   let weeks = outlook.weeksOut;
   if (t.success && rng() > t.success * (0.8 + department(s).doctor.surgery / 500)) {
     weeks = Math.round(weeks * 1.4);
-    log(s, "Surgical complication", `${p.name}'s recovery will take longer than planned (${weeks} weeks).`);
+    log(s, "Surgical complication", `${p.name}'s recovery will take longer than planned (${weeks} weeks).`, "club", injuryCard(s, p, { weeks, status: "setback", lead: "The recovery will take longer than planned." }));
   }
   p.injury = t.playsNow ? 0 : weeks;
   if (option === "ir") p.irReturnWeek = s.week + Math.max(4, weeks);
@@ -237,7 +243,7 @@ export function chooseTreatment(s, playerId, option, { delegated = false } = {})
   // Forcing a reluctant player to play hurt is remembered at the negotiating table.
   if (t.wants === "play" && c.preference === "patient") p.medicalGrievances = (p.medicalGrievances || 0) + 1;
   m.decisionsMade++;
-  log(s, delegated ? "Medical staff decision" : "Treatment decided", `${p.name}: ${t.label}${t.playsNow ? " — available this week" : `, out ${weeks} weeks`}.`);
+  log(s, delegated ? "Medical staff decision" : "Treatment decided", `${p.name}: ${t.label}${t.playsNow ? " — available this week" : `, out ${weeks} weeks`}.`, "club", injuryCard(s, p, { weeks: t.playsNow ? 0 : weeks, treatment: t.label, lead: t.playsNow ? "He plays through it this week." : "" }));
   return c;
 }
 
@@ -296,7 +302,7 @@ export function processMedicalWeek(s, roundKey) {
         applyLongTerm(p, c.outlook?.longTerm, s.year);
         m.history.unshift({ ...c });
         m.history = m.history.slice(0, 60);
-        log(s, "Cleared to return", `${p.name} is back from a ${c.label.toLowerCase()}.`);
+        log(s, "Cleared to return", `${p.name} is back from ${/^[aeiou]/i.test(c.label) ? "an" : "a"} ${c.label.toLowerCase()}.`, "club", injuryCard(s, p, { weeks: 0, status: "cleared", diagnosis: c.label, total: c.weeksOut || c.trueWeeks }));
         events.push({ kind: "cleared", playerId: p.id });
       }
     } else if (c.status === "playing-through" && p.injury > 0) {
@@ -316,7 +322,7 @@ export function processMedicalWeek(s, roundKey) {
         c.weeksOut = weeks;
         c.outlook = { ...treatmentOutlook(s, c, "rehab"), longTerm: { base: -1 } };
         applyMood(s, { playerId: p.id, delta: -4, trust: -6, reason: "Aggravated an injury he played through", sourceId: `${c.id}:agg`, spillover: false });
-        log(s, "Injury aggravated", `${p.name} aggravated the ${c.label.toLowerCase()} and is now out ${weeks} weeks.`);
+        log(s, "Injury aggravated", `${p.name} aggravated the ${c.label.toLowerCase()} and is now out ${weeks} weeks.`, "club", injuryCard(s, p, { weeks, status: "setback", diagnosis: c.label, lead: "He aggravated the injury while playing through it." }));
         events.push({ kind: "aggravated", playerId: p.id });
       } else if (c.weeksPlayed >= c.trueWeeks) {
         c.status = "cleared";

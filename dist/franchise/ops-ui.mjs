@@ -23,6 +23,7 @@ const e = K.escapeHTML;
 const money = (cents) => `${cents < 0 ? "-" : ""}$${(Math.abs(cents) / S.MILLION).toFixed(Math.abs(cents) >= S.MILLION * 10 ? 1 : 2)}M`;
 const attrName = (k) => k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
 const pct = (x) => `${Math.round(x * 100)}%`;
+let pendingTrade = null; // an accepted trade waiting for the coach's confirmation
 const ui = { training: "plan", market: "builder", draft: "scouting", partner: null, give: [], get: [], classPos: "All", response: null, digest: null, mk: marketFilters() };
 // Market picker filters: one set per trade side and one for the free-agent board.
 function marketFilters() {
@@ -306,9 +307,9 @@ function freeAgentTable() {
         bids = state.franchise.market.offers.filter((o) => o.playerId === p.id),
         own = mine.find((o) => o.playerId === p.id),
         block = offerBlockers(state, p.id)[0],
-        why = sf.reasons[0],
+        top = sf.factors.filter((x) => x.reason && Math.abs(x.value) >= 0.02).sort((x, y) => Math.abs(y.value) - Math.abs(x.value))[0],
         potLabel = v.exact ? String(r.pot) : v.pot[0] === v.pot[1] ? String(v.pot[0]) : `${v.pot[0]}–${v.pot[1]}`;
-      return `<tr><td><span class="mk-fa-id">${pixelFace(p, { size: 34 })}<span><button type="button" class="link mk-name" onclick="W.player('${p.id}',-1)" title="Open ${e(p.name)}'s profile"><span>${e(p.name)}</span></button><small><span class="mk-pos">${e(p.pos)}</span>${e(p.archetype || (p.starter ? "Starter-calibre" : "Free agent"))}</small></span></span></td><td class="numeric">${v.exact ? `<span class="mk-ovr">${p.ovr}</span>` : `<span class="mk-ovr mk-fog" title="Scouted ${e(v.label)} OVR (${v.confidence}% confidence)">${r.ovr}<i>?</i></span>`}</td><td class="numeric"><span class="mk-pot" title="Potential">${e(potLabel)}</span></td><td class="numeric">${p.age}</td><td class="numeric"><b class="mk-ask">${money(Math.round(p.salary * S.MILLION))}</b><small>/yr</small></td><td class="mk-pull" title="${e(sf.reasons.map((x) => x.text).join(" ") || "No strong pull either way")}"><span class="mk-pull-top">${K.chip(`×${sf.total}`, sf.total >= 1.05 ? "good" : sf.total <= 0.95 ? "bad" : "")}<small>${bids.length} bid${bids.length === 1 ? "" : "s"}</small></span>${why ? `<small class="mk-why mk-${why.tone || "neutral"}">${e(why.text)}</small>` : `<small class="mk-why">No strong pull either way</small>`}</td><td class="mk-fa-act">${own ? `<span class="mk-own" title="Decided on market day ${own.close}">${tag(`Offer in · day ${own.close}`, "good")}</span>` : ""}<span class="ops-actions"><button type="button" class="link mk-info" title="Scouting report: ${e(p.name)}" aria-label="Scouting report: ${e(p.name)}" onclick="Scout.open('${p.id}')">i</button><button class="gd-btn secondary small" onclick="W.player('${p.id}',-1)">Profile</button><button class="gd-btn gd-primary small" ${block ? "disabled" : ""} title="${e(block ? blockerText(block) : "Open contract talks")}" onclick="Neg.open('${p.id}')">Offer</button></span></td></tr>`;
+      return `<tr><td><span class="mk-fa-id">${pixelFace(p, { size: 34 })}<span><button type="button" class="link mk-name" onclick="W.player('${p.id}',-1)" title="Open ${e(p.name)}'s profile"><span>${e(p.name)}</span></button><small><span class="mk-pos">${e(p.pos)}</span>${e(p.archetype || (p.starter ? "Starter-calibre" : "Free agent"))}</small></span></span></td><td class="numeric">${v.exact ? `<span class="mk-ovr">${p.ovr}</span>` : `<span class="mk-ovr mk-fog" title="Scouted ${e(v.label)} OVR (${v.confidence}% confidence)">${r.ovr}<i>?</i></span>`}</td><td class="numeric"><span class="mk-pot" title="Potential">${e(potLabel)}</span></td><td class="numeric">${p.age}</td><td class="numeric"><b class="mk-ask">${money(Math.round(p.salary * S.MILLION))}</b><small>/yr</small></td><td class="mk-pull" title="${e(sf.reasons.map((x) => x.text).join(" ") || "No strong pull either way")}"><span class="mk-pull-top">${K.chip(`×${Number(sf.total).toFixed(2)}`, sf.total >= 1.05 ? "good" : sf.total <= 0.95 ? "bad" : "")}<small>${bids.length} bid${bids.length === 1 ? "" : "s"}</small></span>${top ? `<small class="mk-why mk-${top.value > 0 ? "good" : "bad"}"><i aria-hidden="true">${top.value > 0 ? "▲" : "▼"}</i> ${e(top.key)} · ${e(top.detail)}</small>` : `<small class="mk-why">No strong pull either way</small>`}</td><td class="mk-fa-act">${own ? `<span class="mk-own" title="Decided on market day ${own.close}">${tag(`Offer in · day ${own.close}`, "good")}</span>` : ""}<span class="ops-actions"><button type="button" class="link mk-info" title="Scouting report: ${e(p.name)}" aria-label="Scouting report: ${e(p.name)}" onclick="Scout.open('${p.id}')">i</button><button class="gd-btn secondary small" onclick="W.player('${p.id}',-1)">Profile</button><button class="gd-btn gd-primary small" ${block ? "disabled" : ""} title="${e(block ? blockerText(block) : "Open contract talks")}" onclick="Neg.open('${p.id}')">Offer</button></span></td></tr>`;
     })
     .join("");
   return `${general.length ? `<div class="mk-callout">${blockList(general, "Contract offers are blocked right now")}</div>` : ""}${filters}<table class="ops-table mk-fa-table" data-no-sort="1"><colgroup><col class="c-player"><col class="c-n"><col class="c-n"><col class="c-age"><col class="c-ask"><col class="c-pull"><col class="c-act"></colgroup><thead><tr>${th("player", "Player")}${th("ovr", "OVR")}${th("pot", "POT")}${th("age", "Age")}${th("ask", "Asking")}${th("pull", "Pull / bids", "How much your club appeals to him beyond money: role, contention, coach, scheme, his personality")}<th class="numeric">Action</th></tr></thead><tbody>${body || `<tr><td colspan="7" class="mk-none">${agents.length ? "No free agents match these filters." : "No free agents available right now."}</td></tr>`}</tbody></table>${pager(pg, (n) => `Ops.mk('fa','page',${n})`)}`;
@@ -368,7 +369,7 @@ function draftClass() {
   const board = consensusBoard(state)
     .filter((x) => ui.classPos === "All" || x.p.pos === ui.classPos)
     .slice(0, 24);
-  return `<div class="gd-bento">${K.card({ title: "Prospects (consensus order) — fog of war by scouting confidence", span: 12, accent: true, body: `<div class="ops-class">${board.map(({ p, rank }) => { const v = scoutedView(state, p); return `<article class="ops-prospect"><header>${pixelFace(p, { size: 34 })}<span><b>#${rank} <button class="gd-link" onclick="Scout.open('${p.id}')">${e(p.name)}</button></b><small>${e(p.pos)} · ${e(p.college ?? "")} · ${e(v.region)} · ${e(p.archetype ?? "")}</small></span><span class="gd-ovr">${v.range[0]}–${v.range[1]}</span></header><small>${e(v.storyline)}</small><div class="ops-reveal">${v.combine ? `<span>40 ${v.combine.forty}s · bench ${v.combine.bench} · vert ${v.combine.vertical}"</span>` : "<span class='ops-fog'>Combine: needs 40% confidence</span>"}${v.film != null ? `<span>Film ${v.film}</span>` : "<span class='ops-fog'>Film: 55%</span>"}${v.medical ? `<span class="${v.medical === "No red flags" ? "" : "gd-down"}">${e(v.medical)}</span>` : "<span class='ops-fog'>Medical: 70%</span>"}${v.personality ? `<span>Work ethic ${v.personality.workEthic}${v.personality.character ? ` · <b class="gd-down">${e(v.personality.character)}</b>` : ""}</span>` : ""}${v.sleeperOdds != null ? `<span class="gd-up">Sleeper ${v.sleeperOdds}%</span><span class="gd-down">Bust ${v.bustOdds}%</span>` : ""}</div>${K.meter("Confidence", v.confidence)}</article>`; }).join("")}</div>` })}</div>`;
+  return `<div class="gd-bento">${K.card({ title: "Prospects (consensus order) — fog of war by scouting confidence", span: 12, accent: true, body: `<div class="ops-class">${board.map(({ p, rank }) => { const v = scoutedView(state, p); return `<article class="ops-prospect"><header>${pixelFace(p, { size: 34 })}<span><b>#${rank} <button class="gd-link" onclick="Scout.open('${p.id}')">${e(p.name)}</button></b><small>${e(p.pos)} · ${e(p.college ?? "")} · ${e(v.region)} · ${e(p.archetype ?? "")}</small></span><span class="gd-ovr">${v.range[0]}–${v.range[1]}</span></header><small>${e(v.storyline)}</small><div class="ops-reveal">${v.combine ? `<span>40 ${v.combine.forty ?? "DNP"}${v.combine.forty != null ? "s" : ""} · bench ${v.combine.bench ?? "DNP"} · vert ${v.combine.vertical ?? "DNP"}"</span>` : "<span class='ops-fog'>Combine: needs 40% confidence</span>"}${v.film != null ? `<span>Film ${v.film}</span>` : "<span class='ops-fog'>Film: 55%</span>"}${v.medical ? `<span class="${v.medical === "No red flags" ? "" : "gd-down"}">${e(v.medical)}</span>` : "<span class='ops-fog'>Medical: 70%</span>"}${v.personality ? `<span>Work ethic ${v.personality.workEthic}${v.personality.character ? ` · <b class="gd-down">${e(v.personality.character)}</b>` : ""}</span>` : ""}${v.sleeperOdds != null ? `<span class="gd-up">Sleeper ${v.sleeperOdds}%</span><span class="gd-down">Bust ${v.bustOdds}%</span>` : ""}</div>${K.meter("Confidence", v.confidence)}</article>`; }).join("")}</div>` })}</div>`;
 }
 
 function draftDay() {
@@ -527,6 +528,24 @@ export function installOps({ isBusy }) {
         render();
         return;
       }
+      // Accepted: review before anything moves. Trades can't be undone.
+      pendingTrade = proposal;
+      const name = (id) => {
+          if (String(id).startsWith("pk-")) {
+            const pk = [...ownedPicks(state, state.team), ...ownedPicks(state, proposal.partner)].find((x) => x.id === id);
+            return `<b>${esc(pk ? pickLabel(state, pk) : "Draft pick")}</b> <small>Draft pick</small>`;
+          }
+          const p = state.roster.find((x) => x.id === id) || S.roster(state, proposal.partner).find((x) => x.id === id);
+          return p ? `<b>${esc(p.name)}</b> <small>${esc(p.pos)} · ${p.ovr} OVR</small>` : esc(String(id));
+        },
+        list = (ids) => (ids.length ? ids.map((id) => `<li>${name(id)}</li>`).join("") : "<li>Nothing</li>");
+      modal(`<h2>Confirm trade with the ${esc(club(proposal.partner))}</h2><p>The ${esc(club(proposal.partner))} accepted. Trades are final once confirmed.</p><div class="mk-confirm"><section><h3>You send</h3><ul>${list(proposal.give)}</ul></section><section><h3>You receive</h3><ul>${list(proposal.get)}</ul></section></div><div class="modal-actions"><button type="button" class="secondary" onclick="closeModal()">Cancel</button><button type="button" onclick="Ops.confirmTrade()">Confirm trade</button></div>`);
+    },
+    confirmTrade() {
+      const proposal = pendingTrade;
+      pendingTrade = null;
+      closeModal();
+      if (!proposal || isBusy()) return;
       mutate((s) => executeTrade(s, proposal), (r) => {
         ui.give = [];
         ui.get = [];

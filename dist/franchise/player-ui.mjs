@@ -14,6 +14,7 @@ import { blockCount, contractTimeline, deadIfReleased } from "./cap-sheet.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
 import { stepChart } from "../ui/pixel-chart.mjs";
 import { teamColors } from "../presentation/pixel-art.mjs";
+import * as SV from "../ui/status-visual.mjs";
 const fmt = (n, d = 0) =>
   Number.isFinite(n)
     ? Number(n).toLocaleString("en-US", { maximumFractionDigits: d })
@@ -303,7 +304,7 @@ export function installPlayerUI({ isBusy }) {
             `<div class="gp-season ${r.kind}"><span>${r.year}<small>${r.kind === "now" ? "This season" : r.kind === "void" ? "Void year" : r.kind === "past" ? "Paid" : "Future"}</small></span>${gpBlocks(r.cells, 14, 14, r.kind === "now" ? "" : r.kind === "void" ? "warn" : r.kind === "past" ? "muted" : "future")}<b>${money(r.hit)}</b></div>`,
         )
         .join("");
-    return `<div class="gp-tiles">${tile(`Cap hit · ${year}`, money(hit), `Signed ${c.start} · ${esc(clubs[c.team]?.[2] || e.teamLabel)}`, "accent")}${tile("Years left", left, `Through ${end}${c.voidYears ? ` + ${c.voidYears} void` : ""}`, left <= 1 ? "warn" : "")}${tile("Guaranteed", money(guaranteed), `Signing bonus ${money(c.bonus || 0)}`)}${tile("Dead money if cut", money(dead), dead > 0 ? `Saves ${money(Math.max(0, hit - dead))} this season` : "Free to release", dead > 0 ? "bad" : "good")}</div><div class="gp-grid gp-grid-wide">${panel("Season by season", `<div class="gp-seasons">${rows}</div>`, `${c.noTrade ? chip("No-trade clause", "warn") : chip("Tradeable", "")}`)}${history}</div>`;
+    return `<div class="gp-tiles">${tile(`Cap hit · ${year}`, money(hit), `Signed ${c.start} · ${esc(clubs[c.team]?.[2] || e.teamLabel)}`, "accent")}${tile("Years left", left, `${SV.pips(left, c.years, { tone: left <= 1 ? "warn" : "accent", mark: false, label: `${left} of ${c.years} contract years left` })} Through ${end}${c.voidYears ? ` + ${c.voidYears} void` : ""}`, left <= 1 ? "warn" : "")}${tile("Guaranteed", money(guaranteed), `Signing bonus ${money(c.bonus || 0)}`)}${tile("Dead money if cut", money(dead), dead > 0 ? `Saves ${money(Math.max(0, hit - dead))} this season` : "Free to release", dead > 0 ? "bad" : "good")}</div><div class="gp-grid gp-grid-wide">${panel("Season by season", `<div class="gp-seasons">${rows}</div>`, `${c.noTrade ? chip("No-trade clause", "warn") : chip("Tradeable", "")}`)}${history}</div>`;
   }
 
   // ---- Scouting: every attribute as a block bar; hatched blocks are the range scouts can't rule out.
@@ -328,7 +329,8 @@ export function installPlayerUI({ isBusy }) {
       foot = known
         ? ""
         : `<div class="gp-scout-foot"><span>${gpBlocks(conf, 100, 10, "warn")} Hatched blocks are the range your scouts can't yet rule out. A full report narrows it.</span>${window.Scout?.open ? `<button class="secondary small" onclick="Scout.open('${p.id}')">Open scouting report</button>` : ""}</div>`;
-    return panel(known ? "Attributes" : "Scouted attributes", grid + foot, head);
+    // Combine results (ceremonies-ui.mjs) sit under the attributes for anyone who tested.
+    return panel(known ? "Attributes" : "Scouted attributes", grid + foot, head) + (p.combine && window.GDCombineCard ? window.GDCombineCard(p) : "");
   }
 
   function profileHTML(e) {

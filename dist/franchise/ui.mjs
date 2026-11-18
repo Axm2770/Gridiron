@@ -4,6 +4,7 @@ import {ensureCalendar} from './calendar-core.mjs';
 import { recordDecision, capturePreseason } from "./career-systems.mjs";
 import { configureCareerHistory } from "./records.mjs";
 import { installExpansionUI } from "./expansion-ui.mjs";
+import { installCeremoniesUI } from "./ceremonies-ui.mjs";
 import { migrateImmersion } from "./immersion.mjs";
 import { installStaffUI } from "./staff-ui.mjs";
 import { ensureStaff } from "./staff.mjs";
@@ -1074,6 +1075,8 @@ async function settleRound({ live = null } = {}) {
       state,
       won ? "A win for the franchise" : "A difficult result",
       `${clubs[state.team][2]} ${ours.score[k]}–${ours.score[1 - k]}.`,
+      "club",
+      { kind: "score", team: state.team, opp: k ? ours.a : ours.b, us: ours.score[k], them: ours.score[1 - k], home: k === 0, label: `Week ${state.week + 1}` },
     );
   }
   state.live = null;
@@ -1455,6 +1458,7 @@ import("./presentation.mjs")
     installScoutCard({ isBusy: () => busy });
     installStaffUI({ views, isBusy: () => busy });
     installExpansionUI({ views, isBusy: () => busy, heritage });
+    installCeremoniesUI({ views });
     installCalendarUI({views,initialize,isBusy:()=>busy,setBusy:value=>busy=value,settleRound});
     installFrontOfficeUI({ views, isBusy: () => busy });
     await installCareerManager({ views, isBusy: () => busy, initialize });
@@ -1477,6 +1481,12 @@ import("./presentation.mjs")
       installBroadcastHUD();
       installCinematics({ isBusy: () => busy });
       installThemeMotion({ getSection: () => section });
+      try {
+        const { installPostgameReport } = await import("../ui/postgame-report.mjs");
+        installPostgameReport(window);
+      } catch (error) {
+        console.error("Postgame report:", error);
+      }
       try {
         const { installTutorials } = await import("../ui/tutorial.mjs");
         installTutorials({ getSection: () => section, isBusy: () => busy });

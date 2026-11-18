@@ -322,6 +322,13 @@ body.gd-pixel aside.nav-tight .brand { display: none; }
 #app .ops-scout header .gd-pos { display: grid; place-items: center; width: 32px; height: 28px; flex-shrink: 0; background: var(--gd-surface-strong); border: 2px solid var(--gd-border-strong); font: 700 12px var(--gd-display); color: var(--gd-text); }
 #app .ops-scout header b { display: block; font-size: 14px; color: var(--gd-text); }
 #app .ops-scout header small { font-size: 12px; color: var(--gd-text-3); }
+/* Draft room → Watchlist pipeline: spaced toolbar, short lanes with dashed empty slots, a visible range bar. */
+#app .gd-toolbar + .gd-kanban { margin-top: 10px; }
+#app .gd-lane { min-height: 150px; }
+#app .gd-lane .gd-empty { margin: 0; padding: 16px 10px; border: 2px dashed var(--gd-border); color: var(--gd-text-3); font-size: 12px; text-align: center; }
+#app .gd-pool .gd-node { display: flex; flex-direction: column; align-items: stretch; gap: 6px; text-align: left; }
+#app .gd-range { height: 8px; border-radius: 0; background: var(--gd-bg-2); border: 1px solid var(--gd-border); }
+#app .gd-range i { border-radius: 0; background: var(--gd-accent); }
 #app .ops-scout label { display: grid; gap: 4px; font-size: 12px; color: var(--gd-text-2); }
 #app .fd-coaching { margin-top: 22px; }
 #app .fd-coaching > .gd-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }

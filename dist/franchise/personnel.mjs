@@ -12,8 +12,10 @@ import {
   capLedger,
   basicContract,
   financeYear,
+  playerSnap,
 } from "./state.mjs";
 import { cut } from "./contracts.mjs";
+import { holdCombine } from "./ceremonies.mjs";
 import { random, clamp } from "../engine/random.mjs";
 export function movePlayer(s, id, destination) {
   requireRole(s, "roster");
@@ -134,6 +136,8 @@ export function beginDraft(s) {
     throw Error("The draft opens after the championship.");
   let f = s.franchise;
   if (f.draft?.year === s.year) return;
+  // The combine always comes before the draft, even when the calendar never reached its date.
+  holdCombine(s, { reason: "draft" });
   while (s.prospects.length < 260) {
     let i = s.prospects.length;
     s.prospects.push(
@@ -283,7 +287,7 @@ export function draftPick(s, id) {
   draftOne(s, d.picks[d.cursor], p);
   d.cursor++;
   advanceCpuDraft(s);
-  log(s, "Draft selection", `${p.name} joins the franchise.`);
+  log(s, "Draft selection", `${p.name} joins the franchise.`, "club", { kind: "transaction", type: "draft", incoming: [{ ...playerSnap(p), college: p.college || "" }], terms: [{ label: "Pick", value: `#${d.cursor}` }] });
 }
 export function tradeDown(s) {
   requireRole(s, "scout");

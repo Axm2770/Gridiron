@@ -10,6 +10,7 @@ import { TEAM_COLORS } from "../presentation/team-colors.mjs";
 import { STAGES, SCOUT_COSTS, ensurePipeline, pipelineView, addToWatchlist, removeFromPipeline, moveStage, rankOnBoard, syncPipeline, talentRange, positionalNeed } from "./recruiting-pipeline.mjs";
 import { scout, draftPick } from "./personnel.mjs";
 import * as K from "../ui/kit.mjs";
+import * as SV from "../ui/status-visual.mjs";
 import { medicalView, trainingView, installOps } from "./ops-ui.mjs";
 import { REGIONS, ensureScouting, scoutCandidates } from "./draft-room.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
@@ -230,7 +231,7 @@ function roadCard(span = 8) {
     span,
     cls: "fd-roadp",
     action: K.link("Schedule", "W.open('Calendar')"),
-    body: `<div class="fd-road" style="--weeks:${Math.max(1, all.length)}">${all.map(tile).join("")}</div><div class="fd-road-foot"><span><small>Form</small>${formStrip(form)}</span><span><small>Last result</small><b>${last ? `${last.result} ${last.for}–${last.against} ${last.home ? "vs" : "at"} ${h(abbr(last.opponent))}` : "Season opener ahead"}</b></span><span><small>Next</small><b>${next ? `W${next.week} ${next.home ? "vs" : "at"} ${h(nameOf(next.opponent))}` : "Regular season complete"}</b></span></div>`,
+    body: `<div class="fd-road" style="--weeks:${Math.max(1, all.length)};--cols:${all.length > 10 ? Math.ceil(all.length / 2) : Math.max(1, all.length)}">${all.map(tile).join("")}</div><div class="fd-road-foot"><span><small>Form</small>${formStrip(form)}</span><span><small>Last result</small><b>${last ? `${last.result} ${last.for}–${last.against} ${last.home ? "vs" : "at"} ${h(abbr(last.opponent))}` : "Season opener ahead"}</b></span><span><small>Next</small><b>${next ? `W${next.week} ${next.home ? "vs" : "at"} ${h(nameOf(next.opponent))}` : "Regular season complete"}</b></span></div>`,
   });
 }
 
@@ -353,7 +354,14 @@ function scoutNetwork() {
     e = K.escapeHTML,
     money = (c) => `$${(c / S.MILLION).toFixed(2)}M`;
   const scouts = n.scouts.map((sc) => `<article class="ops-scout"><header><span class="gd-pos">SC</span><span><b>${e(sc.name)}</b><small>Skill ${sc.skill}</small></span></header><label>Region<select onchange="Ops.assign('${sc.id}',this.value,null)">${REGIONS.map((r) => `<option ${r === sc.region ? "selected" : ""}>${r}</option>`).join("")}</select></label><label>Focus<select onchange="Ops.assign('${sc.id}',null,this.value)">${["All", "QB", "Skill", "Line", "Front 7", "Secondary", "Specialist"].map((f) => `<option ${f === sc.focus ? "selected" : ""}>${f}</option>`).join("")}</select></label></article>`).join("");
-  return `<div class="gd-bento">${K.card({ title: `Your scouts (${n.scouts.length}/5)`, span: 8, accent: true, body: `<div class="ops-scouts">${scouts}</div>` })}${K.card({ title: "Available scouts", span: 4, body: `<div class="gd-rows">${scoutCandidates(state).map((c) => K.row({ lead: "SC", title: c.name, sub: `${c.region} · ${c.focus} · skill ${c.skill}`, trail: `<button class="gd-btn" onclick="Ops.scout('${c.id}')">${money(c.salary)}</button>` })).join("") || K.empty("No candidates.")}</div>` })}${K.card({ title: "Latest reports", span: 12, body: n.log.length ? `<div class="gd-rows">${n.log.slice(0, 10).map((r) => K.row({ lead: "↑", title: `${r.scout} on ${r.prospect}`, sub: `Confidence ${r.from}% → ${r.to}%` })).join("")}</div>` : K.empty("Reports arrive after the next game week.") })}</div>`;
+  return `<div class="gd-bento">${K.card({ title: `Your scouts (${n.scouts.length}/5)`, span: 8, accent: true, body: `<div class="ops-scouts">${scouts}</div>` })}${K.card({ title: "Available scouts", span: 4, body: `<div class="gd-rows">${scoutCandidates(state).map((c) => K.row({ lead: "SC", title: c.name, sub: `${c.region} · ${c.focus} · skill ${c.skill}`, trail: `<button class="gd-btn" onclick="Ops.scout('${c.id}')">${money(c.salary)}</button>` })).join("") || K.empty("No candidates.")}</div>` })}${K.card({ title: "Latest reports", span: 12, body: n.log.length ? `<div class="fd-reports">${n.log.slice(0, 10).map(reportRow).join("")}</div>` : K.empty("Reports arrive after the next game week.") })}</div>`;
+}
+// One scouting report: prospect and scout, a confidence meter with the old level ticked, and the gain.
+function reportRow(r) {
+  const from = Math.round(Number(r.from) || 0),
+    to = Math.round(Number(r.to) || 0),
+    gain = to - from;
+  return `<div class="fd-report"><span class="fd-report-who"><b>${K.escapeHTML(r.prospect)}</b><small>${K.escapeHTML(r.scout)}</small></span>${SV.meter(to, 100, { cells: 10, target: from, tone: to >= 70 ? "good" : "accent", label: `Confidence ${from}% to ${to}%` })}<span class="fd-report-n"><b>${to}%</b>${SV.chip(`${gain >= 0 ? "+" : ""}${gain}`, gain > 0 ? "good" : "neutral")}</span></div>`;
 }
 
 /* --------------------------------------------------------------- pipeline */
@@ -445,7 +453,7 @@ export function installDashboard({ views, isBusy }) {
   // Draft room gains two sub-tabs for content that only the old Hub "Draft" tab had.
   const draftRoom = views.Draft;
   views.Draft = () =>
-    `<div class="gd-toolbar fd-draft-tabs">${K.tabs([["room", "Draft room"], ["scouts", "Scout network"], ["pipeline", "Watchlist pipeline"]], draftTab, "Hub2.draftTab('$id')", { label: "Draft room sections" })}</div>${draftTab === "scouts" ? scoutNetwork() : draftTab === "pipeline" ? pipelineTab() : draftRoom()}`;
+    `<div class="gd-toolbar fd-draft-tabs">${K.tabs([["room", "Draft room"], ["scouts", "Scout network"], ["pipeline", "Watchlist pipeline"], ["combine", "Combine"]], draftTab, "Hub2.draftTab('$id')", { label: "Draft room sections" })}</div>${draftTab === "combine" && window.CombineUI ? window.CombineUI.view() : draftTab === "scouts" ? scoutNetwork() : draftTab === "pipeline" ? pipelineTab() : draftRoom()}`;
   // The coaching tree (and decision / press record) lives on Coach career.
   const careerView = views.Career;
   if (careerView) views.Career = () => careerView() + coachingSection();
@@ -475,7 +483,7 @@ export function installDashboard({ views, isBusy }) {
       if (id === "media") window.Hub?.mediaTab?.("Fan network");
     },
     draftTab(id) {
-      draftTab = ["room", "scouts", "pipeline"].includes(id) ? id : "room";
+      draftTab = ["room", "scouts", "pipeline", "combine"].includes(id) ? id : "room";
       render();
     },
     // Kept so old onclick handlers do nothing harmful.

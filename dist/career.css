@@ -628,27 +628,35 @@ dialog.career-modal.cl-modal { width: min(1240px, 96vw) !important; max-width: 1
   background: var(--gd-bg-2);
   min-width: 0;
 }
+/* Header bar: the title alone (Pixelify) with a count chip, actions grouped right at one height. */
 .cl-head {
+  --cl-btn: 38px;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--cl-gap);
+  gap: 12px 16px;
   flex-wrap: wrap;
-  padding-bottom: 20px;
-  border-bottom: 2px solid var(--gd-border);
+  margin: 0;
+  padding: 10px 12px 10px 16px;
+  background: var(--gd-surface-strong);
+  border: 2px solid var(--gd-border-strong);
+  box-shadow: var(--gd-shadow);
 }
-.cl-title { min-width: 0; }
-.cl-title h2 { margin: 6px 0 4px; font: 700 clamp(26px, 2.6vw, 34px) / 1.1 var(--gd-display); text-transform: uppercase; letter-spacing: 0.02em; }
-.cl-title p { margin: 0; color: var(--gd-text-2); font-size: 13px; line-height: 1.5; }
-.cl-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.cl-head-actions > button { white-space: nowrap; }
+.cl-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cl-mark { flex: none; width: 12px; height: 12px; background: var(--team, var(--gd-accent)); box-shadow: 3px 3px 0 var(--px-ink, rgba(0, 0, 0, 0.5)); }
+#modal .cl-title h2 { margin: 0 !important; font: 700 24px / 1.1 var(--gd-display) !important; letter-spacing: 0.02em; text-transform: uppercase; color: var(--gd-text); white-space: nowrap; }
+.cl-count { flex: none; padding: 3px 8px; font: 700 11px / 1.4 var(--gd-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--gd-text-2); background: var(--gd-bg-2); border: 2px solid var(--gd-border); }
+.cl-head-actions { display: flex; align-items: center; gap: 10px; }
+.cl-head-actions > button,
+.cl-head-actions > .cl-import,
+body.gd-pixel .cl-head-actions > button:not(.link):not(.athlete) { height: var(--cl-btn); min-height: var(--cl-btn); padding: 0 16px; font-size: 13px; line-height: 1; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; }
 .cl-import {
   position: relative;
   display: inline-flex;
   align-items: center;
-  padding: 11px 18px;
+  padding: 0 16px;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   color: var(--gd-text);
   background: var(--gd-surface-strong);
@@ -662,14 +670,15 @@ dialog.career-modal.cl-modal { width: min(1240px, 96vw) !important; max-width: 1
 body.gd-pixel .cl-import { border: 2px solid var(--px-ink); box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.35), inset 3px 3px 0 rgba(255, 255, 255, 0.12), 3px 3px 0 var(--px-ink); }
 .cl-close,
 body.gd-pixel .cl-close:not(.link):not(.athlete) {
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  font-size: 20px;
+  width: var(--cl-btn, 38px) !important;
+  height: var(--cl-btn, 38px);
+  margin-left: 4px;
+  padding: 0 !important;
+  font-size: 22px !important;
   line-height: 1;
   background: transparent !important;
   color: var(--gd-text-2) !important;
-  border: 1px solid var(--gd-border-strong) !important;
+  border: 2px solid var(--gd-border-strong) !important;
   box-shadow: none !important;
 }
 .cl-alert { margin: 0; padding: 12px 14px; border: 2px solid var(--gd-warn); color: var(--gd-text); background: rgba(255, 200, 92, 0.08); font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }

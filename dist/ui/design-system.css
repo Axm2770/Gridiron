@@ -48,6 +48,10 @@ body.gd-themed {
   border: 1px solid var(--gd-border); border-radius: var(--gd-radius); box-shadow: var(--gd-shadow); overflow: hidden;
 }
 .gd-card.gd-accent::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, var(--team), transparent); }
+/* style.css/workspace.css size the app's top bar with a bare `header { height: 70-77px }`; without this
+   every <header> inside a card, panel or dialog inherited that height (tall, mostly empty title bars).
+   Specificity (0,0,2) beats the bare rule but not any component class. */
+:where(header):not(main > header) { height: auto; }
 .gd-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px 0; }
 .gd-card-head h3 { font: 700 11px/1 var(--gd-body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--gd-text-2); margin: 0; }
 .gd-card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
@@ -127,7 +131,8 @@ button.gd-row:hover { background: rgba(255, 255, 255, 0.03); filter: none; }
 .gd-avatar.gd-a-insider { background: #2a3d63; } .gd-avatar.gd-a-hottake { background: #6a2330; } .gd-avatar.gd-a-team { background: var(--team); }
 .gd-avatar.gd-a-beat { background: #2f4a3b; } .gd-avatar.gd-a-analyst { background: #3f3466; } .gd-avatar.gd-a-rival { background: #5c4a1e; }
 .gd-post-head { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; font-size: 12px; }
-.gd-post-head b { font-weight: 700; } .gd-post-head small { color: var(--gd-text-3); }
+.gd-post-head b { font-weight: 700; }
+.gd-post-head .gd-verified { display: inline-grid; place-items: center; align-self: center; width: 13px; height: 13px; font: 900 9px/1 var(--gd-body); font-style: normal; color: var(--gd-bg); background: var(--gd-accent); } .gd-post-head small { color: var(--gd-text-3); }
 .gd-post p { margin: 3px 0 4px; font-size: 13px; line-height: 1.45; color: var(--gd-text); }
 .gd-post-meta { display: flex; gap: 12px; font-size: 11px; color: var(--gd-text-3); }
 

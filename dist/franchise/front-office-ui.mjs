@@ -8,9 +8,11 @@ import { icon } from "./presentation.mjs";
 import { notice } from "../ui/notice.mjs";
 import { activeDilemma, resolveDilemma } from "./depth-systems.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
+import { pixelIcon } from "../ui/pixel-icons.mjs";
 import * as fp from "./fo-pixel.mjs";
 import { staffBust, ensureFrontDeskStyles } from "./fo-pixel.mjs";
 import { coachAppearance } from "./coach-avatar.mjs";
+import * as SV from "../ui/status-visual.mjs";
 
 // Boardroom, Organization hub (Club), Tactics (the legacy "Game plan" view) and Locker room.
 const arg = (v) => esc(JSON.stringify(v));
@@ -52,6 +54,7 @@ export function installFrontOfficeUI({ views, isBusy }) {
   /* ------------------------------------------------------------ boardroom */
   function boardView() {
     ensureFrontDeskStyles();
+    SV.ensureStatusStyles();
     const o = B.boardOverview(state),
       b = o.budget,
       busy = isBusy() || !!state.live,
@@ -62,8 +65,14 @@ export function installFrontOfficeUI({ views, isBusy }) {
     const security = `<div class="fo-security fp-security ${secTone}">${fp.gauge(o.security, { label: `Job security ${o.security} of 100` })}<div class="fp-security-score"><b>${o.security}</b><small>/ 100</small></div><div class="fp-security-copy"><span class="fp-kicker">STATUS</span><h3>${esc(o.status)}</h3><ul class="fp-factors">${o.factors.map((f) => `<li class="${f.tone || ""}"><i></i><span>${esc(f.label)}</span><b>${esc(f.value)}</b></li>`).join("")}</ul></div></div>`;
     const ownerCard = `<div class="fp-owner">${staffBust({ id: "owner-" + state.team, name: o.owner.name, role: "Owner" }, { size: 56, team: state.team })}<div><b>${esc(o.owner.name)}</b>${fp.chip(o.owner.trait, "accent")}</div></div><div class="fp-row"><span>Owner patience</span><b>${Math.round(o.owner.patience)}%</b></div>${fp.blocks(o.owner.patience, 100, 20, toneFor(o.owner.patience, 60, 40) === "bad" ? "bad" : toneFor(o.owner.patience, 60, 40), "Owner patience " + Math.round(o.owner.patience) + "%")}<p class="fp-note">${ownerNote(o.owner.trait)}</p>`;
     const x = BM.expectationsReport(state),
-      mark = { done: "✓", on: "•", risk: "!", missed: "✗" };
-    const expectations = `<p class="fp-note">${esc(x.headline)}. The roster rates ${x.rating} (${x.rank} of 32, league average ${x.leagueAvg}); ownership projects ${x.projected} wins${x.targetShift ? ` and has moved the target ${x.targetShift > 0 ? "+" : ""}${x.targetShift} after a meeting` : ""}.</p><div class="fp-tiles fp-tiles-4">${fp.tile("Projected", x.projected, "Wins from roster strength")}${fp.tile("Win target", o.target, esc(o.mandate) + " mandate", { tone: "accent" })}${fp.tile("Record", `${o.record.w}–${o.record.l}`, "This season")}${fp.tile("On pace for", o.pace === null ? "—" : o.pace.toFixed(1), o.pace === null ? "After the first game" : o.pace >= o.target ? "Ahead of target" : "Behind target", { tone: o.pace === null ? "" : o.pace >= o.target ? "good" : "bad" })}</div><ul class="fo-objectives fp-objectives">${x.items.map((t) => `<li class="${t.state === "done" ? "done" : t.state === "risk" || t.state === "missed" ? "risk" : ""}"><i>${mark[t.state]}</i><span>${esc(t.label)}${t.required ? "" : ' <em class="fo-soft">secondary</em>'}</span><small>${esc(t.progress)}</small></li>`).join("")}</ul><div class="fo-bands fp-bands">${x.bands.map((b) => `<div class="fo-band ${b.key === "Exceeded" ? "good" : b.key === "Met" ? "" : "bad"} ${x.outcome === b.key ? "active" : ""}"><b>${esc(b.label)}</b><small>${esc(b.when)}</small><span>${esc(b.effect)}</span></div>`).join("")}</div>`;
+      rowTone = { done: "good", on: "good", risk: "warn", missed: "bad" },
+      paceEarly = o.pace !== null && o.record.played < B.PACE_READY_GAMES,
+      target = (t) => {
+        const pending = t.visual?.pending && t.state !== "done" && t.state !== "missed",
+          st = pending ? "pending" : t.state;
+        return `<li class="${pending ? "pending" : rowTone[t.state] || ""}" data-state="${st}"><div class="sv-target-label"><b>${esc(t.label)}</b><span class="sv-target-tags">${SV.stateChip(st)}<span class="sv-tag${t.required ? " req" : ""}">${t.required ? "Required" : "Secondary"}</span></span></div>${t.visual ? SV.targetVisual({ ...t.visual, state: t.state }) : `<small>${esc(t.progress)}</small>`}</li>`;
+      };
+    const expectations = `<p class="fp-note">${esc(x.headline)}. The roster rates ${x.rating} (${x.rank} of 32, league average ${x.leagueAvg}); ownership projects ${x.projected} wins${x.targetShift ? ` and has moved the target ${x.targetShift > 0 ? "+" : ""}${x.targetShift} after a meeting` : ""}.</p><div class="fp-tiles fp-tiles-4">${fp.tile("Projected", x.projected, "Wins from roster strength")}${fp.tile("Win target", o.target, esc(o.mandate) + " mandate", { tone: "accent" })}${fp.tile("Record", `${o.record.w}–${o.record.l}`, "This season")}${fp.tile("On pace for", o.pace === null ? "—" : o.pace.toFixed(1), o.pace === null ? "Season starts week 1" : paceEarly ? `Early read · ${o.record.played} of ${B.PACE_READY_GAMES} games` : o.pace >= o.target ? "Ahead of target" : "Behind target", { tone: o.pace === null || paceEarly ? "" : o.pace >= o.target ? "good" : "bad" })}</div><ul class="sv-targets" aria-label="Season targets">${x.items.map(target).join("")}</ul><div class="fo-bands fp-bands">${x.bands.map((b) => `<div class="fo-band ${b.key === "Exceeded" ? "good" : b.key === "Met" ? "" : "bad"} ${x.outcome === b.key ? "active" : ""}"><b>${esc(b.label)}</b><small>${esc(b.when)}</small><span>${esc(b.effect)}</span></div>`).join("")}</div>`;
     const p = x.pulse,
       plan = x.plan,
       pending = x.pending.length
@@ -82,7 +91,7 @@ export function installFrontOfficeUI({ views, isBusy }) {
     ];
     const pulse = `${pending}${planBody}<span class="fp-label">What the board is watching</span><ul class="fp-watchboard">${watch.map(([k, v, t]) => `<li class="${t}"><i></i><span>${k}</span><b>${v}</b></li>`).join("")}</ul>${x.warning ? notice({ tone: "bad", cls: "fp-notice", title: `${x.warning > 1 ? "Ultimatum" : "Final warning"} on record this season.`, detail: "The board judges the rest of the season against the targets above; missing them again puts your job at risk." }) : ""}`;
     const meetings = x.meetings.length
-      ? `<ol class="fp-timeline">${x.meetings.map((m) => `<li class="${/missed|record/i.test(m.outcome) ? "bad" : /met|exceeded|set|agreed|active/i.test(m.outcome) ? "good" : "warn"}"><time>${m.date ? esc(m.date) : m.year} · W${m.week + 1}</time><b>${esc(m.kind)}: ${esc(m.title)}</b>${fp.chip(m.outcome, /missed|record/i.test(m.outcome) ? "bad" : /met|exceeded|set|agreed|active/i.test(m.outcome) ? "good" : "warn")}<small>${esc(m.agreed ? "Agreed: " + m.agreed : m.detail || "")}${m.agreed && m.detail ? " · " + esc(m.detail) : ""}</small></li>`).join("")}</ol>`
+      ? `<ol class="fp-timeline">${x.meetings.map((m) => `<li class="${/missed|record/i.test(m.outcome) ? "bad" : /met|exceeded|set|agreed|active/i.test(m.outcome) ? "good" : "warn"}"><time>${m.date ? esc(m.date) : m.year} · W${m.week + 1}</time><b>${esc(!m.kind || String(m.title || "").toLowerCase().includes(String(m.kind).toLowerCase()) ? m.title : `${m.kind}: ${m.title}`)}</b>${fp.chip(m.outcome, /missed|record/i.test(m.outcome) ? "bad" : /met|exceeded|set|agreed|active/i.test(m.outcome) ? "good" : "warn")}<small>${esc(m.agreed ? "Agreed: " + m.agreed : m.detail || "")}${m.agreed && m.detail ? " · " + esc(m.detail) : ""}</small></li>`).join("")}</ol>`
       : '<p class="fp-note">Board and team meetings appear here with what was agreed and how it turned out.</p>';
     const mandate = `<p class="fp-note">${o.mandateLocked ? `Agreed for ${state.year}: <b>${esc(o.mandate)}</b>. ${esc(B.MANDATES[o.mandate].text)}` : `Agree one mandate per season. It sets the win target ownership judges you on (projection ${o.projected}).`}</p><div class="fp-mandates">${Object.entries(B.MANDATES).map(([k, m]) => `<button class="fp-mandate ${o.mandate === k ? "active" : ""}" aria-pressed="${o.mandate === k}" ${o.mandateLocked || busy ? "disabled" : ""} onclick="FrontOffice.mandate(${arg(k)})"><strong>${m.shift > 0 ? "+" : ""}${m.shift}</strong><span><b>${k}${o.mandate === k ? " ✓" : ""}</b><small>${esc(m.text)}</small></span></button>`).join("")}</div>`;
     const budget = `<div class="fp-row"><span>Club cash</span><b>${money(b.cash)}</b></div><div class="fp-row"><span>Staff payroll / budget</span><b>${money(b.staffPayroll)} / ${money(b.staffBudget)}</b></div>${fp.blocks(payrollShare, 100, 20, payrollShare > 100 ? "bad" : payrollShare > 90 ? "warn" : "good", "Staff payroll " + Math.round(payrollShare) + "% of budget")}<div class="fp-row"><span>Player cap used</span><b>${money(b.cap.used)} / ${money(b.cap.limit)}</b></div>${fp.blocks(capShare, 100, 20, b.cap.room < 0 ? "bad" : capShare > 95 ? "warn" : "good", "Player cap " + Math.round(capShare) + "% used")}<div class="fp-action"><button ${!o.can.budget || o.budgetCooldown || busy ? "disabled" : ""} onclick="FrontOffice.budget()">Ask for +${money(B.BUDGET_STEP)} staff budget</button><small>${!o.can.budget ? `${esc(state.franchise.role)} cannot request budget.` : o.budgetCooldown ? `Ownership will hear another request in ${o.budgetCooldown} days.` : "Approval depends on job security and cash reserves. The answer is immediate."}</small></div>`;
@@ -141,13 +150,16 @@ export function installFrontOfficeUI({ views, isBusy }) {
         body: `<p class="fp-note">Reviewed in the offseason when stadium condition or local support justifies a move. Requires $400M in cash.</p><label class="fp-field">New city<input id="relocation-city" type="text" maxlength="40"></label><label class="fp-field">New team name<input id="relocation-name" type="text" maxlength="40"></label><button class="secondary small" ${dis} onclick="F.action('relocate',document.getElementById('relocation-city').value,document.getElementById('relocation-name').value)">Apply to relocate</button>`,
       })}</div></div>`;
     } else {
-      const confidence = `<div class="fp-owner">${staffBust({ id: "owner-" + state.team, name: c.owner.name, role: "Owner" }, { size: 56, team: state.team })}<div><b>${esc(c.owner.name)}</b>${fp.chip(c.owner.trait, "accent")}</div></div><div class="fp-row"><span>Owner patience</span><b>${Math.round(c.owner.patience)}%</b></div>${fp.blocks(c.owner.patience, 100, 20, toneFor(c.owner.patience, 60, 40))}<div class="fp-row"><span>Fan approval</span><b>${Math.round(c.fanApproval)}%</b></div>${fp.blocks(c.fanApproval, 100, 20, toneFor(c.fanApproval, 60, 40))}<div class="fp-row"><span>Your job security</span><b class="fp-${toneFor(o.security, 60, 40)}">${o.security} · ${esc(o.status)}</b></div><button class="link" onclick="W.open('Boardroom')">Open the boardroom →</button>`;
+      const confidence = `<div class="fp-owner">${staffBust({ id: "owner-" + state.team, name: c.owner.name, role: "Owner" }, { size: 56, team: state.team })}<div><b>${esc(c.owner.name)}</b>${fp.chip(c.owner.trait, "accent")}</div></div><div class="fp-row"><span>Owner patience</span>${SV.num(Math.round(c.owner.patience) + "%")}</div>${fp.blocks(c.owner.patience, 100, 20, toneFor(c.owner.patience, 60, 40))}<div class="fp-row"><span>Fan approval</span>${SV.num(Math.round(c.fanApproval) + "%")}</div>${fp.blocks(c.fanApproval, 100, 20, toneFor(c.fanApproval, 60, 40))}<div class="fp-row"><span>Your job security ${SV.chip(o.status, toneFor(o.security, 60, 40), o.security >= 60 ? "check" : o.security >= 40 ? "alert" : "cross")}</span>${SV.num(o.security, "/ 100", toneFor(o.security, 60, 40))}</div>${fp.blocks(o.security, 100, 20, toneFor(o.security, 60, 40), `Job security ${o.security} of 100`)}<button class="link" onclick="W.open('Boardroom')">Open the boardroom →</button>`;
       const people = `<ul class="fp-people">${staff
         .slice(0, 6)
         .map((p) => `<li>${staffBust(p, { size: 36, team: state.team, appearance: p.userControlled ? coachAppearance(state) : null })}<span><small>${esc(p.role)}</small><b>${esc(p.name)}</b></span><span class="fp-ovr">${p.rating}</span></li>`)
         .join("")}</ul><button class="link" onclick="W.open('Staff')">All ${staff.length} staff →</button>`;
-      const infra = `<div class="fp-row"><span>Stadium condition</span><b>${Math.round(st.condition)}%</b></div>${fp.blocks(st.condition, 100, 20, toneFor(st.condition, 70, 45))}<div class="fp-row"><span>Medical tier</span>${tierTrack(st.medical)}</div><div class="fp-row"><span>Training tier</span>${tierTrack(st.training)}</div><div class="fp-row"><span>Live projects</span><b>${projects.length ? esc(projects[0].name) + " · " + projects[0].remaining + " left" : "None"}</b></div><button class="secondary small" onclick="FrontOffice.clubTab('Facilities')">Manage facilities</button>`;
-      const ops = `<div class="fp-row"><span>Active players</span><b>${S.active(state).filter((p) => p.status === "active").length} / 53</b></div><div class="fp-row"><span>Cap room</span><b>${money(S.capLedger(state).room)}</b></div><div class="fp-row"><span>Staff budget</span><b>${money(payroll)} / ${money(c.staffBudget || payroll)}</b></div><div class="fp-links">${[
+      const infra = `<div class="fp-row"><span>Stadium condition</span><b>${Math.round(st.condition)}%</b></div>${fp.blocks(st.condition, 100, 20, toneFor(st.condition, 70, 45))}<div class="fp-row"><span>Medical tier</span>${tierTrack(st.medical)}</div><div class="fp-row"><span>Training tier</span>${tierTrack(st.training)}</div><div class="fp-row"><span>Live projects</span>${projects.length ? SV.chip(`${projects[0].name} · ${projects[0].remaining} left`, "warn", "clock") : SV.chip("None", "neutral", "minus")}</div><button class="secondary small" onclick="FrontOffice.clubTab('Facilities')">Manage facilities</button>`;
+      const activeCount = S.active(state).filter((p) => p.status === "active").length,
+        ledger = S.capLedger(state),
+        budget = c.staffBudget || payroll;
+      const ops = `<div class="fp-row"><span>Active players</span>${SV.num(activeCount, "/ 53", activeCount > 53 ? "bad" : "")}</div>${fp.blocks(activeCount, 53, 20, activeCount > 53 ? "bad" : activeCount >= 50 ? "good" : "warn", `${activeCount} of 53 active players`)}<div class="fp-row"><span>Cap room</span>${SV.num(money(Math.abs(ledger.room)), ledger.room < 0 ? "over" : "room", ledger.room < 0 ? "bad" : "")}</div>${SV.money(ledger.used / S.MILLION, ledger.limit / S.MILLION, { label: `${money(ledger.used)} of ${money(ledger.limit)} used` })}<div class="fp-row"><span>Staff budget</span>${SV.num(money(payroll), "/ " + money(budget), payroll > budget ? "bad" : "")}</div>${SV.money(payroll / S.MILLION, budget / S.MILLION, { label: `Staff payroll ${money(payroll)} of ${money(budget)}` })}<div class="fp-links">${[
         ["Roster", "Squad & depth"],
         ["Contracts", "Cap sheet"],
         ["Development", "Development"],
@@ -322,8 +334,8 @@ ${notes.length ? `<label class="fo-label">Their tendencies vs your plan</label><
     const promiseRow = (p) =>
       `<li class="${p.done ? "done" : p.dueNow ? "due" : ""}"><span><b>${esc(p.name)}</b><small>${esc(p.type)} · promised week ${(p.week ?? 0) + 1}</small></span>${
         p.done
-          ? `<em class="pp-chip ${/review|kept/i.test(p.outcome || "") ? "good" : "bad"}">${esc(p.outcome || "Closed")}</em>`
-          : `${p.dueNow ? '<em class="pp-chip warn">Review now</em>' : `<em class="pp-chip">Due wk ${p.due + 1}</em>`}<button class="secondary small" onclick="CI.open('player',${arg(p.playerId)})">Meet</button>`
+          ? (/review|kept/i.test(p.outcome || "") ? SV.chip(p.outcome || "Closed", "good", "check") : SV.chip(p.outcome || "Closed", "bad", "cross"))
+          : `${p.dueNow ? SV.chip("Review now", "warn", "alert") : SV.chip(`Due wk ${p.due + 1}`, p.due - (state.week ?? 0) <= 1 ? "warn" : "pending", "clock")}<button class="secondary small" onclick="CI.open('player',${arg(p.playerId)})">Meet</button>`
       }</li>`;
     const shownPromises = [...open.slice(0, 4), ...closed].slice(0, 5);
     const promiseCard = `<section class="pp-panel lr-promises"><div class="pp-panel-head"><h3>Promises</h3><small>${open.length} open</small></div>${
@@ -382,7 +394,8 @@ ${notes.length ? `<label class="fo-label">Their tendencies vs your plan</label><
 }
 
 // One "What is moving the room" row: pixel glyph, bold title, detail/quote, and value chips or meters.
-const DRIVER_GLYPH = { form: "▮▯▮", pulse: "◆", leaders: "★", talk: "✎", press: "◉" };
+// Crisp 12×12 pixel icons (ui/pixel-icons.mjs) instead of text glyphs, which overflowed the 34px box.
+const DRIVER_GLYPH = { form: "stats", pulse: "locker", leaders: "records", talk: "news", press: "news" };
 function roomDriver(c) {
   if (!c.kind) return `<li class="${c.tone || ""}">${esc(c.text)}</li>`;
   const verdict = c.tone === "good" ? "Lifting" : c.tone === "bad" ? "Dragging" : "Neutral";
@@ -390,5 +403,5 @@ function roomDriver(c) {
   const stat = (x) => `<span class="lr-stat ${x.tone || ""}"><small>${esc(x.label)}</small>${x.meter != null ? blocks(x.meter, x.invert) : ""}<b>${esc(String(x.value))}</b></span>`;
   const form = c.results?.length ? `<span class="lr-form">${c.results.map((r) => `<b class="${r === "W" ? "w" : r === "L" ? "l" : "t"}">${esc(r)}</b>`).join("")}</span>` : "";
   const who = c.player ? `<span class="lr-who">${c.player.id ? `<button class="link" onclick="W.player('${c.player.id}',state.team)">${esc(c.player.name)}</button>` : esc(c.player.name)}<em>${esc(c.player.stance)}</em><span class="lr-stat ${c.player.trust > 0 ? "good" : c.player.trust < 0 ? "bad" : ""}"><small>Trust</small><b>${c.player.trust > 0 ? "+" : ""}${c.player.trust}</b></span></span>` : "";
-  return `<li class="lr-driver ${c.tone || ""}"><span class="lr-glyph" aria-hidden="true">${DRIVER_GLYPH[c.kind] || "■"}</span><div class="lr-body"><div class="lr-top"><b class="lr-title">${esc(c.title)}</b><em class="lr-verdict">${verdict}</em></div>${c.quote ? `<q class="lr-quote">${esc(c.quote)}</q>` : ""}${c.detail ? `<p class="lr-detail">${esc(c.detail)}</p>` : ""}${form || (c.stats?.length || who) ? `<div class="lr-stats">${form}${(c.stats || []).map(stat).join("")}${who}</div>` : ""}</div></li>`;
+  return `<li class="lr-driver ${c.tone || ""}"><span class="lr-glyph" aria-hidden="true">${pixelIcon(DRIVER_GLYPH[c.kind] || "home")}</span><div class="lr-body"><div class="lr-top"><b class="lr-title">${esc(c.title)}</b><em class="lr-verdict">${verdict}</em></div>${c.quote ? `<q class="lr-quote">${esc(c.quote)}</q>` : ""}${c.detail ? `<p class="lr-detail">${esc(c.detail)}</p>` : ""}${form || (c.stats?.length || who) ? `<div class="lr-stats">${form}${(c.stats || []).map(stat).join("")}${who}</div>` : ""}</div></li>`;
 }
