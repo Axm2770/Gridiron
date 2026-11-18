@@ -25,6 +25,9 @@ import { icon, searchKey } from "./presentation.mjs";
 import { rosterLimit } from "./blockers.mjs";
 import { trimPlan } from "./personnel.mjs";
 import { storyArt } from "../presentation/pixel-art.mjs";
+import { heightInches } from "./player-catalog.mjs";
+import { SQUAD_SORTS, SQUAD_SORT_MENU, defaultDirection, compareSquad } from "./squad-sort.mjs";
+import { installLineupUI } from "./lineup-ui.mjs";
 const fmtBio = (n) => Number(n).toLocaleString("en-US");
 const num = (n, d = 1) =>
   Number.isFinite(n)
@@ -342,23 +345,52 @@ export function installOfficeUI({ views, isBusy, getSection }) {
               p.jersey,
           ).includes(searchKey(squad.query)),
       )
-      .sort((a, b) => {
-        const value = (p) =>
-          squad.sort === "name"
-            ? p.name
-            : squad.sort === "cap"
-              ? S.capHit(state.franchise.contracts[p.id], S.financeYear(state))
-              : squad.sort === "form"
-                ? (p.progression?.form ?? -1)
-                : squad.sort === "growth"
-                  ? (p.progression?.lastReport?.delta ?? -99)
-                  : (p[squad.sort] ?? 0);
-        const av = value(a),
-          bv = value(b);
-        return typeof av === "string"
-          ? squad.direction * av.localeCompare(bv)
-          : squad.direction * (av - bv);
-      });
+      .sort((a, b) => compareSquad(a, b, squad, sortContext()));
+  const sortContext = () => {
+    const year = S.financeYear(state);
+    return {
+      year: state.year,
+      cap: (p) => S.capHit(state.franchise.contracts[p.id], year),
+      contractEnd: (p) => {
+        const c = state.franchise.contracts[p.id];
+        return c && !c.ended ? c.start + c.years - 1 : null;
+      },
+      stats: (p) => seasonStats(p, state.year),
+      height: (p) => heightInches(p) || null,
+    };
+  };
+  // Column header → sort key, per squad tab. Headers without a key are not sortable.
+  const COLUMN_SORT = {
+    Player: "name",
+    "OVR / potential": "ovr",
+    Role: "role",
+    Condition: "condition",
+    Morale: "morale",
+    Form: "form",
+    Availability: "availability",
+    Snaps: "snaps",
+    "Pass yards": "passYards",
+    "Rush yards": "rushYards",
+    "Rec yards": "recYards",
+    TD: "td",
+    Age: "age",
+    Training: "training",
+    "Ability Δ": "growth",
+    "Cap charge": "cap",
+    "Contract through": "contract",
+    Trust: "trust",
+    Height: "height",
+    Weight: "weight",
+    College: "college",
+    Experience: "experience",
+  };
+  const sortHeader = (c) => {
+    const key = COLUMN_SORT[c];
+    if (!key) return `<th>${c}</th>`;
+    const on = squad.sort === key,
+      sorted = on ? (squad.direction === 1 ? "ascending" : "descending") : "none";
+    return `<th aria-sort="${sorted}" class="sortable-head ${on ? "sorted" : ""}"><button type="button" class="th-sort" onclick="Office.squadSortBy('${key}')" title="Sort by ${esc(SQUAD_SORTS[key]?.label || c)}">${c}<i aria-hidden="true">${on ? (squad.direction === 1 ? "▲" : "▼") : "↕"}</i></button></th>`;
+  };
   const squadColumns = () =>
     ({
       "Bio & honors": [
@@ -413,8 +445,8 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     const rows = squadList();
     if (pref().layout === "Cards")
       return `<div class="squad-card-grid">${rows.map((p) => `<article class="squad-person-card"><button class="favorite-player ${pref().favorites.includes(p.id) ? "positive" : ""}" aria-label="${pref().favorites.includes(p.id) ? "Unfollow" : "Follow"} ${esc(p.name)}" onclick="Office.favorite('${p.id}')">${pref().favorites.includes(p.id) ? "★" : "☆"}</button><button class="card-player" onclick="W.player('${p.id}')">${avatar(p)}<b>${esc(p.name)}</b><span>${esc(p.realPosition || p.pos)} · #${p.jersey || "—"}</span></button><div class="card-rating"><strong>${p.ovr}</strong><span>OVR<br>${p.pot} POT</span></div><div class="person-card-stats"><span>Morale${scorePill("morale", p.morale, num(p.morale, 0) + "%")}</span><span>Condition${scorePill("condition", p.fitness ?? 100, num(p.fitness ?? 100, 0) + "%")}</span><span>Form${scorePill("form", p.progression?.form)}</span></div><div class="card-person-foot">${badge(p.injury ? "Injured" : p.holdout ? "Holdout" : p.starter ? "Starter" : "Reserve", p.injury || p.holdout ? "danger" : "")}<button class="link" onclick="Office.compareToggle('${p.id}',${state.team})">${selected.some((x) => x.id === p.id) ? "✓ Selected" : "+ Compare"}</button></div></article>`).join("")}</div>`;
-    return `<div class="scroll"><table class="office-data-table squad-new-table"><thead><tr>${squadColumns()
-      .map((c) => `<th>${c}</th>`)
+    return `<div class="scroll"><table class="office-data-table squad-new-table" data-no-sort="true"><thead><tr>${squadColumns()
+      .map(sortHeader)
       .join("")}</tr></thead><tbody>${
       rows
         .map((p) => {
@@ -439,6 +471,7 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     }</tbody></table></div>`;
   }
   const oldRoster = views.Roster;
+  const lineupUI = installLineupUI({ isBusy });
   // Over the active limit, say so above the squad and offer the automatic trim right there.
   const rosterAlert = () => {
     const active = state.roster.filter((p) => p.status === "active").length,
@@ -466,22 +499,15 @@ export function installOfficeUI({ views, isBusy, getSection }) {
         "Injury or holdout",
       ],
       ["Following", pref().favorites.length, "Your tracked players"],
-    ])}<div class="squad-workspace-controls"><div class="office-tabs">${["Overview", "Performance", "Development", "Contracts", "Bio & honors"].map((v) => `<button class="${pref().squad === v ? "active" : ""}" onclick="Office.squadView('${v}')">${v}</button>`).join("")}</div><div><button class="secondary small" onclick="Office.squadLayout()">${pref().layout === "Cards" ? "☷ Table view" : "▦ Card view"}</button><button class="secondary small" onclick="F.depth()">Optimize depth</button><details class="action-menu"><summary>Operations ⌄</summary><div><button onclick="Office.trimPreview()">Trim to 53</button><button onclick="F.action('recruit')">Recruit reserves</button><button onclick="F.action('camp')">Invite camp roster</button><button onclick="Office.waivers()">Waiver wire</button></div></details></div></div><section class="panel"><div class="office-filters"><div class="table-search">${icon("search")}<input type="search" aria-label="Search squad" placeholder="Name, position or jersey…" value="${esc(squad.query)}" oninput="Office.searchSquad(this.value)"></div><select aria-label="Squad unit" onchange="Office.squadFilter('unit',this.value)">${opts(["All", "Offense", "Defense", "Special teams"], squad.unit)}</select><select aria-label="Roster status filter" onchange="Office.squadFilter('status',this.value)">${opts(["All", "active", "practice", "ir", "elevated", "Favorites"], squad.status)}</select><label>Sort by<select aria-label="Sort squad" onchange="Office.squadFilter('sort',this.value)">${[
-      ["ovr", "Overall"],
-      ["name", "Name"],
-      ["age", "Age"],
-      ["morale", "Morale"],
-      ["cap", "Cap charge"],
-      ["form", "Form"],
-      ["growth", "Ability change"],
-    ]
+    ])}<div class="squad-workspace-controls">${lineupUI.toggle("squad")}${lineupUI.mode("squad") === "lineup" ? "" : `<div class="office-tabs">${["Overview", "Performance", "Development", "Contracts", "Bio & honors"].map((v) => `<button class="${pref().squad === v ? "active" : ""}" onclick="Office.squadView('${v}')">${v}</button>`).join("")}</div>`}<div>${lineupUI.mode("squad") === "lineup" ? "" : `<button class="secondary small" onclick="Office.squadLayout()">${pref().layout === "Cards" ? "☷ Table view" : "▦ Card view"}</button>`}<button class="secondary small" onclick="F.depth()">Optimize depth</button><details class="action-menu"><summary>Operations ⌄</summary><div><button onclick="Office.trimPreview()">Trim to 53</button><button onclick="F.action('recruit')">Recruit reserves</button><button onclick="F.action('camp')">Invite camp roster</button><button onclick="Office.waivers()">Waiver wire</button></div></details></div></div>${lineupUI.mode("squad") === "lineup" ? lineupUI.board("squad") : `<section class="panel"><div class="office-filters"><div class="table-search">${icon("search")}<input type="search" aria-label="Search squad" placeholder="Name, position or jersey…" value="${esc(squad.query)}" oninput="Office.searchSquad(this.value)"></div><select aria-label="Squad unit" onchange="Office.squadFilter('unit',this.value)">${opts(["All", "Offense", "Defense", "Special teams"], squad.unit)}</select><select aria-label="Roster status filter" onchange="Office.squadFilter('status',this.value)">${opts(["All", "active", "practice", "ir", "elevated", "Favorites"], squad.status)}</select><label>Sort by<select aria-label="Sort squad" onchange="Office.squadFilter('sort',this.value)">${(SQUAD_SORT_MENU.includes(squad.sort) ? SQUAD_SORT_MENU : [...SQUAD_SORT_MENU, squad.sort])
+      .map((k) => [k, SQUAD_SORTS[k]?.label || k])
       .map(
         ([v, l]) =>
           `<option value="${v}" ${v === squad.sort ? "selected" : ""}>${l}</option>`,
       )
       .join(
         "",
-      )}</select></label><button class="secondary small" aria-label="Reverse squad sort" onclick="Office.squadReverse()">${squad.direction === -1 ? "↓ Descending" : "↑ Ascending"}</button></div><div id="squad-view-content">${squadContent()}</div><div class="office-table-note" id="squad-view-count">${squadList().length} of ${state.roster.length} players · Views and tracked players are saved with this career.</div></section>${comparisonTray()}`;
+      )}</select></label><button class="secondary small" aria-label="Reverse squad sort" onclick="Office.squadReverse()">${squad.direction === -1 ? (["name", "pos", "college"].includes(squad.sort) ? "↓ Z–A" : "↓ Highest first") : ["name", "pos", "college"].includes(squad.sort) ? "↑ A–Z" : "↑ Lowest first"}</button></div><div id="squad-view-content">${squadContent()}</div><div class="office-table-note" id="squad-view-count">${squadList().length} of ${state.roster.length} players · Views and tracked players are saved with this career.</div></section>`}${comparisonTray()}`;
   function teamBars(r, b) {
     return [
       ["Points / game", r.ppg, b.ppg],
@@ -752,6 +778,14 @@ export function installOfficeUI({ views, isBusy, getSection }) {
     },
     squadFilter(k, v) {
       squad[k] = v;
+      // A new metric starts in its natural order (names A–Z, ratings highest first).
+      if (k === "sort") squad.direction = defaultDirection(v);
+      render();
+    },
+    squadSortBy(k) {
+      if (!SQUAD_SORTS[k]) return;
+      squad.direction = squad.sort === k ? -squad.direction : defaultDirection(k);
+      squad.sort = k;
       render();
     },
     squadReverse() {
