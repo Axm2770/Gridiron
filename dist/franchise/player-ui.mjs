@@ -329,7 +329,8 @@ export function installPlayerUI({ isBusy }) {
       foot = known
         ? ""
         : `<div class="gp-scout-foot"><span>${gpBlocks(conf, 100, 10, "warn")} Hatched blocks are the range your scouts can't yet rule out. A full report narrows it.</span>${window.Scout?.open ? `<button class="secondary small" onclick="Scout.open('${p.id}')">Open scouting report</button>` : ""}</div>`;
-    return panel(known ? "Attributes" : "Scouted attributes", grid + foot, head);
+    // Combine results (ceremonies-ui.mjs) sit under the attributes for anyone who tested.
+    return panel(known ? "Attributes" : "Scouted attributes", grid + foot, head) + (p.combine && window.GDCombineCard ? window.GDCombineCard(p) : "");
   }
 
   function profileHTML(e) {

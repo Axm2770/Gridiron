@@ -1,0 +1,224 @@
+/* League ceremonies (franchise/ceremonies-ui.mjs, presentation/ceremony-scenes.mjs): scene frame
+   timing, Draft room → Combine, the combine card on profiles, Honors trophy cards, Hall of Fame
+   plaques and the news feature visuals. Pixel kit: hard 3px frames, 4px shadows, block meters. */
+
+/* ---------------------------------------------------------- scene frames */
+/* Frame visibility is driven by inline animations (steps()) from the scene builders:
+   cer-f starts hidden, cer-v starts visible; cer-keep marks the final frame shown with reduce-motion. */
+.px-scene .cer-f { opacity: 0; }
+.px-scene.px-still .cer-f, .px-scene.px-still .cer-v { opacity: 0; }
+.px-scene.px-still .cer-keep { opacity: 1; }
+.px-scene.px-still .cer-run { transform: translateX(130px); }
+@media (prefers-reduced-motion: reduce) {
+  .px-scene .cer-f, .px-scene .cer-v { opacity: 0; }
+  .px-scene .cer-keep { opacity: 1; }
+  .px-scene .cer-run { transform: translateX(130px); }
+}
+/* pixel.css forces steps(6) on every animation; frame switches must jump in one step and the sprint
+   needs finer steps so the runner covers the ground in time with the stopwatch. */
+.px-scene [style*="steps(1,end)"] { animation-timing-function: steps(1, end) !important; }
+.px-scene .cer-run { animation-timing-function: steps(36, end) !important; }
+@keyframes cer-on { 0% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes cer-stay { 0%, 100% { opacity: 1; } }
+@keyframes cer-off { 0%, 100% { opacity: 0; } }
+@keyframes cer-blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes cer-stride { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes cer-run { from { transform: translateX(0); } to { transform: translateX(130px); } }
+@keyframes cer-leap { 0% { transform: translateY(4px); } 35%, 70% { transform: translateY(-14px); } 100% { transform: translateY(0); } }
+@keyframes cer-walk { from { transform: translateX(34px); } to { transform: none; } }
+
+/* ----------------------------------------------------------- shared bits */
+.cer-kicker { display: block; font: 700 11px/1.3 var(--gd-body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--gd-text-3); }
+.cer-bar { display: inline-flex; gap: 2px; vertical-align: middle; }
+.cer-bar i { width: 8px; height: 8px; background: var(--gd-bg); box-shadow: inset 0 0 0 1px var(--gd-border); }
+.cer-bar i.on { background: var(--gd-accent); box-shadow: none; }
+.cer-bar.good i.on { background: var(--gd-good); }
+.cer-bar.bad i.on { background: var(--gd-bad); }
+.cer-bar.gold i.on { background: var(--gd-warn); }
+.cer-stock { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; font: 700 12px/1.4 var(--gd-display); border: 2px solid currentColor; white-space: nowrap; }
+.cer-stock.up { color: var(--gd-good); }
+.cer-stock.down { color: var(--gd-bad); }
+.cer-stock.flat { color: var(--gd-text-3); }
+.cer-chip { display: inline-block; padding: 1px 6px; font: 700 11px/1.4 var(--gd-body); font-style: normal; color: var(--gd-bg); background: var(--gd-warn); }
+.cer-chip.team { background: var(--team, var(--gd-accent)); color: var(--gd-text); }
+.cer-none { padding: 10px; color: var(--gd-text-3); font-size: 13px; list-style: none; }
+.cer-panel, .cer-head, .cer-empty, .cer-honors, .cer-hall, .cer-honors-banner {
+  min-width: 0; background: var(--gd-surface); border: 3px solid var(--gd-border-strong); box-shadow: 4px 4px 0 var(--px-ink, var(--gd-bg));
+}
+.cer-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; padding: 6px 12px; background: var(--gd-surface-strong); border-bottom: 3px solid var(--gd-border-strong); }
+.cer-panel-head h3 { margin: 0; font: 700 16px/1.2 var(--gd-display); text-transform: uppercase; letter-spacing: 0.02em; color: var(--gd-text); white-space: nowrap; }
+.cer-panel-head small { font-size: 12px; color: var(--gd-text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------------------------------------------------- Draft room → Combine */
+.cer-room { display: grid; gap: 14px; min-width: 0; color: var(--gd-text); }
+.cer-room :is(h2, p) { margin: 0; }
+.cer-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 12px 16px; border-left: 8px solid var(--team, var(--gd-accent)); }
+.cer-head h2, .cer-empty h2 { font: 700 22px/1.15 var(--gd-display); text-transform: uppercase; }
+.cer-head p, .cer-empty p { margin-top: 4px; font-size: 13px; line-height: 1.45; color: var(--gd-text-2); max-width: 760px; }
+.cer-head-tools { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.cer-head-tools button.on { background: var(--gd-accent); color: var(--gd-bg); }
+.cer-select { display: grid; gap: 2px; font-size: 11px; color: var(--gd-text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.cer-select select { height: 32px; padding: 0 8px; font-size: 13px; color: var(--gd-text); }
+.cer-watch { width: 48px; height: 54px; image-rendering: pixelated; }
+.cer-empty { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; padding: 18px 20px; }
+.cer-empty-art .cer-watch { width: 72px; height: 81px; }
+.cer-cols { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; align-items: start; }
+.cer-side { display: grid; gap: 14px; min-width: 0; }
+.cer-seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.cer-seg button { min-height: 28px; padding: 3px 9px; font: 700 12px/1.2 var(--gd-body); background: var(--gd-bg-2); color: var(--gd-text-2); border: 2px solid var(--gd-border); box-shadow: none; }
+.cer-seg button.on { background: var(--gd-accent); border-color: var(--gd-accent); color: var(--gd-bg); }
+.cer-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.cer-table th { padding: 8px 10px; font: 700 11px/1.2 var(--gd-body); letter-spacing: 0.06em; text-transform: uppercase; text-align: left; color: var(--gd-text-3); border-bottom: 2px solid var(--gd-border); }
+.cer-table th:nth-child(1) { width: 44px; }
+.cer-table th:nth-child(3) { width: 54px; }
+.cer-table th:nth-child(4) { width: 150px; }
+.cer-table th:nth-child(5) { width: 128px; }
+.cer-table th:nth-child(6) { width: 64px; }
+.cer-table th:nth-child(7) { width: 84px; }
+.cer-table td { padding: 4px 10px; font-size: 13px; vertical-align: middle; border-bottom: 2px solid var(--gd-border); }
+.cer-table tbody tr:last-child td { border-bottom: 0; }
+.cer-table tbody tr:hover { background: var(--gd-surface-strong); }
+.cer-table tr.mine td:first-child { box-shadow: inset 4px 0 0 var(--gd-warn); }
+.cer-table tr.mine { background: color-mix(in srgb, var(--gd-warn) 8%, transparent); }
+.cer-table td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
+.cer-table td.cer-val { font: 700 15px/1 var(--gd-display); text-align: right; }
+.cer-sort { padding: 0; font: inherit; text-transform: inherit; letter-spacing: inherit; color: var(--gd-accent); }
+.cer-who { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 0; text-align: left; color: var(--gd-text); background: none; border: 0; box-shadow: none; cursor: pointer; }
+.cer-who span { display: grid; min-width: 0; }
+.cer-who b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cer-who small { font-size: 11px; color: var(--gd-text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cer-who:hover b { color: var(--gd-accent); }
+.cer-star { margin-left: auto; color: var(--gd-warn); font-style: normal; }
+.cer-dnp { font: 700 11px/1 var(--gd-body); color: var(--gd-text-3); border-bottom: 1px dotted var(--gd-text-3); cursor: help; }
+.cer-pager { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 8px 12px; border-top: 3px solid var(--gd-border); font-size: 12px; color: var(--gd-text-3); }
+.cer-pager span { margin-right: auto; }
+.cer-pager b { font: 700 13px var(--gd-display); color: var(--gd-text); }
+.cer-tops { display: grid; gap: 4px; padding: 8px; }
+.cer-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 8px; text-align: left; color: var(--gd-text); background: var(--gd-bg-2); border: 2px solid transparent; box-shadow: none; cursor: pointer; }
+.cer-top.on { border-color: var(--gd-accent); }
+.cer-top.mine { box-shadow: inset 4px 0 0 var(--gd-warn); }
+.cer-top span { display: grid; min-width: 0; }
+.cer-top small { font: 700 10.5px/1.2 var(--gd-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gd-text-3); }
+.cer-top b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cer-top strong { font: 700 16px/1 var(--gd-display); color: var(--gd-warn); }
+.cer-movers { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 8px 10px 10px; }
+.cer-movers ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.cer-movers li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 6px; font-size: 13px; }
+.cer-movers li.mine { box-shadow: inset 3px 0 0 var(--gd-warn); padding-left: 4px; }
+.cer-movers li .link { justify-self: start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; padding: 0; }
+.cer-movers li small { color: var(--gd-text-3); font-size: 11px; }
+.cer-movers ul + ul { padding-top: 8px; border-top: 2px dashed var(--gd-border); }
+@media (max-width: 1240px) { .cer-cols { grid-template-columns: 1fr; } .cer-side { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px) { .cer-head { grid-template-columns: 1fr; } .cer-side { grid-template-columns: 1fr; } .cer-table th:nth-child(5), .cer-table td:nth-child(5) { display: none; } }
+
+/* ------------------------------------------------- profile combine card */
+.cer-combine-card { margin-top: 12px; }
+.cer-cc-meta { display: flex; align-items: center; gap: 8px; }
+.cer-cc-meta small { font-size: 11px; color: var(--gd-text-3); }
+.cer-ras { font: 700 20px/1 var(--gd-display); color: var(--gd-warn); }
+.cer-cc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.cer-cc-cell { display: grid; gap: 4px; justify-items: start; padding: 6px 8px; background: var(--gd-bg-2); border: 2px solid var(--gd-border); min-width: 0; }
+.cer-cc-cell span { font: 700 10.5px/1.2 var(--gd-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gd-text-3); }
+.cer-cc-cell b { font: 700 17px/1 var(--gd-display); color: var(--gd-text); }
+.cer-cc-cell small { font-size: 11px; color: var(--gd-text-3); }
+.cer-cc-cell .cer-bar i { width: 6px; height: 6px; }
+.cer-cc-cell.dnp b { color: var(--gd-text-3); }
+.cer-cc-note { margin: 0; font-size: 12px; color: var(--gd-text-3); line-height: 1.45; }
+@media (max-width: 1100px) { .cer-cc-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* ------------------------------------------------------ Records → Awards */
+.cer-honors { margin-bottom: 14px; }
+.cer-honors-banner { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 10px 14px; border-left: 8px solid var(--gd-warn); }
+.cer-honors-banner b { display: block; margin-top: 2px; font: 600 13px/1.45 var(--gd-body); color: var(--gd-text-2); }
+.cer-trophy-mini .cer-trophy { width: 30px; height: 35px; image-rendering: pixelated; }
+.cer-trophies { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; padding: 12px; }
+.cer-trophy-card { position: relative; width: 100%; max-width: 240px; justify-self: center; display: grid; justify-items: center; gap: 4px; padding: 10px 8px 12px; text-align: center; background: var(--gd-bg-2); border: 2px solid var(--gd-border); min-width: 0; }
+.cer-trophy-card.mine { border-color: var(--gd-warn); box-shadow: 3px 3px 0 color-mix(in srgb, var(--gd-warn) 55%, transparent); }
+.cer-trophy-card.mine::after { content: "YOUR CLUB"; margin-top: 2px; padding: 1px 6px; background: color-mix(in srgb, var(--gd-warn) 18%, transparent); font: 700 9.5px/1.2 var(--gd-body); letter-spacing: 0.06em; color: var(--gd-warn); }
+.cer-trophy-art .cer-trophy { width: 36px; height: 39px; image-rendering: pixelated; }
+.cer-trophy-card .gd-pixel-face { margin-top: -10px; }
+.cer-trophy-award { font: 700 13px/1 var(--gd-display); letter-spacing: 0.06em; color: var(--gd-warn); }
+.cer-trophy-card b { max-width: 100%; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cer-trophy-card small { font-size: 11px; color: var(--gd-text-3); }
+.cer-allpro-wrap { border-top: 3px solid var(--gd-border); }
+.cer-allpro-wrap summary { padding: 8px 12px; cursor: pointer; font: 700 13px/1.3 var(--gd-body); color: var(--gd-text-2); }
+.cer-allpro ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 4px 10px; margin: 0; padding: 0 12px 12px; list-style: none; }
+.cer-allpro li { display: grid; grid-template-columns: 30px auto minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 3px 6px; font-size: 13px; background: var(--gd-bg-2); }
+.cer-allpro li em { font: 700 11px var(--gd-body); font-style: normal; color: var(--gd-text-3); }
+.cer-allpro li b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cer-allpro li small { color: var(--gd-text-3); font-size: 11px; }
+.cer-allpro li.mine { box-shadow: inset 3px 0 0 var(--gd-warn); }
+.cer-allpro .cer-board-head { display: none; }
+
+/* ----------------------------------------------------- Records → Hall of Fame */
+.cer-hall { margin-bottom: 14px; }
+.cer-plaques { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 12px; padding: 12px; }
+.cer-plaque { display: grid; justify-items: center; gap: 4px; padding: 0 8px 10px; text-align: center; color: var(--gd-text); cursor: pointer; min-width: 0;
+  background: color-mix(in srgb, var(--gd-warn) 9%, var(--gd-bg-2)); border: 3px solid color-mix(in srgb, var(--gd-warn) 70%, var(--gd-border-strong)); box-shadow: 3px 3px 0 var(--px-ink, var(--gd-bg)); }
+.cer-plaque:hover { border-color: var(--gd-warn); }
+.cer-plaque.mine { outline: 3px solid var(--team, var(--gd-accent)); outline-offset: -8px; }
+.cer-plaque-top { justify-self: stretch; margin: 0 -8px; padding: 3px 0; font: 700 10.5px/1.3 var(--gd-body); letter-spacing: 0.1em; color: var(--gd-bg); background: var(--gd-warn); }
+.cer-plaque-bust { width: 72px; height: 72px; margin-top: 4px; background: var(--gd-bg); border: 2px solid color-mix(in srgb, var(--gd-warn) 60%, var(--gd-border)); }
+.cer-plaque-bust svg { width: 100%; height: 100%; image-rendering: pixelated; }
+.cer-plaque b { max-width: 100%; font: 700 13px/1.2 var(--gd-display); overflow-wrap: anywhere; }
+.cer-plaque small { font-size: 11px; color: var(--gd-text-3); }
+.cer-plaque-vote { display: flex; align-items: center; gap: 4px; }
+.cer-plaque-vote .cer-bar i { width: 6px; height: 6px; }
+.cer-plaque-vote em { font: 700 11px var(--gd-body); font-style: normal; color: var(--gd-text-2); }
+.cer-also { margin: 0; padding: 0 12px 12px; font-size: 12px; color: var(--gd-text-3); }
+.cer-also small { color: var(--gd-text-3); }
+.cer-honors-banner.gold { border-left-color: var(--gd-warn); }
+
+/* ------------------------------------------------------- feature visuals */
+.cer-fv { color: var(--gd-text); font-family: var(--gd-body); min-width: 0; }
+.cer-fv-compact { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; }
+.cer-poster { display: block; width: 100%; max-width: 260px; height: auto; max-height: 100%; image-rendering: pixelated; border: 2px solid var(--gd-border-strong); box-shadow: 3px 3px 0 var(--px-ink, var(--gd-bg)); }
+.nw-card .nw-art .cer-poster { width: auto; height: 76px; }
+.nw-brief .nw-art .cer-poster { max-width: 80px; }
+.cer-board { background: var(--gd-bg-2); border: 3px solid var(--gd-border-strong); }
+.cer-board-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 12px; background: var(--gd-bg); border-bottom: 3px solid var(--gd-warn); }
+.cer-board-head span { font: 400 10px/1.4 "Press Start 2P", var(--gd-display); color: var(--gd-warn); letter-spacing: 0.04em; }
+.cer-board-head b { font: 700 16px/1.2 var(--gd-display); text-transform: uppercase; }
+.cer-board-rows { margin: 0; padding: 6px 8px; list-style: none; display: grid; gap: 4px; }
+.cer-board-rows li, .cer-board-cols li { display: grid; grid-template-columns: 18px auto minmax(0, 1fr) auto 64px; align-items: center; gap: 8px; padding: 4px 6px; background: var(--gd-surface); }
+.cer-board-rows li.mine, .cer-board-cols li.mine { box-shadow: inset 4px 0 0 var(--gd-warn); }
+.cer-board-rows em { font: 700 13px var(--gd-display); font-style: normal; color: var(--gd-text-3); }
+.cer-board-rows li > span:not(.cer-bar):not(.gd-pixel-face), .cer-board-cols li > span:not(.cer-bar):not(.gd-pixel-face) { display: grid; min-width: 0; }
+.cer-board-rows b, .cer-board-cols b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cer-board-rows small, .cer-board-cols small { font-size: 11px; color: var(--gd-text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cer-board-rows strong { font: 700 18px/1 var(--gd-display); color: var(--gd-warn); text-align: right; }
+.cer-board-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px; }
+.cer-board-cols h4 { margin: 0 0 6px; font: 700 12px/1.2 var(--gd-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gd-text-2); }
+.cer-board-cols ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.cer-board-cols li { grid-template-columns: auto minmax(0, 1fr) auto; }
+.cer-board-cols em { font: 700 13px var(--gd-display); font-style: normal; }
+.cer-board-cols em.up { color: var(--gd-good); }
+.cer-board-cols em.down { color: var(--gd-bad); }
+.cer-plaque-card { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 12px; padding: 12px; background: var(--gd-bg-2); border: 3px solid color-mix(in srgb, var(--gd-warn) 70%, var(--gd-border-strong)); }
+.cer-plaque-main { display: grid; justify-items: center; gap: 6px; padding-bottom: 10px; text-align: center; background: color-mix(in srgb, var(--gd-warn) 10%, var(--gd-surface)); border: 2px solid var(--gd-warn); }
+.cer-plaque-kicker { justify-self: stretch; padding: 3px 0; font: 700 11px/1.3 var(--gd-body); letter-spacing: 0.1em; color: var(--gd-bg); background: var(--gd-warn); }
+.cer-plaque-main b { font: 700 18px/1.2 var(--gd-display); }
+.cer-plaque-main small { font-size: 12px; color: var(--gd-text-2); padding: 0 8px; }
+.cer-bust { display: inline-block; flex: none; background: var(--gd-bg); border: 2px solid var(--gd-border-strong); line-height: 0; }
+.cer-bust svg { width: 100%; height: 100%; image-rendering: pixelated; }
+.cer-plaque-class { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px; align-content: start; margin: 0; padding: 0; list-style: none; }
+.cer-plaque-class li { display: flex; align-items: center; gap: 8px; padding: 4px 6px; background: var(--gd-surface); min-width: 0; }
+.cer-plaque-class span { display: grid; min-width: 0; }
+.cer-plaque-class b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cer-plaque-class small { font-size: 11px; color: var(--gd-text-3); }
+@media (max-width: 700px) { .cer-plaque-card { grid-template-columns: 1fr; } .cer-board-cols { grid-template-columns: 1fr; } }
+
+/* ------------------------------------------- pixel theme overrides */
+/* pixel.css raises every button and forces the body face on inline text; these stay flat and keep
+   the display face on headline numbers. */
+body.gd-pixel :is(.cer-who, .cer-top, .cer-seg button, .cer-plaque) { transform: none; }
+html body.gd-pixel button.cer-who:not(.link):not(.athlete) { justify-content: flex-start !important; border: 0 !important; box-shadow: none !important; background: none !important; padding: 0 !important; min-height: 0 !important; }
+html body.gd-pixel button.cer-top:not(.link):not(.athlete) { border: 2px solid transparent !important; box-shadow: none !important; background: var(--gd-bg-2) !important; }
+html body.gd-pixel button.cer-top.on:not(.link):not(.athlete) { border-color: var(--gd-accent) !important; }
+html body.gd-pixel button.cer-top.mine:not(.link):not(.athlete) { box-shadow: inset 4px 0 0 var(--gd-warn) !important; }
+html body.gd-pixel .cer-seg button:not(.link):not(.athlete) { border: 2px solid var(--gd-border) !important; box-shadow: none !important; background: var(--gd-bg-2) !important; color: var(--gd-text-2) !important; }
+html body.gd-pixel .cer-seg button.on:not(.link):not(.athlete) { border-color: var(--gd-accent) !important; background: var(--gd-accent) !important; color: var(--gd-bg) !important; }
+html body.gd-pixel button.cer-plaque:not(.link):not(.athlete) { border: 3px solid color-mix(in srgb, var(--gd-warn) 70%, var(--gd-border-strong)) !important; box-shadow: 3px 3px 0 var(--px-ink, var(--gd-bg)) !important; background: color-mix(in srgb, var(--gd-warn) 9%, var(--gd-bg-2)) !important; }
+html body.gd-pixel button.cer-plaque:not(.link):not(.athlete):hover { border-color: var(--gd-warn) !important; }
+body.gd-pixel :is(.cer-top strong, .cer-val, .cer-ras, .cer-cc-cell b, .cer-plaque b, .cer-board-rows strong, .cer-trophy-award, .cer-stock, .cer-pager b, .cer-plaque-main b, .cer-board-head b, .cer-board-rows em, .cer-board-cols em) { font-family: var(--gd-display) !important; }
+body.gd-pixel .cer-board-head span { font-family: "Press Start 2P", var(--gd-display) !important; }

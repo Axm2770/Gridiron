@@ -15,6 +15,7 @@ import {
   playerSnap,
 } from "./state.mjs";
 import { cut } from "./contracts.mjs";
+import { holdCombine } from "./ceremonies.mjs";
 import { random, clamp } from "../engine/random.mjs";
 export function movePlayer(s, id, destination) {
   requireRole(s, "roster");
@@ -135,6 +136,8 @@ export function beginDraft(s) {
     throw Error("The draft opens after the championship.");
   let f = s.franchise;
   if (f.draft?.year === s.year) return;
+  // The combine always comes before the draft, even when the calendar never reached its date.
+  holdCombine(s, { reason: "draft" });
   while (s.prospects.length < 260) {
     let i = s.prospects.length;
     s.prospects.push(

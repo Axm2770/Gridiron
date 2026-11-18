@@ -43,6 +43,7 @@ import {
 } from "./state.mjs";
 import { weekly, marketDay, settleMarketRound } from "./world.mjs";
 import { seasonAwards } from "./history.mjs";
+import { concludeOffseasonCeremonies, runCeremonies } from "./ceremonies.mjs";
 export function newSchedule(games = 17) {
   let ring = Array.from({ length: 32 }, (_, i) => i),
     weeks = [];
@@ -227,6 +228,8 @@ export function finishRound(s, results) {
         rounds = [{ a: winners[0], b: winners[1], score: null }];
       s.playoffs.rounds.push(rounds);
       post.round++;
+      // Championship week: NFL Honors and the Hall of Fame class (ceremonies.mjs).
+      runCeremonies(s);
     }
   }
   reviewPromises(s);
@@ -351,11 +354,8 @@ export function rollSeason(s) {
     return true;
   });
   runStaffCarousel(s);
-  for (let h of f.hall)
-    if (h.year <= year && !h.inducted) {
-      h.inducted = true;
-      log(s, "Hall of Fame induction", h.name + " joins the Hall of Fame.");
-    }
+  // NFL Honors and the Hall of Fame class/enshrinement (ceremonies.mjs) settle before the year turns.
+  concludeOffseasonCeremonies(s);
   for (let team = 0; team < 32; team++)
     if (team !== s.team) {
       let list = roster(s, team);
