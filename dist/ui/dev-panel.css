@@ -1,0 +1,161 @@
+/* Owner test console (ui/dev-panel.mjs). Nothing here matches until the panel is unlocked and
+   created; styled with the design-system tokens so it follows the pixel theme. */
+.gdv-prompt,
+.gdv-panel {
+  position: fixed;
+  z-index: 2147483000;
+  color: var(--gd-text, #f4f1de);
+  background: var(--gd-surface, #182041);
+  border: 2px solid var(--gd-border-strong, #5566a8);
+  box-shadow: var(--gd-shadow, 4px 4px 0 #05070d);
+  border-radius: var(--gd-radius-sm, 0);
+  font: 12px/1.4 var(--gd-body, system-ui, sans-serif);
+  margin: 0;
+  max-width: none;
+  max-height: none;
+}
+.gdv-prompt {
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+.gdv-prompt b { font: 700 13px/1 var(--gd-display, sans-serif); letter-spacing: 0.12em; text-transform: uppercase; color: var(--gd-text-2); }
+.gdv-prompt small { min-height: 1em; color: var(--gd-bad, #ff5c5c); }
+.gdv-prompt div { display: flex; gap: 6px; justify-content: flex-end; }
+.gdv-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  resize: horizontal;
+  min-width: 340px;
+  min-height: 240px;
+}
+.gdv-panel[hidden] { display: none; }
+.gdv-panel[data-dock="float"] { resize: both; }
+.gdv-panel[data-dock="left"] { border-left: 0; }
+.gdv-panel[data-dock="right"] { border-right: 0; }
+.gdv-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--gd-bg-2, #131a33);
+  border-bottom: 2px solid var(--gd-border, #2e3a6e);
+  cursor: move;
+  user-select: none;
+  flex-wrap: wrap;
+}
+.gdv-head > b { font: 700 15px/1 var(--gd-display, sans-serif); letter-spacing: 0.14em; color: var(--gd-accent, #b8f03a); }
+.gdv-tabs { display: flex; gap: 2px; flex: 1; flex-wrap: wrap; }
+.gdv-tools { display: flex; gap: 2px; }
+.gdv-panel button {
+  font: 600 11px/1.2 var(--gd-body, sans-serif);
+  min-height: 0;
+}
+.gdv-tabs button,
+.gdv-tools button {
+  background: transparent;
+  color: var(--gd-text-2, #b6bde0);
+  border: 1px solid transparent;
+  padding: 4px 7px;
+  box-shadow: none;
+  border-radius: 0;
+  cursor: pointer;
+}
+.gdv-tabs button:hover,
+.gdv-tools button:hover { color: var(--gd-text); border-color: var(--gd-border); }
+.gdv-tabs button.active,
+.gdv-tools button.active { color: var(--gd-bg, #0c1124); background: var(--gd-accent, #b8f03a); }
+.gdv-status { padding: 4px 10px; min-height: 20px; font-size: 11px; color: var(--gd-text-2); border-bottom: 1px solid var(--gd-border); white-space: pre-wrap; }
+.gdv-status.ok { color: var(--gd-good, #4ee38a); }
+.gdv-status.bad { color: var(--gd-bad, #ff5c5c); }
+.gdv-status.info { color: var(--gd-warn, #ffd23f); }
+.gdv-body { flex: 1; overflow: auto; padding: 8px 10px 16px; }
+.gdv-body h4 { margin: 14px 0 6px; font: 700 13px/1 var(--gd-display, sans-serif); letter-spacing: 0.1em; text-transform: uppercase; color: var(--gd-text-2); }
+.gdv-body h4 small { font: 500 10px var(--gd-body); letter-spacing: 0; text-transform: none; }
+.gdv-note { color: var(--gd-text-3, #7d86b6); font-size: 11px; margin: 4px 0; }
+.gdv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; }
+.gdv-row input:not([type="checkbox"]),
+.gdv-body select,
+.gdv-form input {
+  background: var(--gd-bg, #0c1124);
+  color: var(--gd-text);
+  border: 1px solid var(--gd-border);
+  padding: 4px 6px;
+  font: 12px var(--gd-body);
+  min-width: 0;
+  border-radius: 0;
+}
+.gdv-row input[name="path"],
+.gdv-row input[name="q"],
+.gdv-row input[name="logfilter"] { flex: 1; }
+.gdv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.gdv-check { display: flex; gap: 6px; align-items: baseline; margin: 6px 0; }
+.gdv-check small { color: var(--gd-text-3); }
+.gdv-kv { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+.gdv-kv div { display: flex; flex-direction: column; padding: 3px 0; border-bottom: 1px dashed var(--gd-border); }
+.gdv-kv span { font-size: 10px; color: var(--gd-text-3); text-transform: uppercase; letter-spacing: 0.08em; }
+.gdv-kv b small { color: var(--gd-text-3); font-weight: 400; }
+.gdv-crumbs { margin: 8px 0 4px; font-size: 11px; }
+.gdv-link { background: none !important; border: 0 !important; padding: 0 !important; box-shadow: none !important; color: var(--gd-accent) !important; cursor: pointer; text-decoration: underline; }
+.gdv-keys { display: flex; flex-wrap: wrap; gap: 3px; max-height: 120px; overflow: auto; margin: 4px 0; }
+.gdv-keys button { background: var(--gd-bg-2); color: var(--gd-text); border: 1px solid var(--gd-border); padding: 2px 5px; box-shadow: none; cursor: pointer; }
+.gdv-keys small { color: var(--gd-text-3); font-weight: 400; }
+.gdv-json,
+.gdv-log pre {
+  background: var(--gd-bg, #0c1124);
+  border: 1px solid var(--gd-border);
+  padding: 6px;
+  font: 11px/1.35 ui-monospace, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 46vh;
+  overflow: auto;
+  margin: 0;
+  color: var(--gd-text);
+}
+.gdv-log { display: grid; gap: 4px; }
+.gdv-log small { color: var(--gd-text-3); }
+.gdv-log .lv-warn pre { border-color: var(--gd-warn); }
+.gdv-log .lv-error pre,
+.gdv-log .lv-window pre,
+.gdv-log .lv-rejection pre,
+.gdv-log .lv-panel pre { border-color: var(--gd-bad); }
+.gdv-body table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.gdv-body td { padding: 3px 4px; border-bottom: 1px solid var(--gd-border); vertical-align: top; }
+.gdv-body tr.sel td { background: var(--gd-surface-strong); }
+.gdv-list { max-height: 30vh; overflow: auto; }
+.gdv-checks tr.ok td:first-child,
+.gdv-ok { color: var(--gd-good); }
+.gdv-checks tr.bad td:first-child,
+.gdv-bad { color: var(--gd-bad); }
+.gdv-checks tr.warn td:first-child,
+.gdv-warnc,
+.gdv-warn { color: var(--gd-warn); }
+.gdv-results ul { margin: 6px 0; padding-left: 18px; }
+.gdv-editor { border: 1px solid var(--gd-border-strong); margin: 8px 0; padding: 6px 8px; }
+.gdv-editor legend { font-weight: 700; padding: 0 4px; }
+.gdv-form { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.gdv-form label { display: grid; gap: 2px; font-size: 10px; color: var(--gd-text-3); text-transform: uppercase; }
+.gdv-panel .gdv-danger { border-color: var(--gd-bad) !important; }
+.gdv-file { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--gd-border-strong); padding: 4px 7px; cursor: pointer; }
+.gdv-file input { max-width: 180px; font-size: 10px; }
+.gdv-confirm {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 10px;
+  background: var(--gd-bg-2);
+  border-top: 2px solid var(--gd-warn, #ffd23f);
+}
+.gdv-confirm[hidden] { display: none; }
+.gdv-confirm p { margin: 0 0 8px; }
+.gdv-confirm div { display: flex; gap: 6px; justify-content: flex-end; }
+@media (max-width: 600px) {
+  .gdv-panel { left: 0 !important; right: 0 !important; width: 100vw !important; }
+  .gdv-form,
+  .gdv-kv { grid-template-columns: 1fr 1fr; }
+}
