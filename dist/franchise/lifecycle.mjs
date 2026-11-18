@@ -48,8 +48,10 @@ export function newSchedule(games = 17) {
     weeks = [];
   for (let w = 0; w < games; w++) {
     let pairs = [];
+    // `a` is the home side. Flipping every other week balances home and away (7–9 home games
+    // each); a fixed orientation gave some clubs 17 home games and others one.
     for (let i = 0; i < 16; i++)
-      pairs.push({ a: ring[i], b: ring[31 - i], score: null });
+      pairs.push(w % 2 ? { a: ring[31 - i], b: ring[i], score: null } : { a: ring[i], b: ring[31 - i], score: null });
     weeks.push(pairs);
     ring.splice(1, 0, ring.pop());
   }
