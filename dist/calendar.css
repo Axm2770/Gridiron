@@ -125,3 +125,4 @@ body.gd-pixel .calendar-event-team strong { font-family: var(--gd-display) !impo
   .calendar-evchip { font-size: 9px; padding: 0 2px; }
 }
 @media (prefers-reduced-motion: reduce) { .calendar-progress .calendar-banner-icon { animation: none; } }
+.calendar-paused-notice { margin: 0 0 14px; }

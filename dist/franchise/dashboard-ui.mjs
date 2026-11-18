@@ -15,7 +15,10 @@ import { REGIONS, ensureScouting, scoutCandidates } from "./draft-room.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
 import { teamColors } from "../presentation/pixel-art.mjs";
 import { fixtures } from "./front-office.mjs";
-import { rosterLimit } from "./blockers.mjs";
+import { rosterLimit, issueFixes } from "./blockers.mjs";
+import { complianceReport } from "./compliance.mjs";
+import { noticeList } from "../ui/notice.mjs";
+import "./fixes.mjs";
 import { winChance, oddsLabel, moneyline, litBlocks, recentForm, teamForm, divisionTable, ordinal, pageOf, daysBetween, shortDate, senderInitials, loadDeskStyles } from "./hub-model.mjs";
 
 
@@ -299,8 +302,21 @@ function feedCard(span = 4, limit = 3) {
 
 /* -------------------------------------------------------------- overview */
 
+// What stops the next game or the calendar, each with its fix, above everything else.
+function attentionStrip() {
+  let issues = [];
+  try {
+    issues = complianceReport(state, { game: state.phase !== "offseason" }).issues;
+  } catch {}
+  if (!issues.length) return "";
+  return `<div class="fd-s12 fd-attention">${noticeList(
+    issues.slice(0, 3).map((i) => ({ tone: "bad", title: i.message, detail: `${i.area}: the calendar stops before your next game until this is fixed.`, fixes: issueFixes(state, i) })),
+    { label: "Before your next game" },
+  )}</div>`;
+}
+
 function hubTab() {
-  return `<div class="fd-grid gd-bento">${hero()}${kpiStrip()}${deskCard(5)}${pulseCard(4)}${standingsCard(3)}${roadCard(8)}${leadersCard(4)}${rosterCard(5)}${medicalCard(3)}${feedCard(4)}</div>`;
+  return `<div class="fd-grid gd-bento">${attentionStrip()}${hero()}${kpiStrip()}${deskCard(5)}${pulseCard(4)}${standingsCard(3)}${roadCard(8)}${leadersCard(4)}${rosterCard(5)}${medicalCard(3)}${feedCard(4)}</div>`;
 }
 
 // Coaching tree, locker-room decisions and press record: shown on Coach career.

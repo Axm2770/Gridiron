@@ -4,6 +4,7 @@ import * as BM from "./board-meetings.mjs";
 import * as G from "./game-plan.mjs";
 import { lockerReport } from "./locker-room.mjs";
 import { icon } from "./presentation.mjs";
+import { notice } from "../ui/notice.mjs";
 import { activeDilemma, resolveDilemma } from "./depth-systems.mjs";
 import { pixelFace } from "../ui/pixel-face.mjs";
 import * as fp from "./fo-pixel.mjs";
@@ -78,7 +79,7 @@ export function installFrontOfficeUI({ views, isBusy }) {
       ["Team morale", `${p.morale}%`, toneFor(p.morale, 70, 55)],
       ["Drama", p.drama, p.drama >= 55 ? "bad" : p.drama >= 35 ? "warn" : "good"],
     ];
-    const pulse = `${pending}${planBody}<span class="fp-label">What the board is watching</span><ul class="fp-watchboard">${watch.map(([k, v, t]) => `<li class="${t}"><i></i><span>${k}</span><b>${v}</b></li>`).join("")}</ul>${x.warning ? `<p class="fp-alert">${x.warning > 1 ? "Ultimatum" : "Final warning"} on record this season.</p>` : ""}`;
+    const pulse = `${pending}${planBody}<span class="fp-label">What the board is watching</span><ul class="fp-watchboard">${watch.map(([k, v, t]) => `<li class="${t}"><i></i><span>${k}</span><b>${v}</b></li>`).join("")}</ul>${x.warning ? notice({ tone: "bad", cls: "fp-notice", title: `${x.warning > 1 ? "Ultimatum" : "Final warning"} on record this season.`, detail: "The board judges the rest of the season against the targets above; missing them again puts your job at risk." }) : ""}`;
     const meetings = x.meetings.length
       ? `<ol class="fp-timeline">${x.meetings.map((m) => `<li class="${/missed|record/i.test(m.outcome) ? "bad" : /met|exceeded|set|agreed|active/i.test(m.outcome) ? "good" : "warn"}"><time>${m.date ? esc(m.date) : m.year} · W${m.week + 1}</time><b>${esc(m.kind)}: ${esc(m.title)}</b>${fp.chip(m.outcome, /missed|record/i.test(m.outcome) ? "bad" : /met|exceeded|set|agreed|active/i.test(m.outcome) ? "good" : "warn")}<small>${esc(m.agreed ? "Agreed: " + m.agreed : m.detail || "")}${m.agreed && m.detail ? " · " + esc(m.detail) : ""}</small></li>`).join("")}</ol>`
       : '<p class="fp-note">Board and team meetings appear here with what was agreed and how it turned out.</p>';

@@ -19,7 +19,9 @@ import {
 } from "./analysis.mjs";
 import { faceSVG } from "./newgens.mjs";
 import { icon, searchKey } from "./presentation.mjs";
-import { rosterLimit } from "./blockers.mjs";
+import { rosterLimit, rosterSpotFixes } from "./blockers.mjs";
+import { notice } from "../ui/notice.mjs";
+import "./fixes.mjs";
 import { trimPlan } from "./personnel.mjs";
 import { storyArt } from "../presentation/pixel-art.mjs";
 import { heightInches } from "./player-catalog.mjs";
@@ -523,7 +525,8 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       over = active - limit;
     if (over <= 0) return "";
     const practice = state.roster.filter((p) => p.status === "practice").length;
-    return `<div class="squad-alert" role="status"><div><b>${over} over the ${limit}-player active limit.</b><small>Games can't be played until you trim. Trim to ${limit} keeps your best player at every position, moves the rest to the practice squad while it has room (${practice} / 16), and releases the remainder.</small></div>${S.allowed(state, "roster") ? `<button onclick="Office.trimPreview()">Trim to ${limit} automatically</button>` : ""}</div>`;
+    const can = S.allowed(state, "roster");
+    return notice({ cls: "squad-alert", tone: "bad", title: `${over} over the ${limit}-player active limit.`, detail: `Games can't be played until you trim. Trim to ${limit} keeps your best player at every position, moves the rest to the practice squad while it has room (${practice} / 16), and releases the remainder.`, actions: can ? [{ label: `Trim to ${limit} automatically`, onclick: "Office.trimPreview()", primary: true }] : [], fixes: can ? rosterSpotFixes(state).filter((f) => f.kind !== "open") : [] });
   };
   views.Roster = () =>
     `${rosterAlert()}${metrics([
