@@ -151,7 +151,7 @@ export function changeLineup(s, unit, slot, id) {
     throw Error("Choose a valid lineup slot.");
   const role = s.franchise.role;
   if (!canEditUnit(s, unit))
-    throw Error(`The ${unit.toLowerCase()} depth chart is handled by another coach in your ${role} role. Your career role was set when the career began; start a new career or accept a job offer to change it.`);
+    throw Error(`The ${unit.toLowerCase()} depth chart is delegated to another coach in your ${role} role. Your career role was set when the career began; start a new career or accept a job offer to change it.`);
   if (s.live?.finished)
     throw Error(
       "The game has finished. Review the result before changing personnel.",
