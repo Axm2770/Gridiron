@@ -14,7 +14,6 @@ import { blockerText, rosterLimit, activeCount } from "./blockers.mjs";
 import { marketDay } from "./world.mjs";
 import { ensureCalendar, addDays } from "./calendar-core.mjs";
 import { pageOf, filterAssets, filterAgents, sortAgents, dealMeter, ASSET_PAGE, AGENT_PAGE } from "./market-view.mjs";
-import { pixelFace } from "../ui/pixel-face.mjs";
 import { teamColors } from "../presentation/pixel-art.mjs";
 
 const e = K.escapeHTML;
