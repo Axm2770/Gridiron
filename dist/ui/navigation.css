@@ -127,3 +127,11 @@ body .related-links .related-link { box-shadow: none !important; }
 /* Player names linked automatically to the player hub (navigation-ui.mjs). */
 .player-name-link { cursor: pointer; text-decoration: underline; text-decoration-color: var(--gd-border-strong, #5566a8); text-underline-offset: 3px; }
 .player-name-link:hover, .player-name-link:focus-visible { color: var(--gd-accent, #c7f45b); text-decoration-color: currentColor; outline: none; }
+
+/* Player profile: depth-chart role and best attributes on the Overview tab. */
+.profile-role { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 20px; margin: 12px 0; padding: 12px 14px; border: 1px solid var(--gd-border, #2e3a6e); }
+.profile-role > div { display: grid; gap: 4px; align-content: start; }
+.profile-role small { color: var(--gd-text-2, #b6bde0); }
+.profile-attrs { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.profile-attr { display: inline-flex; align-items: center; gap: 6px; }
+.profile-role .link { justify-self: start; font-size: 12px; }

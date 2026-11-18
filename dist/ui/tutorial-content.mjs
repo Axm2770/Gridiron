@@ -39,7 +39,7 @@ export const TOURS = [
       {
         target: ".search-trigger",
         title: "Search anything",
-        body: "Find any player in the league or jump to any screen. The shortcut is Ctrl+K (⌘K on a Mac).",
+        body: "Find any player in the league, jump to any screen, or run an action such as simulating to the next game or trimming the roster. The shortcut is Ctrl+K (⌘K on a Mac).",
       },
       {
         target: "#breadcrumb",

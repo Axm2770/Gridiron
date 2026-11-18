@@ -271,3 +271,11 @@ dialog.gd-sheet .gd-sheet-body { padding: 16px 18px; max-height: 70vh; overflow:
 .neg-blockers span { color: #a6b4bf; }
 @media (max-width: 640px) { .scout-card header { grid-template-columns: 1fr auto; } .scout-card header > :first-child { display: none; } }
 .ops-asset { grid-template-columns: 18px minmax(0, 1fr) auto auto; }
+
+/* Sortable table headers (presentation.mjs enhanceTables): every data table, one look. */
+#app th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+#app th.sortable:hover, #app th.sortable:focus-visible { color: var(--gd-accent); outline: none; }
+#app th.sortable[aria-sort="ascending"]::after { content: " ▲"; color: var(--gd-accent); font-size: 0.8em; }
+#app th.sortable[aria-sort="descending"]::after { content: " ▼"; color: var(--gd-accent); font-size: 0.8em; }
+#app .table-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 8px; }
+#app .table-tools small { color: var(--gd-text-3); }

@@ -403,7 +403,7 @@ export function installPresentation({
       closeModal();
       commandQuery = "";
       modal(
-        `<div class="command-search">${icon("search")}<input id="command-input" type="search" placeholder="Find a player or jump to a screen…" aria-label="Search players and screens" oninput="W.search(this.value)"><kbd>ESC</kbd></div><div id="command-results"></div><div class="command-hint">Search your entire league · Click a result to open it</div>`,
+        `<div class="command-search">${icon("search")}<input id="command-input" type="search" placeholder="Find a player, a screen or an action…" aria-label="Search players and screens" oninput="W.search(this.value)"><kbd>ESC</kbd></div><div id="command-results"></div><div class="command-hint">Search your entire league · Click a result to open it</div>`,
       );
       document.getElementById("modal").classList.add("command-dialog");
       W.search("");
@@ -434,7 +434,23 @@ export function installPresentation({
                 )
                 .slice(0, 18)
             : [];
+      // Actions run straight from search: type "trim", "sim", "tour" or "help".
+      const actions = commandQuery
+        ? [
+            ["Continue to the next game or decision", "advance()", "play", "continue next advance"],
+            ["Simulate to the next game", "F.holiday(1)", "calendar", "sim simulate week game"],
+            ["Trim roster to 53", "Office.trimPreview()", "users", "trim cut roster 53 limit"],
+            ["Assistant depth chart", "F.depth()", "users", "depth chart optimize starters lineup"],
+            ["Open transactions log", "W.open('Transactions')", "database", "transactions moves signings trades log"],
+            ["Help & tutorials", "W.help()", "search", "help tutorial tour guide glossary"],
+            ...(window.Tutorial?.tours || []).map((tour) => [`Tour: ${tour.title}`, `Tutorial.start('${tour.id}')`, "play", "tour tutorial " + tour.title]),
+          ].filter(([label, , , words]) => (label + " " + words).toLowerCase().includes(commandQuery))
+        : [];
       document.getElementById("command-results").innerHTML =
+        (actions.length ? '<div class="result-label">ACTIONS</div>' : "") +
+        actions
+          .map(([label, code, glyph]) => `<button class="command-row" onclick="closeModal();${code}">${icon(glyph)}<span>${esc(label)}</span>${icon("arrow")}</button>`)
+          .join("") +
         (routes.length ? '<div class="result-label">SCREENS</div>' : "") +
           routes
             .map(
@@ -449,7 +465,7 @@ export function installPresentation({
                 `<button class="command-row" onclick="W.player('${p.id}',${team})">${portrait(p)}<span>${esc(p.name)}<small>${clubs[team][0]} · ${p.realPosition || p.pos} · ${status(p)}</small></span><b>${p.ovr}</b></button>`,
             )
             .join("") ||
-        '<div class="search-empty">No matching players or screens. Try a surname.</div>';
+        '<div class="search-empty">No matching players, screens or actions. Try a surname, a screen or "help".</div>';
     },
     filter(key, value) {
       squadFilter[key] = value;
@@ -539,19 +555,30 @@ export function installPresentation({
     let footer = document.querySelector("footer");
     footer.innerHTML = `<span class="footer-wordmark">GRIDIRON DIRECTOR <i>•</i> ${state.year} SEASON</span><span class="footer-status"><i class="live-dot"></i> Saved on this device</span>`;
   }
+  // Every data table in the workspace gets click-to-sort headers and, when long, a search box.
+  // Tables with their own sorting (a th that already has aria-sort or a control) are left alone;
+  // data-table-filtered tables keep their own search; data-no-sort opts out entirely.
+  const SKIP_COLUMNS = new Set(["", "Actions", "Action", "Move / action", "Investigate", "Conversation", "Compare", "Report"]);
+  // The first number in a cell, so "96 99 POT", "$1.2M", "74%" and "6′ 3″" sort numerically;
+  // dashes and empty cells sort last.
+  const cellNumber = (s) => {
+    const m = s.replace(/[,$]/g, "").match(/^[^\dA-Za-z]*?(-?\d+(?:\.\d+)?)/);
+    return m ? Number(m[1]) : NaN;
+  };
   function enhanceTables() {
-    for (let panel of document.querySelectorAll(".f-panel")) {
-      let table = panel.querySelector("table");
-      if (!table || table.dataset.enhanced || table.dataset.tableFiltered)
-        continue;
+    for (let table of document.querySelectorAll("#app table")) {
+      if (table.dataset.enhanced || table.dataset.noSort || !table.tHead?.rows[0] || !table.tBodies[0]) continue;
       table.dataset.enhanced = "true";
       let rows = [...table.tBodies[0].rows];
-      if (rows.length > 12) {
+      const heads = [...table.tHead.rows[0].cells];
+      if (heads.some((th) => th.hasAttribute("aria-sort") || th.onclick || th.getAttribute("onclick") || th.querySelector("button, select, input"))) continue;
+      const host = table.closest(".f-panel, .gd-card, .panel, section") || table.parentElement;
+      if (rows.length > 12 && !table.dataset.tableFiltered && !host.querySelector('input[type="search"]')) {
         let tools = document.createElement("div");
         tools.className = "table-tools";
-        let label = panel.querySelector("h2")?.textContent || "table";
+        let label = host.querySelector("h2, h3")?.textContent?.trim() || "table";
         tools.innerHTML = `<div class="table-search">${icon("search")}<input type="search" placeholder="Search ${esc(label.toLowerCase())}…" aria-label="Search ${esc(label)}"></div><small>${rows.length} records</small>`;
-        panel.querySelector(".pad").prepend(tools);
+        (table.closest(".scroll, .f-table") || table).before(tools);
         tools.querySelector("input").oninput = (e) => {
           let q = e.target.value.toLowerCase(),
             shown = 0;
@@ -559,51 +586,51 @@ export function installPresentation({
             row.hidden = !row.textContent.toLowerCase().includes(q);
             if (!row.hidden) shown++;
           }
-          tools.querySelector("small").textContent =
-            `${shown} of ${rows.length} records`;
+          tools.querySelector("small").textContent = `${shown} of ${rows.length} records`;
         };
       }
-      for (let [index, th] of [...table.tHead.rows[0].cells].entries()) {
-        if (
-          [
-            "Actions",
-            "Action",
-            "Move / action",
-            "Investigate",
-            "Conversation",
-          ].includes(th.textContent)
-        )
-          continue;
+      // A paginated table sorts the whole list with its own controls; sorting one page would mislead.
+      const paginated = [...host.querySelectorAll("button")].some((b) => /^(Next|Previous)$/.test(b.textContent.trim()));
+      if (rows.length < 3 || paginated) continue;
+      for (let [index, th] of heads.entries()) {
+        if (SKIP_COLUMNS.has(th.textContent.trim())) continue;
         th.tabIndex = 0;
-        th.title = "Sort by " + th.textContent;
+        th.classList.add("sortable");
+        th.title = "Sort by " + th.textContent.trim();
         th.setAttribute("aria-sort", "none");
-        let asc = true;
+        let asc = false;
         const sort = () => {
           let body = table.tBodies[0];
+          const value = (row) => (row.cells[index]?.innerText || row.cells[index]?.textContent || "").trim();
+          const numeric = rows.filter((r) => Number.isFinite(cellNumber(value(r)))).length >= rows.length / 2;
           [...body.rows]
-            .sort((a, b) => {
-              let av = a.cells[index]?.textContent.trim() || "",
-                bv = b.cells[index]?.textContent.trim() || "";
-              let an = Number(av.replace(/[$,%M]/g, "")),
-                bn = Number(bv.replace(/[$,%M]/g, ""));
-              let n =
-                Number.isFinite(an) && Number.isFinite(bn)
-                  ? an - bn
-                  : av.localeCompare(bv);
-              return asc ? n : -n;
+            .sort((x, y) => {
+              let av = value(x), bv = value(y);
+              if (numeric) {
+                let an = cellNumber(av), bn = cellNumber(bv);
+                if (!Number.isFinite(an)) return 1;
+                if (!Number.isFinite(bn)) return -1;
+                return asc ? an - bn : bn - an;
+              }
+              return asc ? av.localeCompare(bv) : bv.localeCompare(av);
             })
             .forEach((row) => body.append(row));
-          table
-            .querySelectorAll("th")
-            .forEach((t) => t.setAttribute("aria-sort", "none"));
+          heads.forEach((h) => h.hasAttribute("aria-sort") && h.setAttribute("aria-sort", "none"));
           th.setAttribute("aria-sort", asc ? "ascending" : "descending");
           asc = !asc;
         };
-        th.onclick = sort;
+        // Numbers sort highest first on the first click; text sorts A–Z.
+        th.onclick = () => {
+          if (th.getAttribute("aria-sort") === "none") {
+            const numeric = rows.filter((r) => Number.isFinite(cellNumber((r.cells[index]?.innerText || r.cells[index]?.textContent || "").trim()))).length >= rows.length / 2;
+            asc = !numeric;
+          }
+          sort();
+        };
         th.onkeydown = (e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            sort();
+            th.onclick();
           }
         };
       }
