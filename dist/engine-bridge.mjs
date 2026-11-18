@@ -6,12 +6,17 @@ import { BroadcastVoice } from "./engine/voice.mjs";
 import { random } from "./engine/random.mjs";
 import {
   manualCall,
-  staffDecision,
+  offenseSnap,
+  defenseSnap,
+  counterStyle,
+  onsideKick,
+  snapRoll,
   withPossessionTempo,
   SPECIAL_CALLS,
   DEFAULT_CALL,
   LIVE_FITNESS_FLOOR,
 } from "./franchise/play-calling.mjs";
+import { planOf, schemeBoost } from "./franchise/tactics.mjs";
 import { captionAllowed, installSimOptions, simOptions } from "./presentation/sim-options.mjs";
 const grouped = (players, team) => {
   let groups = {};
@@ -82,15 +87,21 @@ resolveSnap = function () {
       !(role === "DC" && own),
     // A selected call repeats on early downs; punts, field goals and fourth downs need a fresh pick.
     // Staff calls are shared with the fast worker so live and simulated games score alike.
-    call =
-      (own && manual && manualCall(m)) ||
-      staffDecision(m, {
-        style: own ? state.coach.style : "Balanced",
-        directives: own ? state.franchise?.directives : {},
-      });
+    // The game plan (tactics.mjs) drives staff calls; the opponent's coordinator answers it.
+    gamePlan = planOf(state),
+    staff = offenseSnap(m, {
+      style: own ? state.coach.style : counterStyle(gamePlan),
+      directives: own ? state.franchise?.directives : {},
+      plan: own ? gamePlan : null,
+    }),
+    picked = own && manual && manualCall(m),
+    call = picked || staff.call,
+    liveBoost = state.coach.plan ? schemeBoost(state, gamePlan) : {};
   let coverage = own
     ? ["Cover 2", "Cover 3", "Quarters", "Man coverage"][Math.floor(rng() * 4)]
-    : m.defCall;
+    : manual
+      ? m.defCall
+      : defenseSnap(m, { plan: gamePlan, defCall: m.defCall, front: m.defense, shell: m.shell }).coverage;
   const ours = state.roster
       .filter(
         (p) =>
@@ -104,6 +115,7 @@ resolveSnap = function () {
         ovr: Math.min(
           99,
           p.ovr +
+            (liveBoost[p.pos] || 0) +
             (state.franchise?.career?.skills?.[
               ["QB", "RB", "WR", "TE", "OL", "K", "P"].includes(p.pos)
                 ? "offense"
@@ -118,6 +130,7 @@ resolveSnap = function () {
     seed: playSeed,
     spot: m.spot,
     call,
+    ...(own && !picked && staff.scheme ? { scheme: staff.scheme } : {}),
     coverage,
     formation: own ? m.offense : "Shotgun spread",
     front: m.defense,
@@ -155,9 +168,13 @@ resolveSnap = function () {
     team: clubs[team][2],
     score: [...m.score],
   };
-  state.live = withPossessionTempo(m, own, (x) =>
-    applyExecution(x, execution, clubs[team][0]),
+  state.live = withPossessionTempo(
+    m,
+    own,
+    (x) => applyExecution(x, execution, clubs[team][0]),
+    own && !picked ? staff.tempo : undefined,
   );
+  if (own) onsideKick(m, state.live, m.poss, gamePlan.onside, snapRoll(m, 31));
   // Special teams are one snap: the sheet returns to the base call for the next series.
   if (own && SPECIAL_CALLS.includes(state.live.call)) state.live.call = DEFAULT_CALL;
   window.franchiseRecordExecution?.(execution, team);
