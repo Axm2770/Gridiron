@@ -12,6 +12,7 @@ import {
   capLedger,
   basicContract,
   financeYear,
+  playerSnap,
 } from "./state.mjs";
 import { cut } from "./contracts.mjs";
 import { random, clamp } from "../engine/random.mjs";
@@ -283,7 +284,7 @@ export function draftPick(s, id) {
   draftOne(s, d.picks[d.cursor], p);
   d.cursor++;
   advanceCpuDraft(s);
-  log(s, "Draft selection", `${p.name} joins the franchise.`);
+  log(s, "Draft selection", `${p.name} joins the franchise.`, "club", { kind: "transaction", type: "draft", incoming: [{ ...playerSnap(p), college: p.college || "" }], terms: [{ label: "Pick", value: `#${d.cursor}` }] });
 }
 export function tradeDown(s) {
   requireRole(s, "scout");

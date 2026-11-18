@@ -526,6 +526,20 @@ const person = (s) =>
     .sort(
       (a, b) => (b.persona?.leadership || 0) - (a.persona?.leadership || 0),
     )[0];
+// Structured detail for inbox cards (ui/message-cards.mjs). Snapshots, so the card still reads
+// correctly after the player recovers, moves or retires.
+function injuryData(s, p) {
+  const md = p.medical || {};
+  return { kind: "injury", playerId: p.id, name: p.name, pos: p.realPosition || p.pos, diagnosis: md.diagnosis || "", bodyPart: md.bodyPart || "", weeks: p.injury || 0, total: Math.max(p.injury || 0, md.weeks || 0), week: s.week, treatment: md.treatment || "", status: "out" };
+}
+function trainingData(p) {
+  const r = p.progression?.lastReport || {};
+  const attributes = Object.entries(r.attributeDirections || {})
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .slice(0, 4)
+    .map(([key, delta]) => ({ label: key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()), delta: Math.round(delta * 10) / 10 }));
+  return { kind: "training", playerId: p.id, name: p.name, pos: p.realPosition || p.pos, grade: p.progression?.training ?? null, ovr: p.ovr, delta: Number.isFinite(r.delta) ? Math.round(r.delta * 10) / 10 : null, form: Number.isFinite(r.form) ? Math.round(r.form * 10) / 10 : null, reasons: (r.reasons || []).slice(0, 3), attributes };
+}
 export function syncOffice(s) {
   const o = ensureOffice(s),
     c = s.franchise.clubs[s.team],
@@ -595,6 +609,7 @@ export function syncOffice(s) {
             : "Football operations",
       priority: dramatic ? "urgent" : "normal",
       playerId: p?.id,
+      ...(e.data ? { data: e.data } : {}),
       decision: dramatic
         ? /holdout/i.test(e.title)
           ? "contract"
@@ -664,6 +679,7 @@ export function syncOffice(s) {
           source: "Medical team",
           playerId: p.id,
           route: "Medical",
+          data: injuryData(s, p),
         });
         if (p.injury >= 3)
           postStory(s, key, {
@@ -685,6 +701,7 @@ export function syncOffice(s) {
         source: "Medical team",
         playerId: p.id,
         route: "Development",
+        data: { ...injuryData(s, p), status: "cleared", weeks: 0 },
       });
     }
   }
@@ -798,6 +815,7 @@ export function processNewsRound(s, results, roundKey) {
       source: "Development staff",
       playerId: best.id,
       route: "Development",
+      data: trainingData(best),
     });
   const p = s.roster
     .filter((p) => !p.injury)

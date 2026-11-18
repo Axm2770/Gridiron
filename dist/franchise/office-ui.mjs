@@ -1,4 +1,5 @@
-import { formatMessage } from "../ui/message-format.mjs";
+import { renderMessageBody, effectsCard, loadMessageCardStyles } from "../ui/message-cards.mjs";
+import { coachAppearance, coachPixelAvatar } from "./coach-avatar.mjs";
 import { scorePill, previewAttributes, miniBio } from "./player-ui.mjs";
 import { playerAwards } from "./player-catalog.mjs";
 import * as S from "./state.mjs";
@@ -201,10 +202,37 @@ export function installOfficeUI({ views, isBusy, getSection }) {
         : '<div class="office-empty ib-empty"><b>Your desk is clear.</b><p>No messages match these filters. Try All or clear the search.</p></div>') + inboxPager(pg)
     );
   }
+  // Lookups the message cards use: any player in the league (own roster, other clubs, free
+  // agents), his club, the coach's pixel face and club crests.
+  function anyPlayer(id) {
+    if (!id) return null;
+    const own = state.roster.find((p) => p.id === id);
+    if (own) return own;
+    for (const c of state.franchise.clubs || []) {
+      const q = c.players?.find((p) => p.id === id);
+      if (q) return q;
+    }
+    return (state.agents || []).find((p) => p.id === id) || null;
+  }
+  const playerNamed = (name) => (name ? state.roster.find((p) => p.name === name) || (state.franchise.clubs || []).flatMap((c) => c.players || []).find((p) => p.name === name) || (state.agents || []).find((p) => p.name === name) || null : null);
+  const cardContext = () => ({
+    team: state.team,
+    player: anyPlayer,
+    playerByName: playerNamed,
+    teamOf: (p) => (state.roster.includes(p) ? state.team : (state.franchise.clubs || []).findIndex((c) => c.players?.includes(p))),
+    teamName: (t) => clubs[t]?.[2] || clubs[t]?.[0] || "Club",
+    logo: (t) => (clubs[t] ? logo(t) : ""),
+    coachName: state.coach?.name,
+    coachFace: coachPixelAvatar(coachAppearance(state), { label: state.coach?.name || "Coach" }),
+  });
+  // Morale/trust changes from a decision as an effects card: one group per player.
   function impactRows(changes) {
-    return changes?.length
-      ? `<div class="impact-grid">${changes.map((c) => `<div><span>${esc(c.name)}</span><b class="${c.delta >= 0 ? "positive" : "negative"}">${sign(c.delta)} morale</b>${c.trust ? `<small>${sign(c.trust)} coach trust</small>` : ""}</div>`).join("")}</div>`
-      : '<p class="muted">No direct morale change.</p>';
+    if (!changes?.length) return '<p class="muted">No direct morale change.</p>';
+    const groups = changes.map((c) => {
+      const p = state.roster.find((q) => q.name === c.name);
+      return { name: c.name, playerId: p?.id, rows: [{ label: "Morale", delta: c.delta }, ...(c.trust ? [{ label: "Coach trust", delta: c.trust }] : [])] };
+    });
+    return effectsCard(groups, cardContext(), { title: "Squad reaction" });
   }
   const meterBlocks = (v, cells = 10) => {
     const n = litBlocks(v, 100, cells),
@@ -221,11 +249,13 @@ export function installOfficeUI({ views, isBusy, getSection }) {
       ),
       pending = m.status === "pending",
       options = pending ? decisionOptions(m) : [],
-      locked = isBusy() || state.live;
-    return `<article class="message-detail ib-msg"><div class="message-topline ib-msg-top">${badge(m.category)}${m.priority === "urgent" ? badge("Urgent", "danger") : m.priority === "important" ? badge("Important", "amber") : ""}<span>${messageTime(m)}</span><button class="icon-button ib-star ${m.bookmarked ? "positive" : ""}" aria-label="${m.bookmarked ? "Unsave" : "Save"} message" onclick="Office.bookmark('${m.id}')">${m.bookmarked ? "★" : "☆"}</button></div><h2>${esc(m.title)}</h2><div class="message-sender ib-sender">${senderAvatar(m, 44)}<span><b>${esc(m.source)}</b><small>To ${esc(state.coach.name)} · ${esc(state.franchise.role)}</small></span></div><div class="message-copy ib-copy">${formatMessage(m.body)}</div>${
-      p
+      locked = isBusy() || state.live,
+      copy = renderMessageBody(m, cardContext());
+    loadMessageCardStyles();
+    return `<article class="message-detail ib-msg${copy.cards ? " ib-msg-cards" : ""}"><div class="message-topline ib-msg-top">${badge(m.category)}${m.priority === "urgent" ? badge("Urgent", "danger") : m.priority === "important" ? badge("Important", "amber") : ""}<span>${messageTime(m)}</span><button class="icon-button ib-star ${m.bookmarked ? "positive" : ""}" aria-label="${m.bookmarked ? "Unsave" : "Save"} message" onclick="Office.bookmark('${m.id}')">${m.bookmarked ? "★" : "☆"}</button></div><h2>${esc(m.title)}</h2><div class="message-sender ib-sender">${senderAvatar(m, 44)}<span><b>${esc(m.source)}</b><small>To ${esc(state.coach.name)} · ${esc(state.franchise.role)}</small></span></div><div class="message-copy ib-copy">${copy.html}</div>${
+      p && !copy.coversPlayer
         ? `<div class="message-player ib-player">${playerLink(p, state.team)}<div class="ib-player-meter"><small>Morale</small>${meterBlocks(p.morale ?? 75)}<b>${num(p.morale, 0)}%</b></div><div class="ib-player-meter"><small>Trust</small>${meterBlocks(p.coachTrust ?? 60)}<b>${num(p.coachTrust ?? 60, 0)}%</b></div></div>`
-        : m.playerId
+        : !p && m.playerId && !copy.cards
           ? '<p class="muted">The player is no longer with this franchise.</p>'
           : ""
     }${

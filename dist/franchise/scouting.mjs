@@ -221,6 +221,23 @@ export function deliverReports(s) {
       category: "Scouting",
       playerId: p.id,
       scoutTeam: team,
+      // Inbox report card (ui/message-cards.mjs).
+      data: {
+        kind: "scouting",
+        playerId: p.id,
+        name: p.name,
+        pos: p.pos,
+        age: p.age,
+        scout: r.scout,
+        before: fmtRange(before.ovr),
+        ovr: fmtRange(after.ovr),
+        pot: fmtRange(after.pot),
+        verdict: after.prospect ? `${draftProjection(s, p).label} · #${draftProjection(s, p).rank} on our board` : potentialLabel(after),
+        strengths: attrs.slice(0, 3).map((a) => ({ label: attrName(a.key), range: fmtRange([a.lo, a.hi]) })),
+        concerns: attrs.slice(-2).map((a) => ({ label: attrName(a.key), range: fmtRange([a.lo, a.hi]) })),
+        confidence: [before.confidence, after.confidence],
+        exact: !!after.exact,
+      },
     });
     const entry = { playerId: p.id, name: p.name, date, from: before.confidence, to: after.confidence };
     d.delivered.unshift(entry);
