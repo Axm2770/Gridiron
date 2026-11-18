@@ -62,6 +62,8 @@ const stadium = fs.readFileSync("dist/stadium.js", "utf8"),
 assert(stadium.includes("window.GridironStadium=") && stadium.includes("presentation/stadium-pro.mjs"));
 assert(index.includes("ui/presentation.css") && /<body class="[^"]*\bgd-themed\b/.test(index) && index.includes("gd-wordmark"));
 // The pixel theme loads after every other stylesheet and is on before scripts run.
+// Story scenes share one stylesheet, loaded after the pixel-art kit it builds on.
+assert(index.indexOf("ui/scenes.css") > index.indexOf("ui/pixel-art.css") && fs.existsSync("dist/ui/scenes.css"));
 assert(index.indexOf("ui/pixel.css") > index.indexOf("ui/presentation.css") && /<body class="[^"]*\bgd-pixel\b/.test(index));
 
 console.log("PASS: time-of-day lighting, Director camera cuts, broadcast banners and scorebug, club accent contrast and presentation wiring.");

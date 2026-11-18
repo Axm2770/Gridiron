@@ -454,7 +454,7 @@ globalThis.modal = (html) => {
 };
 globalThis.closeModal = () => {};
 installStaffUI({ views, isBusy: () => false });
-assert.match(views.Staff(), /Coaching|people behind the playbook/);
+assert.match(views.Staff(), /Staff in post/);
 StaffHub.tab("Search records");
 const recordsHTML = views.Staff();
 assert.match(

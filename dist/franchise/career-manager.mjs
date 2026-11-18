@@ -941,7 +941,7 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     },
   };
   views["Careers & saves"] = () =>
-    `<section class="stories-hero"><span class="eyebrow">YOUR COACHING LIBRARY</span><h2>One coach. One world. Every career is yours.</h2><p>Create separate coach profiles, load an existing career, or branch a season before a big decision.</p><div class="f-actions"><button onclick="Career.open()">Open career library</button><button class="secondary" onclick="Career.save()">Save this career</button><button class="secondary" onclick="Career.export()">Export backup</button></div></section>`;
+    `<section class="gd-actionbar"><div class="f-actions"><button onclick="Career.open()">Open career library</button><button class="secondary" onclick="Career.save()">Save this career</button><button class="secondary" onclick="Career.export()">Export backup</button></div></section>`;
   chooseClub = () => Career.open();
   startCareer = (team) => Career.new(team);
   W.realCareer = () => Career.new();

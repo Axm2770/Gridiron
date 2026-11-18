@@ -1,35 +1,95 @@
 /* Pixel-art presentation for cutscenes and news (presentation/pixel-art.mjs).
-   Pixel display type is for headlines and kickers only; body copy stays in the readable UI font.
-   The signing and head-coach scenes are always pixel art; restyling of the 3D cinematics,
-   conversation scenes and story cards follows the pixel theme (body.gd-pixel). */
-@font-face { font-family: "GD Pixel Display"; src: url("../assets/fonts/PressStart2P-Regular.ttf") format("truetype"); font-display: swap; }
+   Same kit as the medical / market / draft screens: 3px frames, hard 4px shadows, a header bar with
+   a small label chip and a Pixelify title, DM Sans for anything you read. The signing and
+   head-coach scenes are always pixel art, so they carry their own fallbacks for the classic theme.
+   The 3D cinematics overlay and the conversation dialogs live in ui/scenes.css. */
+@font-face { font-family: "Pixelify Sans"; src: url("../assets/fonts/PixelifySans-Variable.ttf") format("truetype"); font-weight: 400 700; font-display: swap; }
 
 :root {
   --px-ink: #0b0d12;
   --px-paper: #f4efe2;
   --px-panel: #141a24;
-  --px-display: "GD Pixel Display", "Press Start 2P", monospace;
-  --px-body: "DM Sans", system-ui, sans-serif;
-  /* A two-step hard-edged frame: dark outline, light bevel, team-coloured drop. */
-  --px-frame: 0 0 0 3px var(--px-ink), 0 0 0 6px var(--px-paper), 0 0 0 9px var(--px-ink), 9px 9px 0 6px var(--px-team, #3b6cc8);
+  /* Pixel display type: Pixelify Sans (readable). Press Start 2P is kept for tiny accents only. */
+  --px-display: "Pixelify Sans", "DM Sans", system-ui, sans-serif;
+  --px-body: "DM Sans", "Segoe UI", system-ui, sans-serif;
 }
 .px-sprite { display: block; image-rendering: pixelated; }
 
 /* ------------------------------------------------------------- scene player */
-.px-scene { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #05070b; opacity: 0; transition: opacity 0.3s steps(3); color: var(--px-paper); }
+/* The art and its lower third stack in one column sized from the viewport, so the caption never
+   covers the picture and nothing scrolls from a 390px phone to a 2560px monitor. */
+.px-scene {
+  --sc-cap-h: clamp(150px, 24vh, 210px);
+  --sc-pad: clamp(12px, 3vh, 36px);
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(12px, 2.4vh, 26px);
+  padding: calc(var(--sc-pad) + 34px) 16px calc(var(--sc-pad) + 4px);
+  background: var(--gd-bg, #05070b); color: var(--gd-text, var(--px-paper));
+  opacity: 0; transition: opacity 0.3s steps(3);
+}
 .px-scene.px-in { opacity: 1; }
 .px-scene.px-out { opacity: 0; }
-.px-scene-frame { width: min(92vw, 150vh); aspect-ratio: 16 / 9; box-shadow: var(--px-frame); background: #18202c; margin-bottom: 18vh; }
+.px-scene-frame {
+  flex: none; margin: 0;
+  width: min(100%, 1800px, calc((100dvh - var(--sc-cap-h) - 2 * var(--sc-pad) - 70px) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  border: 3px solid var(--gd-border-strong, #5566a8);
+  border-top: 6px solid var(--px-team, #3b6cc8);
+  background: #18202c;
+  box-shadow: 4px 4px 0 var(--px-ink);
+}
 .px-scene-art { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
-.px-scene-caption { position: absolute; left: 50%; bottom: 5vh; transform: translateX(-50%); width: min(88vw, 900px); padding: 16px 22px 18px; background: var(--px-panel); box-shadow: 0 0 0 3px var(--px-ink), 0 0 0 6px var(--px-team, #3b6cc8); }
-.px-kicker { display: inline-block; font: 10px/1.4 var(--px-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--px-ink); background: var(--px-team2, #f4efe2); padding: 4px 8px; box-shadow: 0 0 0 2px var(--px-ink); }
-.px-scene-caption h2 { margin: 12px 0 8px; font: clamp(16px, 2.6vw, 30px)/1.25 var(--px-display); text-transform: uppercase; color: #fff; text-shadow: 3px 3px 0 var(--px-team, #3b6cc8); overflow-wrap: anywhere; }
-body .px-scene .px-scene-caption p { margin: 0; font: 500 clamp(14px, 1.3vw, 17px)/1.5 var(--px-body) !important; color: #dfe6ee; }
-.px-scene-controls { position: absolute; top: 3vh; right: 3vw; }
-.px-skip { font: 10px var(--px-display); color: var(--px-ink); background: var(--px-paper); border: 0; padding: 8px 12px; cursor: pointer; box-shadow: 0 0 0 3px var(--px-ink), 3px 3px 0 3px var(--px-team, #3b6cc8); }
-.px-skip:hover, .px-skip:focus-visible { background: #fff; outline: none; transform: translate(1px, 1px); }
-.px-scene-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: #1d2431; }
+
+/* Lower third: the kit's header-bar panel. */
+.px-scene-caption, .scn-lower {
+  flex: none; width: min(100%, 900px); min-width: 0;
+  border: 3px solid var(--gd-border-strong, #5566a8);
+  border-left: 6px solid var(--px-team, var(--gd-accent, #3b6cc8));
+  background: var(--gd-surface, var(--px-panel));
+  box-shadow: 4px 4px 0 var(--px-ink);
+  color: var(--gd-text, var(--px-paper));
+  text-align: left;
+}
+.scn-lower-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 34px; padding: 5px 12px; border-bottom: 3px solid var(--gd-border-strong, #5566a8); background: var(--gd-surface-strong, #1b2230); }
+.scn-lower-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 11.5px/1.3 var(--px-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--gd-text-2, #b9c4d2); }
+.scn-lower-body { padding: clamp(8px, 1.6vh, 14px) 14px clamp(10px, 1.8vh, 16px); }
+.px-kicker, .scn-label {
+  display: inline-block; flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 2px 8px; background: var(--px-team2, var(--gd-accent, #f4efe2)); color: var(--px-ink);
+  font: 700 11px/1.45 var(--px-body); letter-spacing: 0.06em; text-transform: uppercase;
+  box-shadow: 2px 2px 0 var(--px-ink);
+}
+body .px-scene .px-scene-caption h2, body .gd-cine .scn-lower h2 {
+  margin: 0 0 6px; font: 700 clamp(22px, 3.2vw, 40px)/1.1 var(--px-display) !important; letter-spacing: 0.03em !important;
+  text-transform: uppercase; color: var(--gd-text, #fff); overflow-wrap: anywhere;
+}
+body .px-scene .px-scene-caption p, body .gd-cine .scn-lower p { margin: 0; font: 500 clamp(14px, 1.25vw, 17px)/1.5 var(--px-body) !important; color: var(--gd-text-2, #dfe6ee); }
+
+/* Skip / continue: the same block button in every scene, top right. */
+.px-scene-controls, .gd-cine .gd-cine-controls { position: absolute; top: clamp(10px, 2vh, 20px); right: clamp(12px, 2vw, 28px); z-index: 4; display: flex; align-items: center; gap: 10px; }
+.px-skip, .gd-cine .gd-cine-controls .gd-btn, .gd-cine .gd-cine-controls select {
+  min-height: 34px; padding: 6px 14px; cursor: pointer;
+  font: 700 13px/1 var(--px-body) !important; letter-spacing: 0.04em;
+  color: var(--px-ink) !important; background: var(--px-paper) !important;
+  border: 2px solid var(--px-ink) !important; border-radius: 0 !important;
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.22), 3px 3px 0 var(--px-ink) !important;
+}
+.px-skip kbd, .gd-cine .gd-cine-controls .gd-btn kbd { margin-left: 8px; padding: 1px 4px; border: 1px solid currentColor !important; background: transparent !important; color: inherit !important; box-shadow: none !important; font: 700 11px/1.3 var(--px-body) !important; opacity: 0.75; }
+.px-skip:hover, .px-skip:focus-visible, .gd-cine .gd-cine-controls .gd-btn:hover { background: #fff !important; outline: none; }
+.px-skip:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--px-ink) !important; }
+.px-scene-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--gd-bg-2, #1d2431); }
 .px-scene-progress i { display: block; height: 100%; width: 0; background: var(--px-team, #3b6cc8); }
+
+/* Short or narrow screens: smaller caption, art shrinks first. */
+@media (max-height: 760px) { .px-scene { --sc-cap-h: 140px; } }
+@media (max-width: 560px) {
+  .px-scene { --sc-cap-h: 190px; padding-top: 64px; }
+  .scn-lower-meta { display: none; }
+}
+
+/* Big monitors: caption and controls scale with the art. */
+@media (min-width: 1800px) and (min-height: 1000px) { .px-scene { --sc-cap-h: 250px; } .px-scene .scn-lower, .px-scene-controls { zoom: 1.2; } }
+@media (min-width: 2300px) and (min-height: 1300px) { .px-scene { --sc-cap-h: 300px; } .px-scene .scn-lower, .px-scene-controls { zoom: 1.4; } }
 
 /* Sprite animation: stepped, never tweened. */
 .px-scene .px-l-lift { animation: px-lift 0.8s steps(4) 0.6s both; }
@@ -49,44 +109,30 @@ body .px-scene .px-scene-caption p { margin: 0; font: 500 clamp(14px, 1.3vw, 17p
 .px-scene.px-still .px-l-rest, .px-scene.px-still .px-l-clap-b { opacity: 0; }
 
 /* ----------------------------------------------------------- news cards */
-.px-card { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; margin: 10px 0 12px; padding: 10px 12px; background: var(--px-panel); color: var(--px-paper); box-shadow: 0 0 0 2px var(--px-ink), 0 0 0 4px var(--px-team, #3b6cc8); }
+.px-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; margin: 10px 0 12px; padding: 10px 12px; background: var(--gd-surface-strong, var(--px-panel)); color: var(--gd-text, var(--px-paper)); border: 2px solid var(--gd-border-strong, var(--px-ink)); border-left: 5px solid var(--px-team, #3b6cc8); box-shadow: 3px 3px 0 var(--px-ink); }
 .px-card-art { display: flex; align-items: flex-end; gap: 4px; }
 .px-card-art .px-portrait { width: 56px; height: 56px; }
 .px-card-art .px-jersey { width: 60px; height: 51px; }
 .px-card-copy { min-width: 0; display: grid; gap: 4px; }
-body .px-card .px-card-copy b { font: 700 15px/1.2 var(--px-body) !important; overflow-wrap: anywhere; }
-body .px-card .px-card-copy small { font: 500 12px var(--px-body) !important; color: #b9c4d2; }
-.px-card .px-kicker { justify-self: start; font-size: 8px; }
-.px-watch { grid-column: 2; justify-self: start; font: 9px var(--px-display); color: var(--px-ink); background: var(--px-team2, #f4efe2); border: 0; padding: 7px 8px; cursor: pointer; box-shadow: 0 0 0 2px var(--px-ink); white-space: nowrap; }
-.px-watch:hover, .px-watch:focus-visible { background: #fff; outline: none; }
-.px-story-portrait { align-self: flex-start; width: max-content; margin: 2px 0 8px; padding: 3px; background: var(--px-panel); box-shadow: 0 0 0 2px var(--px-ink); }
+body .px-card .px-card-copy b { font: 700 16px/1.2 var(--px-display) !important; overflow-wrap: anywhere; }
+body .px-card .px-card-copy small { font: 500 12px var(--px-body) !important; color: var(--gd-text-2, #b9c4d2); }
+.px-card .px-kicker { justify-self: start; font-size: 10.5px; }
+.px-watch { justify-self: end; white-space: nowrap; cursor: pointer; padding: 6px 10px; font: 700 12px/1 var(--px-body) !important; color: var(--px-ink) !important; background: var(--px-team2, var(--px-paper)) !important; border: 2px solid var(--px-ink) !important; box-shadow: 2px 2px 0 var(--px-ink) !important; }
+.px-watch:hover, .px-watch:focus-visible { background: #fff !important; outline: none; }
+.px-story-portrait { align-self: flex-start; width: max-content; margin: 2px 0 8px; padding: 3px; background: var(--gd-bg-2, var(--px-panel)); border: 2px solid var(--gd-border-strong, var(--px-ink)); }
 .px-story-portrait .px-portrait { width: 48px; height: 48px; }
 @media (max-width: 520px) {
+  .px-card { grid-template-columns: auto minmax(0, 1fr); }
   .px-card-art .px-jersey { display: none; }
+  .px-watch { grid-column: 2; justify-self: start; }
 }
 
-/* Pixel theme: newsroom story cards get pixel frames and pixel headlines (body text unchanged). */
+/* Pixel theme: newsroom story cards get pixel frames and Pixelify headlines (body text unchanged). */
 body.gd-pixel .stories-grid .story-card { border-radius: 0; box-shadow: 0 0 0 2px var(--px-ink), 4px 4px 0 2px rgba(11, 13, 18, 0.35); }
-body.gd-pixel .stories-grid .story-card h2 { font-family: var(--px-display) !important; font-size: 13px; line-height: 1.5; letter-spacing: 0; text-transform: none; }
-body.gd-pixel .stories-grid .story-card.lead-story h2 { font-size: 16px; }
+body.gd-pixel .stories-grid .story-card h2 { font-family: var(--px-display) !important; font-size: 17px; line-height: 1.3; letter-spacing: 0.02em; text-transform: none; }
+body.gd-pixel .stories-grid .story-card.lead-story h2 { font-size: 22px; }
 body.gd-pixel .stories-grid .story-card p { font-family: var(--px-body) !important; }
-body.gd-pixel .news-masthead h2 { font-family: var(--px-display) !important; font-size: 20px; line-height: 1.4; }
-
-/* Pixel theme: 3D cinematics render low-res and scale up crisply, framed with pixel titles. */
-.gd-cine.gd-cine-px canvas { image-rendering: pixelated; }
-.gd-cine.gd-cine-px .gd-cine-title span { font: 10px/1.4 var(--px-display); letter-spacing: 0.08em; border-radius: 0; box-shadow: 0 0 0 2px var(--px-ink); }
-.gd-cine.gd-cine-px .gd-cine-title h2 { font: clamp(22px, 4vw, 54px)/1.2 var(--px-display); text-shadow: 4px 4px 0 var(--tc, #3b6cc8); }
-.gd-cine.gd-cine-px .gd-cine-title p { font-family: var(--px-body); }
-.gd-cine.gd-cine-px .gd-cine-controls select, .gd-cine.gd-cine-px .gd-cine-controls .gd-btn { border-radius: 0; box-shadow: 0 0 0 2px var(--px-ink); }
-.gd-cine.gd-cine-px .gd-cine-progress { height: 4px; }
-
-/* Pixel theme: conversation cutscenes keep their 3D stage but render pixelated in a pixel frame. */
-body.gd-pixel .career-cutscene .cinema-stage { box-shadow: 0 0 0 3px var(--px-ink), 0 0 0 6px var(--px-paper), 0 0 0 9px var(--px-ink); border-radius: 0; }
-body.gd-pixel .career-cutscene canvas { image-rendering: pixelated; }
-body.gd-pixel .career-cutscene .scene-meta h2 { font-family: var(--px-display) !important; font-size: 15px; line-height: 1.5; }
-body.gd-pixel .career-cutscene .scene-location { font-family: var(--px-display) !important; font-size: 9px; }
-body.gd-pixel .career-cutscene .career-face svg { filter: url(#gd-pixelate); image-rendering: pixelated; }
-body.gd-pixel .career-cutscene .spoken-line p, body.gd-pixel .career-cutscene .dialogue-choices { font-family: var(--px-body) !important; }
+body.gd-pixel .news-masthead h2 { font-family: var(--px-display) !important; font-size: 24px; line-height: 1.25; }
 
 @media (prefers-reduced-motion: reduce) {
   .px-scene *, .px-scene { animation: none !important; transition: none !important; }

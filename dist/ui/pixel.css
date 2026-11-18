@@ -72,7 +72,7 @@ body.gd-pixel h1 { font-size: clamp(24px, 2.6vw, 34px) !important; line-height: 
 body.gd-pixel h2 { line-height: 1.25; }
 body.gd-pixel h3 { font-weight: 700 !important; letter-spacing: 0.01em; }
 /* Small labels never drop below 11px and keep enough weight to read on the dark palette. */
-body.gd-pixel :is(#breadcrumb, .eyebrow, [class*="eyebrow"], .gd-chip, .tag, .role-badge, th) {
+body.gd-pixel :is(#breadcrumb, .eyebrow, [class*="eyebrow"], .gd-chip, .tag, th) {
   font-size: max(11px, 1em) !important;
   font-weight: 700 !important;
   letter-spacing: 0.05em !important;

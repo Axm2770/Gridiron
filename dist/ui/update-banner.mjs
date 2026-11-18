@@ -2,6 +2,8 @@
 // desktop shell checks GitHub Releases on launch and every few hours; this only renders and
 // forwards the player's choices (install, reload, open the release page, dismiss).
 const MB = 1024 * 1024;
+// Header-bar label above the message (pixel kit look; ui/dialogs.css).
+const KICKER = { info: "Game update", good: "Update ready", warn: "Update needs you" };
 let dismissed = null;
 
 function view(s) {
@@ -40,7 +42,7 @@ export function installUpdateBanner(api) {
     bar.hidden = !v;
     if (!v) return;
     bar.dataset.tone = v.tone;
-    bar.innerHTML = `<span class="gd-update-text"></span>${v.progress != null ? `<span class="gd-update-progress"><i style="width:${v.progress}%"></i></span>` : ""}<span class="gd-update-actions">${v.actions.map(([id, label, primary]) => `<button class="gd-btn ${primary ? "gd-primary" : ""}" data-act="${id}">${label}</button>`).join("")}</span>`;
+    bar.innerHTML = `<span class="gd-update-kicker"><i aria-hidden="true"></i>${KICKER[v.tone] || "Update"}</span><span class="gd-update-text"></span>${v.progress != null ? `<span class="gd-update-progress"><i style="width:${v.progress}%"></i></span>` : ""}<span class="gd-update-actions">${v.actions.map(([id, label, primary]) => `<button class="gd-btn ${primary ? "gd-primary" : ""}" data-act="${id}">${label}</button>`).join("")}</span>`;
     bar.querySelector(".gd-update-text").textContent = v.text;
   };
   bar.addEventListener("click", (event) => {

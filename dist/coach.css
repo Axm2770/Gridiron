@@ -327,109 +327,6 @@ header .search-trigger {
   color: #c0d4e2;
   line-height: 1.6;
 }
-.cinema-stage.scene-volume {
-  padding: 0;
-  height: 350px;
-  background: #142330;
-  position: relative;
-}
-.scene-volume canvas {
-  height: 100%;
-  width: 100%;
-  display: block;
-}
-.scene-volume .scene-location {
-  pointer-events: none;
-}
-.scene-filmgrain {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    #0a152122,
-    transparent 20%,
-    transparent 75%,
-    #0c1c2bc9
-  );
-  z-index: 2;
-}
-.scene-caption-chip {
-  position: absolute;
-  right: 20px;
-  bottom: 15px;
-  z-index: 4;
-  font-size: 8px;
-  color: #aac0cb;
-  padding: 7px 10px;
-  background: #12233399;
-  border: 1px solid #51677566;
-  border-radius: 5px;
-}
-.scene-speaker-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-top: 19px;
-}
-.scene-speaker-card .career-face {
-  height: 48px;
-  width: 48px;
-  border-radius: 50%;
-  border: 1px solid #507082;
-  flex-shrink: 0;
-}
-.scene-speaker-card .speaker-label {
-  color: #b9d8a0;
-  font-size: 10px;
-}
-.scene-speaker-card .speaker-caption {
-  font-size: 9px;
-  color: #7895a9;
-  display: block;
-  margin-top: 5px;
-}
-.scene-dialogue .spoken-line {
-  margin-top: 13px;
-}
-.cinema-modal {
-  border-color: #456276 !important;
-  background: #12212e !important;
-  box-shadow: 0 25px 100px #0008;
-}
-.cinema-modal .scene-dialogue {
-  background: linear-gradient(#132432, #101e2a);
-  padding: 24px 34px 30px;
-}
-.cinema-modal .scene-topline {
-  background: #0c1924;
-  color: #a6bdca;
-  height: 46px;
-}
-.cinema-modal .spoken-line p {
-  font-size: 20px;
-  letter-spacing: -0.3px;
-  color: #dce8ee;
-}
-.cinema-modal .dialogue-choices button {
-  background: #1b3142;
-  border-color: #35566b;
-  padding: 13px 18px;
-}
-.cinema-modal .dialogue-choices button:hover {
-  background: #2a4139;
-  border-color: #a7c98e;
-}
-.cinema-modal .dialogue-choices button kbd {
-  background: #294c5a;
-  border-color: #4e6c78;
-  color: #c4dea4;
-}
-.cinema-modal .scene-meta h2 {
-  font-size: 18px;
-}
-.cinema-modal .scene-meta > small {
-  font-size: 8px;
-}
 .development-hero {
   display: flex;
   gap: 25px;
@@ -805,15 +702,6 @@ body[data-density="compact"] .workspace-nav .nav-item {
   .development-plan {
     grid-template-columns: 1fr;
   }
-  .scene-volume.cinema-stage {
-    height: 285px;
-  }
-  .cinema-modal .scene-dialogue {
-    padding: 20px;
-  }
-  .cinema-modal .spoken-line p {
-    font-size: 17px;
-  }
   .development-profile-top h2 {
     font-size: 23px;
   }
@@ -863,21 +751,6 @@ body[data-density="compact"] .workspace-nav .nav-item {
   .career-small-modal {
     padding: 25px;
   }
-  .scene-caption-chip {
-    font-size: 7px;
-    right: 12px;
-    bottom: 10px;
-  }
-  .cinema-stage.scene-volume {
-    height: 235px;
-  }
-  .scene-speaker-card {
-    margin-top: 14px;
-  }
-  .scene-speaker-card .career-face {
-    height: 40px;
-    width: 40px;
-  }
   .development-toolbar {
     gap: 10px;
     padding: 12px;
@@ -895,16 +768,6 @@ body[data-density="compact"] .workspace-nav .nav-item {
   .development-profile-top h2 {
     font-size: 20px;
   }
-}
-.scene-render-host {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
-.scene-render-host canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
 }
 .career-home button:focus-visible {
   outline: 2px solid #c5df9c;

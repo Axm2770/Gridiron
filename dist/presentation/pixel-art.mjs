@@ -461,8 +461,9 @@ export function playPixelScene(event, { duration = 8 } = {}) {
   root.setAttribute("aria-label", `${d.kicker}: ${d.name}`);
   root.style.setProperty("--px-team", d.colors.primary);
   root.style.setProperty("--px-team2", d.colors.secondary);
-  root.innerHTML = `<div class="px-scene-frame">${d.svg()}</div><div class="px-scene-caption"><span class="px-kicker"></span><h2></h2><p></p></div><div class="px-scene-controls"><button class="px-skip">Skip ▸</button></div><div class="px-scene-progress"><i></i></div>`;
+  root.innerHTML = `<div class="px-scene-frame">${d.svg()}</div><div class="px-scene-caption scn-lower"><div class="scn-lower-head"><span class="px-kicker"></span><span class="scn-lower-meta"></span></div><div class="scn-lower-body"><h2></h2><p></p></div></div><div class="px-scene-controls"><button class="px-skip">Skip ▸<kbd>Esc</kbd></button></div><div class="px-scene-progress"><i></i></div>`;
   root.querySelector(".px-kicker").textContent = d.kicker;
+  root.querySelector(".scn-lower-meta").textContent = `${d.city || ""} ${d.teamName || ""}`.trim();
   root.querySelector("h2").textContent = d.headline;
   root.querySelector("p").textContent = d.sub;
   document.body.append(root);

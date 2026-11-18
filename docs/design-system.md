@@ -13,6 +13,7 @@ New screens should follow these rules automatically if they use the tokens and c
 | `dist/ui/kit.mjs` | String-template components that emit design-system markup: `card`, `stat`, `stats`, `tabs`, `chip`, `meter`, `row`, `empty`, `link`. |
 | `dist/ui/navigation.css` | Breadcrumbs, related links, tab bars, the player hub and the Transactions log. |
 | `dist/ui/tutorial.css` | Guided tours, the Help & tutorials centre and glossary tooltips. |
+| `dist/ui/dialogs.css` | Dialogs in the pixel kit: the player profile (`gp-*`), the hover snapshot, plain dialogs framed by `frameDialog()` in `franchise/presentation.mjs` (`gd-dlg-*` header bar, body, sticky action row), the Ctrl+K palette, toast and update banner. |
 
 ## Tokens
 
@@ -66,7 +67,10 @@ K.empty("No moves yet.");
 ## Navigation conventions
 
 - Every screen is a route opened with `W.open(route, tab?)`; retired names go in `ROUTE_ALIASES`.
-- Add related screens to `RELATED` in `franchise/presentation.mjs`; they show as "Jump to" links.
+- The header breadcrumb (club / section / page, with ← Back) is the only "where am I" line. Under it, every screen gets a compact title bar (`#app > .title-row.gd-titlebar`, written by the render wrapper in `franchise/presentation.mjs`): the page name (`h1`, Pixelify, with a club-coloured pixel block) on the left and, on the right, real per-screen actions (e.g. Tactics → "Enter matchday") plus the `?` help button (`W.help()`). Page names come from `descriptions` in that file.
+- No eyebrows, taglines, role badges or "Jump to" link rows in the title bar, and no hero banners that repeat the page name or describe the page. A screen starts with its real content (numbers, filters, lists). Explain a mechanic in one short line only where it matters; otherwise use a tooltip, the glossary or the `?` help.
+- Moving between screens is the sidebar, the breadcrumb and Ctrl+K search; link to a related screen from the panel where the user needs it (e.g. "Inbox →" on a panel header), not from a generic row.
+- Layout: `main` clips horizontal overflow (the sidebar is fixed, so a sideways-scrolling page used to slide under it), content is centred at max 1800px on wide screens, and below 900px the sidebar becomes the slide-in menu (`W.mobile()`). Wide tables scroll inside their own panel on phones, never the page.
 - Add a line of help for every new route to `SCREEN_HELP` in `ui/tutorial-content.mjs`. `test-tutorials.mjs` fails if a sidebar route has none.
 - Player names link to the player hub: `W.player(id, team)`.
 

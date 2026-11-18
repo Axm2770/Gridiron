@@ -74,9 +74,11 @@ function textPanel(lines, { w = 1024, h = 512, bg = "#0b1320", accent = "#3b6cc8
   }
   ctx.fillStyle = "#fff";
   ctx.textAlign = "center";
+  // Banners use the game's display face: Pixelify in the pixel theme, Barlow in the classic one.
+  const face = globalThis.document?.body?.classList.contains("gd-pixel") ? "700 SIZEpx 'Pixelify Sans', 'DM Sans', sans-serif" : "800 SIZEpx 'Barlow Condensed', Arial";
   lines.forEach(([text, size, y]) => {
     // Long names shrink to fit rather than run off the screen.
-    do ctx.font = `800 ${size}px 'Barlow Condensed', Arial`;
+    do ctx.font = face.replace("SIZE", size);
     while (ctx.measureText(text).width > w * 0.88 && (size -= 4) > 20);
     ctx.fillText(text, w / 2, y);
   });
@@ -441,7 +443,9 @@ export function playCinematic(event) {
   root.className = "gd-cine";
   root.setAttribute("role", "dialog");
   root.setAttribute("aria-label", `${cut.title.kicker}: ${cut.title.headline}`);
-  root.innerHTML = `<div class="gd-cine-stage"></div><i class="gd-cine-bar gd-top"></i><i class="gd-cine-bar gd-bottom"></i><div class="gd-cine-title" style="--tc:${TEAM_COLORS[event.team] ?? "#3b6cc8"}"><span>${cut.title.kicker}</span><h2></h2><p></p></div><div class="gd-cine-controls"><select aria-label="Cinematics preference"><option value="all">All cinematics</option><option value="major">Big moments only</option><option value="off">Off</option></select><button class="gd-btn">Skip ▸</button></div><div class="gd-cine-progress"><i></i></div>`;
+  root.innerHTML = `<div class="gd-cine-stage"></div><i class="gd-cine-bar gd-top"></i><i class="gd-cine-bar gd-bottom"></i><div class="gd-cine-title scn-lower" style="--tc:${TEAM_COLORS[event.team] ?? "#3b6cc8"};--px-team:var(--tc)"><div class="scn-lower-head"><span class="scn-label"></span><span class="scn-lower-meta"></span></div><div class="scn-lower-body"><h2></h2><p></p></div></div><div class="gd-cine-controls"><select aria-label="Cinematics preference"><option value="all">All cinematics</option><option value="major">Big moments only</option><option value="off">Off</option></select><button class="gd-btn">Skip ▸<kbd>Esc</kbd></button></div><div class="gd-cine-progress"><i></i></div>`;
+  root.querySelector(".scn-label").textContent = cut.title.kicker;
+  root.querySelector(".scn-lower-meta").textContent = typeof clubs !== "undefined" ? clubs[event.team]?.[2] || "" : "";
   root.querySelector("h2").textContent = cut.title.headline;
   root.querySelector("p").textContent = cut.title.sub;
   const select = root.querySelector("select");
