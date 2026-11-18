@@ -16,6 +16,7 @@ import {
 import { runStaffCarousel } from "./staff.mjs";
 import { assertCanAdvance } from "./compliance.mjs";
 import { processNewsRound } from "./newsroom.mjs";
+import { processBoardRound, startSeasonExpectations } from "./board-meetings.mjs";
 import { deriveRoundEvents } from "./event-bus.mjs";
 import { processSocialRound } from "./social-engine.mjs";
 import { recordTransactions } from "./transactions.mjs";
@@ -228,6 +229,7 @@ export function finishRound(s, results) {
   }
   reviewPromises(s);
   processNewsRound(s, results, newsRoundKey);
+  processBoardRound(s, roundInfo);
   processSocialRound(s, [...deriveRoundEvents(s, results, newsRoundKey, roundInfo), ...processPipelineRound(s)]);
   processDepthRound(s, newsRoundKey);
   processMedicalWeek(s, newsRoundKey);
@@ -433,6 +435,7 @@ export function rollSeason(s) {
   f.market = { day: 3, phase: "Open", offers: [], losses: [], gains: [] };
   f.tagYear = null;
   capturePreseason(s, false);
+  startSeasonExpectations(s);
   log(
     s,
     "Training camp opens",
