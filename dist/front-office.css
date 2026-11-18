@@ -61,6 +61,21 @@
 .fo-objectives li.done i { color: var(--fo-good); }
 .fo-objectives li.risk i, .fo-objectives li.risk small { color: var(--fo-bad); }
 .fo-objectives small { color: var(--fo-text-2); }
+.fo-target-4 { grid-template-columns: repeat(4, 1fr); }
+.fo-soft { font-style: normal; font-size: 10px; color: var(--fo-text-2); text-transform: uppercase; letter-spacing: .06em; }
+.fo-bands { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.fo-band { display: grid; gap: 3px; align-content: start; padding: 10px; background: var(--fo-raised); border-top: 3px solid var(--fo-border); font-size: 11px; }
+.fo-band.good { border-top-color: var(--fo-good); }
+.fo-band.bad { border-top-color: var(--fo-bad); }
+.fo-band.active { outline: 1px solid var(--fo-accent); }
+.fo-band b { font-size: 12px; }
+.fo-band small, .fo-band span { color: var(--fo-text-2); line-height: 1.4; }
+.fo-pending { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--fo-bad); }
+.fo-pending .fo-row { align-items: center; }
+.fo-plan-now { display: grid; gap: 3px; padding: 10px; background: var(--fo-raised); border-left: 3px solid var(--fo-accent); }
+.fo-plan-now small { font-size: 9px; letter-spacing: .1em; color: var(--fo-text-2); }
+.fo-plan-now b { font-size: 15px; }
+.fo-plan-now span { font-size: 11px; color: var(--fo-text-2); }
 .fo-options, .fo-segments { display: grid; gap: 6px; }
 .fo-segments { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 .fo-option, .fo-segments button { display: block !important; text-align: left; background: var(--fo-raised); color: var(--gd-text, var(--text)); border: 1px solid var(--fo-border); padding: 9px 11px; font-weight: 600; }
@@ -154,7 +169,8 @@
   .fo-attention { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
-  .fo-kpis, .fo-attention, .fo-facilities, .fo-keys, .fo-split { grid-template-columns: 1fr 1fr; }
+  .fo-kpis, .fo-attention, .fo-facilities, .fo-keys, .fo-split, .fo-target-4 { grid-template-columns: 1fr 1fr; }
+  .fo-bands { grid-template-columns: 1fr; }
   .fo-security { flex-direction: column; align-items: flex-start; }
   .fo-unit { grid-template-columns: 100px 1fr 28px 30px; }
 }

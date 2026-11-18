@@ -70,7 +70,7 @@ function record(s, kind, title, outcome, detail) {
   b.decisions = b.decisions.slice(0, 12);
   log(s, `Ownership: ${title}`, detail, "private");
 }
-function projectedWins(s) {
+export function projectedWins(s) {
   const f = s.franchise,
     saved = f.preseasonExpectations?.[s.year]?.teams?.[s.team]?.expectedWins;
   return Number.isFinite(saved)
@@ -79,16 +79,25 @@ function projectedWins(s) {
         10;
 }
 
+// Projection + mandate + any shift agreed with ownership this season (board-meetings.mjs).
+export function winTarget(s) {
+  const b = ensureBoard(s),
+    season = s.franchise.expectations?.seasons?.[s.year],
+    shift = season && season.team === s.team ? season.targetShift || 0 : 0;
+  return (
+    Math.round(
+      clamp(projectedWins(s) + MANDATES[b.mandate].shift + shift, 2, 15) * 10,
+    ) / 10
+  );
+}
+
 export function boardOverview(s) {
   const b = ensureBoard(s),
     club = s.franchise.clubs[s.team],
     team = s.teams[s.team],
     games = s.franchise.rules?.regularGames || 17,
     played = s.phase === "season" ? team.w + team.l + (team.t || 0) : 0,
-    target =
-      Math.round(
-        clamp(projectedWins(s) + MANDATES[b.mandate].shift, 2, 15) * 10,
-      ) / 10,
+    target = winTarget(s),
     pace = played ? (team.w / played) * games : null,
     gap = pace === null ? 0 : pace - target,
     patience = club.owner.patience,

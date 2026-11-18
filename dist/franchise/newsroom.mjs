@@ -1,6 +1,13 @@
 import { dialogueConsequences } from "./career-systems.mjs";
 // Original, deterministic career fiction. Never a live news feed.
 import * as S from "./state.mjs";
+// Board/team meetings and season reviews (functions only; safe under the import cycle).
+import {
+  BOARD_DECISIONS,
+  boardDecisionOptions,
+  resolveBoardDecision,
+  ensureSeasonExpectations,
+} from "./board-meetings.mjs";
 const clamp = (n, a = 0, b = 99) => Math.max(a, Math.min(b, n));
 const hash = (s) => {
   let h = 2166136261;
@@ -217,6 +224,7 @@ export function applyMood(
   return changes;
 }
 export function decisionOptions(m) {
+  if (BOARD_DECISIONS.includes(m.decision)) return boardDecisionOptions(m);
   const sets = {
     expectations: [
       [
@@ -355,6 +363,12 @@ export function respondMessage(s, id, choice, { delegated = false } = {}) {
     throw Error(
       "Finish the current game before responding to office decisions.",
     );
+  // Meetings with ownership and the leadership group are open to every career role.
+  if (BOARD_DECISIONS.includes(m.decision)) {
+    const option = decisionOptions(m).find((c) => c.id === choice);
+    if (!option) throw Error("Choose an available response.");
+    return resolveBoardDecision(s, m, option, { delegated });
+  }
   if (!delegated && !S.allowed(s, "media"))
     throw Error("Player communication is not yours to make in your role; the head coach handles it.");
   const option = decisionOptions(m).find((c) => c.id === choice);
@@ -529,6 +543,7 @@ export function syncOffice(s) {
     });
     o.welcomed = true;
   }
+  ensureSeasonExpectations(s);
   if (o.outlookYear !== s.year) {
     postStory(s, `outlook-${s.year}-${s.team}`, {
       title: "A new voice on the sideline",
