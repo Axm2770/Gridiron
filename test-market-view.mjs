@@ -53,7 +53,7 @@ assert.equal(dealMeter(5000, { low: 400, high: 600, estimate: 500 }).fill <= 100
 assert.equal(dealMeter(0, null).fill, 0);
 
 const face = pixelFace({ id: "p1", name: "Test Player", face: { skin: "#dba27b", hair: "#1e1713", style: 1 } }, { size: 40 });
-assert.match(face, /^<span class="px-face/);
+assert.match(face, /^<span class="gd-pixel-face px-face/);
 assert.match(face, /width:40px;height:40px/);
 assert.match(face, /<svg width="100%" height="100%" class="px-sprite px-portrait/);
 assert.match(face, /shape-rendering="crispEdges"/, "faces are crisp pixel art, not filtered images");
