@@ -218,3 +218,23 @@ body.reduce-motion .gd-uload-done .gd-uload-timer { animation: gd-uload-timer li
   .gd-uload-actions button { flex: 1 1 auto; }
   .gd-uload-done .gd-uload-bar { flex-wrap: wrap; gap: 6px; }
 }
+
+/* Animation-only: while updating, the stadium is the whole screen (the jumbotron already shows the
+   step and percent). Only the tip stays, as a slim caption. The step list, title and meter remain
+   in the DOM, visually hidden, for screen readers. The full strip returns for errors, which need
+   the reason and the Continue playing button. */
+.gd-uload[data-tone="info"] .gd-uload-hud {
+  display: flex;
+  justify-content: center;
+  padding: calc(8px * var(--z)) calc(16px * var(--z));
+  background: color-mix(in srgb, var(--gd-surface) 82%, transparent);
+  border-top-width: calc(2px * var(--z));
+  box-shadow: none;
+}
+.gd-uload[data-tone="info"] .gd-uload-hud-main { display: block; }
+.gd-uload[data-tone="info"] :is(.gd-uload-bar, .gd-uload-title, .gd-uload-hud-side) {
+  position: absolute !important;
+  width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+.gd-uload[data-tone="info"] .gd-uload-tip { margin: 0; justify-content: center; text-align: center; }
