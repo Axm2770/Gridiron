@@ -204,4 +204,63 @@ assert(bootstrap.includes("window.Career.flush()"), "the career is flushed to th
 assert(banner.includes("gd-updating") && banner.includes("gd-update-loader-closed"));
 assert(office.includes("Update automatically when the game starts") && office.includes("gridiron-auto-update"));
 assert(css.includes("prefers-reduced-motion") && css.includes("steps("), "pixel animation honours reduce-motion");
+// The pixel stadium: every moment draws on whole pixels, and progress moves the scoreboard and
+// the ball carrier.
+{
+  const { pickScale, sceneLayout, sceneModel, drawScene, yardX } = await import("./dist/ui/update-loader-art.mjs");
+  assert.deepEqual(pickScale(1280, 720), { s: 4, lw: 320, lh: 180 });
+  assert.deepEqual(pickScale(2560, 1440), { s: 8, lw: 320, lh: 180 });
+  assert.equal(pickScale(1440, 900).s, 5);
+  assert.deepEqual(pickScale(1280, 720, 1.25), { s: 5, lw: 320, lh: 180 }, "scales by whole device pixels");
+  assert(pickScale(420, 800).s >= 2, "narrow windows still get chunky pixels");
+  const team = "#123456";
+  const record = () => {
+    const rects = [];
+    return { rects, globalAlpha: 1, fillStyle: "", fillRect(x, y, w, h) { rects.push({ x, y, w, h, c: this.fillStyle }); } };
+  };
+  const L = sceneLayout(320, 180, 30);
+  const draw = (state, clock = { t: 0.5, frame: 7 }) => {
+    const ctx = record(),
+      model = sceneModel(loaderView(state));
+    drawScene(ctx, L, model, clock, { team });
+    assert(ctx.rects.length > 500, `${model.mode} draws a full scene`);
+    assert(ctx.rects.every((r) => [r.x, r.y, r.w, r.h].every(Number.isInteger)), `${model.mode} stays on the pixel grid`);
+    return { model, ctx };
+  };
+  let s = initialLoader(available);
+  const seen = {};
+  const runnerPixels = (ctx, yard) => {
+    const x = yardX(L, yard);
+    return ctx.rects.filter((r) => r.c === team && r.x >= x - 7 && r.x <= x + 7 && r.y >= L.base - 16 && r.y <= L.base).length;
+  };
+  seen.save = draw(s);
+  s = loaderReducer(s, { type: "saved" });
+  const at = (p) => (s = loaderReducer(s, { type: "status", status: { phase: "downloading", stage: "download", progress: p, doneFiles: 2, downloadedBytes: 1024 * 1024 } }));
+  at(0);
+  seen.dl0 = draw(s);
+  at(50);
+  seen.dl50 = draw(s);
+  s = loaderReducer(s, { type: "status", status: { phase: "downloading", stage: "verify", progress: 100 } });
+  seen.verify = draw(s);
+  s = loaderReducer(s, { type: "status", status: { phase: "downloading", stage: "install", progress: 100 } });
+  seen.install = draw(s);
+  s = loaderReducer(s, { type: "status", status: { phase: "ready" } });
+  seen.restart = draw(s);
+  seen.kickoff = draw(s, { t: 3, frame: 40 });
+  seen.still = draw(s, { still: true });
+  seen.error = draw(loaderReducer(s, { type: "fail", message: "x" }));
+  assert.deepEqual(
+    ["save", "dl0", "verify", "install", "restart", "error"].map((k) => seen[k].model.mode),
+    ["save", "download", "verify", "install", "restart", "error"]
+  );
+  assert.deepEqual([seen.dl0, seen.dl50, seen.restart].map((x) => x.model.digits), ["6%", "44%", "100%"], "the scoreboard shows the overall percent");
+  assert(seen.dl0.model.yard < seen.dl50.model.yard && seen.dl50.model.yard < seen.restart.model.yard);
+  assert(runnerPixels(seen.dl0.ctx, 6) > 20 && runnerPixels(seen.dl50.ctx, 44) > 20, "the ball carrier stands on the progress yard line");
+  assert.equal(runnerPixels(seen.dl0.ctx, 44), 0);
+  assert.equal(seen.restart.model.title, "TOUCHDOWN");
+  assert.notDeepEqual(seen.kickoff.ctx.rects.length, seen.restart.ctx.rects.length, "the lights go down after the touchdown");
+  assert.match(seen.dl50.model.ticker, /STEP 2\/5 +DOWNLOADING/);
+  assert.equal(seen.error.model.title, "FLAG!");
+}
+
 console.log("PASS: startup auto-update — save before download, setting/startup/save-failure gating, loader steps and progress, error handling, updated notice.");
