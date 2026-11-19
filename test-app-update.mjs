@@ -110,6 +110,17 @@ try {
   assert(script.includes("Get-Process -Id 999999") && script.includes(installDir) && script.includes("robocopy"));
   assert.equal(await u.installApp(), false, "a staged update installs once");
 
+  // If the helper can't be started (launch() resolves false), the game must not quit into nothing:
+  // installApp reports false, keeps the update staged for the next try and explains why.
+  const failing = createUpdater({ packagedRoot: dist, shellDir: shell, userData, appVersion: "1.0.0", fetch, appInstall, extract, launch: async () => false });
+  await failing.init();
+  await failing.check();
+  assert.equal((await failing.download()).phase, "ready");
+  assert.equal(await failing.installApp(), false, "a helper that didn't start doesn't count as installing");
+  assert(failing.appUpdateStaged(), "the update stays staged for another try");
+  assert.equal(failing.status().phase, "error");
+  assert.match(failing.status().message, /installer couldn't start/);
+
   // Paths with quotes stay inside their string literals.
   const odd = windowsInstallScript({ pid: 1, source: "C:\\a'b", installDir: "C:\\Games\\O'Neil", exe: "C:\\Games\\O'Neil\\x.exe", workDir: "C:\\w", logFile: "C:\\l" });
   assert(odd.includes("'C:\\Games\\O''Neil'") && odd.includes("'C:\\a''b'"));
