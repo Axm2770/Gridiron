@@ -203,7 +203,8 @@ export async function runStartupUpdate({ api, storage, isStartup, save, loader, 
     if (!state.error) push({ type: "fail", message: "The update couldn't be installed. Your game is unchanged." });
     return { outcome: "error", state };
   }
-  await wait(900);
+  // Long enough for the touchdown and the lights-down "See you at kickoff" frame (it starts at 1.6s).
+  await wait(2600);
   api.reload();
   // A restart that never happens (the install helper couldn't start) must not trap the player.
   later(() => {

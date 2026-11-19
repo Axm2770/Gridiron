@@ -29,7 +29,19 @@ Every file in this release was built by GitHub Actions from this tag, passed the
 
 If you have 0.24.1 or later, the game offers this update in-game: choose **Download now**, then **Restart now**. Your careers are untouched. On 0.23.0 or earlier, download this version once from this page.
 
-## New in 0.31.0: the combine, awards night, the Hall of Fame and a real newspaper
+## New in 0.31.1: updates that just work
+
+**If you're on 0.31.0 or earlier, download this version once from the table above.** Older versions can't install this update by themselves. From 0.31.1 on, updates install and restart on their own.
+
+### Fixed
+- **App updates on Windows now install.** The installer that swaps in the new version was being closed together with the game, so app updates never finished. It now runs on its own, the game waits until it has started, and if it can't start, your game stays open and the update is kept for the next try.
+- **No more downloading the same update on every launch.** A leftover update folder that couldn't be deleted stopped the game from finding the version it had already installed. Cleanup no longer gets in the way.
+- **The game always closes when you quit,** even if an update couldn't be installed.
+
+### New update screen
+- A night stadium in pixel art: the jumbotron shows your version, the current step and the progress, and your ball carrier drives down the field as the update downloads. The ref reviews the play while the files are checked, there's a touchdown with fireworks at 100%, and the lights dim with "See you at kickoff" before the game restarts. If something goes wrong, a penalty flag explains why and you keep playing.
+
+## Also new in 0.31: the combine, awards night, the Hall of Fame and a real newspaper
 
 ### New events
 - **Scouting Combine:** every prospect runs the 40, 10-yard split, bench, vertical, broad jump, 3-cone and shuttle. Results narrow your scouting ranges and move draft stock. Draft room has a Combine tab, profiles show a combine card, and a pixel cutscene shows a prospect racing the stopwatch.
