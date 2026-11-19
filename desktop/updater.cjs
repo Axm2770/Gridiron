@@ -13,6 +13,29 @@ const fs = require('node:fs/promises');
 const crypto = require('node:crypto');
 const { createHash } = crypto;
 const { W_OK } = require('node:fs').constants;
+// Inside Electron, node:fs treats every *.asar file as a folder, so removing a downloaded app
+// (which contains resources/app.asar) fails with EBUSY. original-fs is the unpatched module.
+let rawFs = fs;
+try {
+  rawFs = require('original-fs').promises;
+} catch {}
+// Removes a tree without ever throwing: if it can't be deleted (locked by antivirus, a crashed
+// helper…), it is renamed out of the way so the next download starts clean, and cleaned up later.
+async function removeTree(target, log = () => {}) {
+  try {
+    await rawFs.rm(target, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+    return true;
+  } catch (error) {
+    try {
+      await rawFs.rename(target, `${target}.stale-${Date.now()}`);
+      log(`Updater: moved aside ${path.basename(target)} (${error.code || error.message}).`);
+      return true;
+    } catch {
+      log(`Updater: could not remove ${path.basename(target)} (${error.code || error.message}).`);
+      return false;
+    }
+  }
+}
 
 const TEXT = new Set(['.html', '.js', '.mjs', '.cjs', '.css', '.json', '.svg', '.md', '.txt']);
 const ALLOWED_HOSTS = new Set(['api.github.com', 'github.com', 'objects.githubusercontent.com', 'release-assets.githubusercontent.com', 'raw.githubusercontent.com']);
@@ -169,7 +192,8 @@ function macInstallScript({ pid, source, bundle, workDir, logFile }) {
 // appInstall describes the running install when it can replace itself: { platform: "Windows-x64",
 // installDir, exe } on Windows or { platform: "macOS-arm64", bundle } on macOS, plus pid. Null in
 // development or when the install can't be replaced. extract(zip, dir) unpacks a ZIP and
-// launch(command, args) starts the detached install helper.
+// launch(command, args) starts the detached install helper; it may return a promise of
+// true/false (started or not). Undefined counts as started, for older callers and tests.
 function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'Axm2770/Gridiron', fetch = globalThis.fetch, log = () => {}, appInstall = null, extract = null, launch = null }) {
   const contentDir = path.join(userData, 'content'),
     pointerFile = path.join(contentDir, 'active.json'),
@@ -253,13 +277,24 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
 
   async function removeOtherVersions(keep) {
     for (const entry of await fs.readdir(contentDir, { withFileTypes: true }).catch(() => []))
-      if (entry.isDirectory() && entry.name !== keep) await fs.rm(path.join(contentDir, entry.name), { recursive: true, force: true });
+      if (entry.isDirectory() && entry.name !== keep) await removeTree(path.join(contentDir, entry.name), log);
   }
 
   // Called once at launch, before the window loads. Decides which root to serve.
   async function init() {
-    // A finished app swap removes its download; anything left is from an interrupted one.
-    await fs.rm(appUpdateDir, { recursive: true, force: true });
+    // A finished app swap removes its download; anything left is from an interrupted one. None of
+    // this cleanup may stop the game from finding its installed content (that loop re-downloaded
+    // the same update on every launch).
+    await removeTree(appUpdateDir, log);
+    try {
+      for (const name of await fs.readdir(userData)) if (/^app-update\.stale-\d+$/.test(name)) await removeTree(path.join(userData, name), log);
+    } catch {}
+    try {
+      const helperLog = path.join(userData, 'app-update.log'),
+        lines = (await fs.readFile(helperLog, 'utf8')).trim().split(/\r?\n/).slice(-3);
+      for (const line of lines) log('Updater helper: ' + line);
+      await fs.rm(helperLog, { force: true });
+    } catch {}
     let pointer = null;
     try {
       pointer = JSON.parse(await fs.readFile(pointerFile, 'utf8'));
@@ -345,7 +380,7 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
       extracted = path.join(appUpdateDir, 'extracted');
     set({ phase: 'downloading', stage: 'download', progress: 0, downloadedBytes: 0, doneFiles: 0 });
     try {
-      await fs.rm(appUpdateDir, { recursive: true, force: true });
+      await removeTree(appUpdateDir, log);
       await fs.mkdir(extracted, { recursive: true });
       await downloadTo(url, zip, pkg);
       set({ stage: 'install', doneFiles: 1 });
@@ -358,7 +393,7 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
       set({ phase: 'ready', kind: 'app', progress: 100, message: `Version ${manifest.version} is downloaded. Restart to finish updating.` });
       log(`Updater: app ${manifest.version} downloaded and verified; installs on restart.`);
     } catch (error) {
-      await fs.rm(appUpdateDir, { recursive: true, force: true });
+      await removeTree(appUpdateDir, log);
       log('Updater app download: ' + error.message);
       set({ phase: 'error', message: `The update couldn't be downloaded: ${error.message.replace(/\.$/, '')}. Your game is unchanged.` });
     }
@@ -369,16 +404,24 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
   // caller quits the app right after. Returns false when no app update is staged.
   async function installApp() {
     if (!staged || !appInstall) return false;
+    let started = true;
     const workDir = appUpdateDir,
       logFile = path.join(userData, 'app-update.log');
     if (appInstall.bundle) {
       const script = path.join(userData, 'app-update.sh');
       await fs.writeFile(script, macInstallScript({ pid: appInstall.pid, source: staged.source, bundle: appInstall.bundle, workDir, logFile }), { mode: 0o755 });
-      launch('/bin/sh', [script]);
+      started = await launch('/bin/sh', [script]);
     } else {
       const script = path.join(userData, 'app-update.ps1');
       await fs.writeFile(script, windowsInstallScript({ pid: appInstall.pid, source: staged.source, installDir: appInstall.installDir, exe: appInstall.exe, workDir, logFile }));
-      launch('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script]);
+      started = await launch('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script]);
+    }
+    // launch() resolves false when the helper could not be started; quitting then would leave
+    // the player with a closed game and nothing installed.
+    if (started === false) {
+      log(`Updater: the install helper for ${staged.version} did not start; staying open.`);
+      set({ phase: 'error', message: "The update is downloaded but the installer couldn't start. Close the game and open it again to retry." });
+      return false;
     }
     log(`Updater: installing app ${staged.version} after exit.`);
     staged = null;
@@ -394,7 +437,7 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
       staging = target + '.staging';
     set({ phase: 'downloading', stage: 'download', progress: 0, downloadedBytes: 0, doneFiles: 0 });
     try {
-      await fs.rm(staging, { recursive: true, force: true });
+      await removeTree(staging, log);
       let done = 0,
         bytesDone = 0;
       for (const [rel, f] of Object.entries(manifest.files)) {
@@ -413,17 +456,17 @@ function createUpdater({ packagedRoot, shellDir, userData, appVersion, repo = 'A
       // Every file was hash-checked as it arrived; now the verified copy becomes the active game.
       set({ stage: 'install' });
       await fs.writeFile(path.join(staging, 'content-manifest.json'), JSON.stringify(manifest));
-      await fs.rm(target, { recursive: true, force: true });
+      await removeTree(target, log);
       await fs.rename(staging, target);
       const previous = active?.version;
       active = { version: manifest.version, verified: false, launches: 0, installedAt: new Date().toISOString() };
       await writePointer(active);
-      if (previous && previous !== manifest.version) await fs.rm(path.join(contentDir, previous), { recursive: true, force: true });
+      if (previous && previous !== manifest.version) await removeTree(path.join(contentDir, previous), log);
       pending = null;
       set({ phase: 'ready', current: manifest.version, progress: 100, message: `Version ${manifest.version} is installed. Reload to play it.` });
       log(`Updater: installed content ${manifest.version} (${changed.length} files downloaded).`);
     } catch (error) {
-      await fs.rm(staging, { recursive: true, force: true });
+      await removeTree(staging, log);
       log('Updater download: ' + error.message);
       set({ phase: 'error', message: `The update couldn't be installed: ${error.message.replace(/\.$/, '')}. Your game is unchanged.` });
     }

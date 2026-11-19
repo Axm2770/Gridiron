@@ -203,7 +203,8 @@ export async function runStartupUpdate({ api, storage, isStartup, save, loader, 
     if (!state.error) push({ type: "fail", message: "The update couldn't be installed. Your game is unchanged." });
     return { outcome: "error", state };
   }
-  await wait(900);
+  // Long enough for the touchdown and the lights-down "See you at kickoff" frame (it starts at 1.6s).
+  await wait(2600);
   api.reload();
   // A restart that never happens (the install helper couldn't start) must not trap the player.
   later(() => {
@@ -214,45 +215,9 @@ export async function runStartupUpdate({ api, storage, isStartup, save, loader, 
 }
 
 // ------------------------------------------------------------------ pixel art
-// A 14×14 running back carrying the ball; four leg frames make a run cycle (CSS steps()).
-const BODY = [
-  ".....HHHH.....",
-  "....HHHHHH....",
-  "....HHHHSMM...",
-  "....HHHSSM....",
-  ".....SSS......",
-  "....JJJJJ.....",
-  "...JJJJJJJ....",
-  "...SJJJJJBB...",
-  "....JJJJJBB...",
-  "....PPPPP.....",
-];
-const LEGS = [
-  ["...PP...PP....", "..PP.....PP...", ".PP.......P...", ".KK.......KK.."],
-  ["....PP.PP.....", "....PP..PP....", "....P....PP...", "...KK....KK..."],
-  ["....PP.PP.....", "...PP...PP....", "..PP.....PP...", "..KK......KK.."],
-  [".....PPP......", "....PP.PP.....", "....PP..P.....", "....KK..KK...."],
-];
-const INK = {
-  H: "var(--team, #3b6cc8)",
-  J: "var(--team, #3b6cc8)",
-  S: "#c98d5b",
-  M: "#05070d",
-  B: "#8a4b22",
-  P: "#f4f1de",
-  K: "#05070d",
-};
-function runnerSprite() {
-  let rects = "";
-  LEGS.forEach((legs, frame) => {
-    [...BODY, ...legs].forEach((row, y) => {
-      [...row].forEach((c, x) => {
-        if (INK[c]) rects += `<rect x="${frame * 14 + x}" y="${y}" width="1" height="1" fill="${INK[c]}"/>`;
-      });
-    });
-  });
-  return `<svg viewBox="0 0 56 14" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
-}
+// The night-stadium scene lives in update-loader-art.mjs (canvas, integer-scaled). This file
+// keeps the flow and the readable HUD: title, steps, progress, tip or error and its buttons.
+import { createStage, sceneModel, trophySVG } from "./update-loader-art.mjs";
 
 const TIPS = [
   "Your career was saved before anything changed.",
@@ -265,6 +230,7 @@ const TIPS = [
 // ------------------------------------------------------------------ DOM
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const GLYPH = { done: "✓", active: "▶", pending: "", error: "✕" };
+const SAY = { done: "done", active: "in progress", error: "stopped", pending: "waiting" };
 
 function ensureStyles() {
   if (document.querySelector("link[data-gd-uload]")) return;
@@ -289,9 +255,29 @@ function keepOnTop(dialog) {
   return () => observer.disconnect();
 }
 
+// The HUD along the bottom of the stadium. Built once per tone (working / error); every
+// progress tick afterwards only touches the text and attributes that changed.
+function hudMarkup(v, err) {
+  const steps = v.steps
+    .map((s) => `<li data-step="${s.id}"><span class="gd-uload-glyph" aria-hidden="true"></span><span class="gd-uload-label">${esc(s.label)}<span class="gd-uload-sr"></span></span><small></small></li>`)
+    .join("");
+  return `<div class="gd-uload-hud-main"><div class="gd-uload-bar"><span class="gd-uload-kicker"><i></i>${err ? "Update paused" : "Game update"}</span><span class="gd-uload-versions"><b>v${esc(v.from)}</b><span aria-hidden="true">→</span><b>v${esc(v.to)}</b></span></div><h1 id="gd-uload-title" class="gd-uload-title"></h1>${
+    err ? `<p class="gd-uload-error" role="alert"></p>` : `<p class="gd-uload-tip"><span>Tip</span><em></em></p>`
+  }</div><div class="gd-uload-hud-side"><ol class="gd-uload-steps">${steps}</ol>${
+    err
+      ? `<div class="gd-uload-actions"><button type="button" class="secondary" data-act="release">Release notes</button><button type="button" data-act="continue">Continue playing</button></div>`
+      : `<p class="gd-uload-now" aria-live="polite"></p><div class="gd-uload-meter" role="progressbar" aria-label="Update progress" aria-valuemin="0" aria-valuemax="100"><span class="gd-uload-segs">${"<i></i>".repeat(20)}</span><b class="gd-uload-pct"></b></div>`
+  }</div>`;
+}
+const setText = (el, s) => {
+  if (el && el.textContent !== s) el.textContent = s;
+};
+
 // The full-screen loading page. show(state) opens it, update(state) repaints it.
 export function createLoaderUI({ api, onClose = () => {} } = {}) {
   let dialog = null,
+    hud = null,
+    stage = null,
     release = null,
     tipTimer = null,
     tip = 0,
@@ -299,6 +285,8 @@ export function createLoaderUI({ api, onClose = () => {} } = {}) {
   const close = () => {
     clearInterval(tipTimer);
     release?.();
+    stage?.stop();
+    stage = null;
     if (dialog?.open) dialog.close();
     dialog?.remove();
     dialog = null;
@@ -308,23 +296,38 @@ export function createLoaderUI({ api, onClose = () => {} } = {}) {
   const paint = (state) => {
     const v = loaderView(state),
       err = !!v.error;
-    if (!painted || painted !== err) {
+    if (painted !== err) {
       painted = err;
       dialog.dataset.tone = err ? "warn" : "info";
-      dialog.innerHTML = `<div class="gd-uload-bg" aria-hidden="true"></div><section class="gd-uload-card" role="document"><div class="gd-uload-bar"><span class="gd-uload-kicker"><i></i>${err ? "Update paused" : "Game update"}</span><span class="gd-uload-versions"><b>v${esc(v.from)}</b><span aria-hidden="true">→</span><b>v${esc(v.to)}</b></span></div><div class="gd-uload-body"><h1 id="gd-uload-title" class="gd-uload-title"></h1><div class="gd-uload-field" aria-hidden="true"><div class="gd-uload-turf"></div><div class="gd-uload-runner"><div class="gd-uload-sheet">${runnerSprite()}</div></div></div><div class="gd-uload-meter" role="progressbar" aria-label="Update progress" aria-valuemin="0" aria-valuemax="100"><span class="gd-uload-segs">${"<i></i>".repeat(20)}</span><b class="gd-uload-pct"></b></div><ol class="gd-uload-steps"></ol>${err ? `<p class="gd-uload-error" role="alert"></p><div class="gd-uload-actions"><button type="button" class="secondary" data-act="release">Release notes</button><button type="button" data-act="continue">Continue playing</button></div>` : `<p class="gd-uload-tip"><span>Tip</span><em></em></p>`}</div></section>`;
-      if (err) dialog.querySelector('[data-act="continue"]').focus();
+      hud.innerHTML = hudMarkup(v, err);
+      setText(hud.querySelector(".gd-uload-tip em"), TIPS[tip % TIPS.length]);
+      stage?.resize();
+      if (err) dialog.querySelector('[data-act="continue"]')?.focus();
     }
-    dialog.querySelector(".gd-uload-title").textContent = v.headline;
-    const meter = dialog.querySelector(".gd-uload-meter");
-    meter.setAttribute("aria-valuenow", String(v.percent));
-    meter.querySelector(".gd-uload-pct").textContent = v.percent + "%";
-    const lit = Math.round(v.percent / 5);
-    meter.querySelectorAll(".gd-uload-segs i").forEach((seg, i) => seg.classList.toggle("on", i < lit));
-    dialog.querySelector(".gd-uload-steps").innerHTML = v.steps
-      .map((s) => `<li data-state="${s.state}"><span class="gd-uload-glyph" aria-hidden="true">${GLYPH[s.state]}</span><span class="gd-uload-label">${esc(s.label)}<span class="gd-uload-sr"> — ${s.state === "done" ? "done" : s.state === "active" ? "in progress" : s.state === "error" ? "stopped" : "waiting"}</span></span><small>${esc(s.detail)}</small></li>`)
-      .join("");
-    if (err) dialog.querySelector(".gd-uload-error").textContent = v.error;
-    else dialog.querySelector(".gd-uload-tip em").textContent = TIPS[tip % TIPS.length];
+    dialog.dataset.step = err ? "error" : state.step;
+    setText(hud.querySelector(".gd-uload-title"), v.headline);
+    const meter = hud.querySelector(".gd-uload-meter");
+    if (meter && meter.getAttribute("aria-valuenow") !== String(v.percent)) {
+      meter.setAttribute("aria-valuenow", String(v.percent));
+      setText(meter.querySelector(".gd-uload-pct"), v.percent + "%");
+      const lit = Math.round(v.percent / 5);
+      meter.querySelectorAll(".gd-uload-segs i").forEach((seg, i) => seg.classList.toggle("on", i < lit));
+    }
+    const items = hud.querySelectorAll(".gd-uload-steps li");
+    v.steps.forEach((s, i) => {
+      const li = items[i];
+      if (!li) return;
+      if (li.dataset.state !== s.state) {
+        li.dataset.state = s.state;
+        setText(li.querySelector(".gd-uload-glyph"), GLYPH[s.state]);
+        setText(li.querySelector(".gd-uload-sr"), " — " + SAY[s.state]);
+      }
+      setText(li.querySelector("small"), s.detail);
+    });
+    const now = v.steps.find((s) => s.state === "active");
+    setText(hud.querySelector(".gd-uload-now"), now ? now.label + (now.detail ? " · " + now.detail : "…") : "");
+    setText(hud.querySelector(".gd-uload-error"), v.error || "");
+    stage?.set(sceneModel(v));
   };
   return {
     show(state) {
@@ -332,6 +335,8 @@ export function createLoaderUI({ api, onClose = () => {} } = {}) {
       dialog = document.createElement("dialog");
       dialog.className = "gd-uload";
       dialog.setAttribute("aria-labelledby", "gd-uload-title");
+      dialog.innerHTML = `<canvas class="gd-uload-stage" aria-hidden="true"></canvas><div class="gd-uload-hud"></div>`;
+      hud = dialog.querySelector(".gd-uload-hud");
       dialog.addEventListener("cancel", (e) => {
         e.preventDefault();
         if (dialog.dataset.tone === "warn") close();
@@ -343,13 +348,18 @@ export function createLoaderUI({ api, onClose = () => {} } = {}) {
       });
       document.body.append(dialog);
       document.body.classList.add("gd-updating");
-      paint(state);
       dialog.showModal();
+      try {
+        stage = createStage(dialog.querySelector(".gd-uload-stage"), dialog, { inset: hud });
+      } catch {
+        stage = null; // no canvas: the HUD alone still tells the whole story
+      }
+      paint(state);
+      stage?.start();
       release = keepOnTop(dialog);
       tipTimer = setInterval(() => {
         tip++;
-        const em = dialog?.querySelector(".gd-uload-tip em");
-        if (em) em.textContent = TIPS[tip % TIPS.length];
+        setText(dialog?.querySelector(".gd-uload-tip em"), TIPS[tip % TIPS.length]);
       }, 6000);
     },
     update(state) {
@@ -365,7 +375,8 @@ export function showUpdatedCard(api, notice, { timeout = 12000 } = {}) {
   const dialog = document.createElement("dialog");
   dialog.className = "gd-uload-done";
   dialog.setAttribute("aria-labelledby", "gd-uload-done-title");
-  dialog.innerHTML = `<div class="gd-uload-bar"><span class="gd-uload-kicker"><i></i>Update installed</span></div><div class="gd-uload-done-body"><div class="gd-uload-done-art" aria-hidden="true"><div class="gd-uload-sheet">${runnerSprite()}</div></div><div><h2 id="gd-uload-done-title">Updated to v${esc(notice.to)}</h2><p>Your career is saved and right where you left it.</p></div></div><div class="gd-uload-actions"><button type="button" class="secondary" data-act="release">What's new</button><button type="button" data-act="ok">Play</button></div><i class="gd-uload-timer" style="animation-duration:${timeout}ms" aria-hidden="true"></i>`;
+  const from = notice.from ? `<span class="gd-uload-versions"><b>v${esc(notice.from)}</b><span aria-hidden="true">→</span><b>v${esc(notice.to)}</b></span>` : "";
+  dialog.innerHTML = `<div class="gd-uload-bar"><span class="gd-uload-kicker"><i></i>Update installed</span>${from}</div><div class="gd-uload-done-body"><div class="gd-uload-done-art" aria-hidden="true">${trophySVG()}</div><div class="gd-uload-done-text"><h2 id="gd-uload-done-title">Updated to v${esc(notice.to)}</h2><p>Your career is saved and right where you left it.</p></div></div><div class="gd-uload-actions"><button type="button" class="secondary" data-act="release">What's new</button><button type="button" data-act="ok">Play</button></div><i class="gd-uload-timer" style="animation-duration:${timeout}ms" aria-hidden="true"></i>`;
   let timer = null,
     release = null;
   const close = () => {

@@ -22,11 +22,31 @@ const origin='gridiron://game';let mainWindow;
 function appInstallTarget(){if(!app.isPackaged||smoke)return null;if(process.platform==='win32')return{platform:'Windows-x64',installDir:path.dirname(process.execPath),exe:process.execPath,pid:process.pid};if(process.platform==='darwin'){const bundle=path.resolve(process.execPath,'..','..','..');if(!bundle.endsWith('.app')||bundle.includes('/AppTranslocation/'))return null;return{platform:'macOS-'+(process.arch==='arm64'?'arm64':'x64'),bundle,pid:process.pid};}return null;}
 // The OS's own unzip tools: tar.exe ships with Windows 10/11, ditto with macOS.
 function extractZip(zip,dir){return new Promise((resolve,reject)=>{const [command,args]=process.platform==='win32'?[path.join(process.env.SystemRoot||'C:\\Windows','System32','tar.exe'),['-xf',zip,'-C',dir]]:['/usr/bin/ditto',['-x','-k',zip,dir]];const child=spawn(command,args,{stdio:'ignore',shell:false,windowsHide:true});child.on('error',reject);child.on('exit',code=>code===0?resolve():reject(Error('unzip exited with '+code)));});}
-function launchDetached(command,args){spawn(command,args,{detached:true,stdio:'ignore',shell:false,windowsHide:true}).unref();}
+// Starts the install helper so it outlives this process. On Windows a child of the game shares
+// the game's job object and is killed when the game quits, so the helper is created through WMI
+// (Win32_Process.Create), which starts it outside the job; plain detached spawn is the fallback.
+function launchDetached(command,args){
+  const plain=()=>{try{spawn(command,args,{detached:true,stdio:'ignore',shell:false,windowsHide:true}).unref();return true;}catch(error){log('Updater launch: '+error.message);return false;}};
+  if(process.platform!=='win32')return Promise.resolve(plain());
+  const q=(s)=>/[\s"]/.test(s)?'"'+String(s).replace(/"/g,'\\"')+'"':String(s);
+  const line=[command,...args].map(q).join(' ').replace(/'/g,"''");
+  const ps="$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = '"+line+"' }; exit [int]$r.ReturnValue";
+  return new Promise((resolve)=>{
+    let done=false;const finish=(ok)=>{if(!done){done=true;resolve(ok);}};
+    try{
+      const child=spawn('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-Command',ps],{stdio:'ignore',windowsHide:true});
+      child.on('exit',(code)=>{if(code===0){log('Updater: install helper started.');finish(true);}else{log('Updater: WMI launch returned '+code+'; using a detached process.');finish(plain());}});
+      child.on('error',(error)=>{log('Updater: WMI launch failed ('+error.message+'); using a detached process.');finish(plain());});
+      setTimeout(()=>{log('Updater: WMI launch timed out; using a detached process.');finish(plain());},15000);
+    }catch(error){finish(plain());}
+  });
+}
 const updater=createUpdater({packagedRoot:path.join(__dirname,'..','dist'),shellDir:__dirname,userData:app.getPath('userData'),appVersion:app.getVersion(),fetch:(url,options)=>net.fetch(url,options),log,appInstall:appInstallTarget(),extract:extractZip,launch:launchDetached});
 // Hands off to the install helper, then quits so it can replace the app and relaunch it.
-let installingApp=false;
-function restartIntoAppUpdate(){if(installingApp)return;installingApp=true;updater.installApp().then(started=>{if(started)app.quit();else{installingApp=false;installFailed();}}).catch(error=>{installingApp=false;log('Updater install: '+error.message);installFailed();});}
+let installingApp=false,quitting=false,skipInstallOnQuit=false;
+// When the player quits and the helper can't start, let the game close anyway (the update stays
+// downloaded and is retried next launch) instead of blocking every quit attempt.
+function restartIntoAppUpdate(){if(installingApp)return;installingApp=true;const fail=()=>{installingApp=false;if(quitting){skipInstallOnQuit=true;app.quit();}else installFailed();};updater.installApp().then(started=>{if(started)app.quit();else fail();}).catch(error=>{log('Updater install: '+error.message);fail();});}
 function installFailed(){mainWindow?.webContents.send('updates:status',{...updater.status(),phase:'error',message:"The update couldn't start installing. Close and reopen Gridiron Director to try again; your career is saved."});}
 let healthTimer=null;
 // Smoke tests and GRIDIRON_NO_UPDATES=1 never check, download or install anything.
@@ -70,5 +90,5 @@ if(!app.requestSingleInstanceLock())app.quit();else{
  }).catch(startupFailure);
  app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
  // An app update downloaded during play ("After this session") installs when the game closes.
- app.on('before-quit',event=>{if(updater.appUpdateStaged()&&!installingApp){event.preventDefault();restartIntoAppUpdate();}});
+ app.on('before-quit',event=>{if(updater.appUpdateStaged()&&!installingApp&&!skipInstallOnQuit){event.preventDefault();quitting=true;restartIntoAppUpdate();}});
 }
