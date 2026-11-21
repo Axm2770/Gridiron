@@ -398,3 +398,5 @@ body .touch-sim-menu label { min-width: 0; flex-wrap: nowrap; white-space: nowra
 .touch-calls.staff-calling .touch-play:disabled, .touch-calls.staff-calling .touch-tempo button:disabled { opacity: .55; cursor: not-allowed; }
 .touch-calls.staff-calling .touch-play.selected:disabled { opacity: .9; }
 .touch-calls.staff-calling .touch-playcaller select { outline: 2px solid var(--gd-warn, #ffd23f); outline-offset: 2px; }
+/* Halftime banner: reopen the halftime report or go to the locker room. */
+.touch-break-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }

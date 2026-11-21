@@ -86,11 +86,14 @@ export function keyPlays(events, sides, limit = 6) {
   return out.slice(-limit);
 }
 
-export function postgameHTML(md, { logo = () => "", actions = "" } = {}) {
+export function postgameHTML(md, { logo = () => "", actions = "", phase = "final" } = {}) {
+  const half = phase === "half";
   const team = (s, k) =>
     `<div class="pg-team ${md.winner === k ? "win" : ""} ${s.user ? "me" : ""}">${logo(s.team)}<span><b>${esc(s.name)}</b><small>${s.home ? "Home" : "Away"}${s.user ? " · your club" : ""}</small></span></div>`;
-  const resultChip = md.result ? `<span class="pg-result ${md.result.toLowerCase()}">${md.result}</span>` : "";
-  const quarters = `<table class="pg-quarters"><thead><tr><th>Team</th>${md.periods.map((p) => `<th>${p.label}</th>`).join("")}<th>Final</th></tr></thead><tbody>${[
+  // At halftime the chip reads the state of play instead of a result.
+  const halfChip = md.result ? { WIN: "LEADING", LOSS: "TRAILING", TIE: "TIED" }[md.result] : "",
+    resultChip = md.result ? `<span class="pg-result ${half ? { WIN: "win", LOSS: "loss", TIE: "tie" }[md.result] : md.result.toLowerCase()}">${half ? halfChip : md.result}</span>` : "";
+  const quarters = `<table class="pg-quarters"><thead><tr><th>Team</th>${md.periods.map((p) => `<th>${p.label}</th>`).join("")}<th>${half ? "Half" : "Final"}</th></tr></thead><tbody>${[
     [md.home, "home", 0],
     [md.away, "away", 1],
   ]
@@ -110,12 +113,42 @@ export function postgameHTML(md, { logo = () => "", actions = "" } = {}) {
         )
         .join("")
     : `<li class="pg-play empty"><span class="pg-text">No scoring plays or turnovers recorded.</span></li>`;
-  return `<div class="pg-report"><div class="pg-head"><span class="pg-kicker">Postgame report · Final${md.overtime ? " / OT" : ""}</span>${resultChip}</div><div class="pg-board">${team(md.home, 0)}<div class="pg-score"><b class="${md.winner === 0 ? "win" : ""}">${md.home.score}</b><i>–</i><b class="${md.winner === 1 ? "win" : ""}">${md.away.score}</b></div>${team(md.away, 1)}</div>${quarters}<div class="pg-cols"><section class="pg-box"><h4>Team stats <small>${esc(md.home.abbr)} · ${esc(md.away.abbr)}</small></h4><div class="pg-stats">${bars}</div></section><section class="pg-box"><h4>Key plays <small>${md.total} snaps</small></h4><ol class="pg-plays">${plays}</ol></section></div>${actions ? `<div class="modal-actions pg-actions">${actions}</div>` : ""}</div>`;
+  return `<div class="pg-report${half ? " pg-half" : ""}"><div class="pg-head"><span class="pg-kicker">${half ? "Halftime report · End of Q2" : `Postgame report · Final${md.overtime ? " / OT" : ""}`}</span>${resultChip}</div><div class="pg-board">${team(md.home, 0)}<div class="pg-score"><b class="${md.winner === 0 ? "win" : ""}">${md.home.score}</b><i>–</i><b class="${md.winner === 1 ? "win" : ""}">${md.away.score}</b></div>${team(md.away, 1)}</div>${quarters}<div class="pg-cols"><section class="pg-box"><h4>Team stats <small>${esc(md.home.abbr)} · ${esc(md.away.abbr)}</small></h4><div class="pg-stats">${bars}</div></section><section class="pg-box"><h4>${half ? "First-half plays" : "Key plays"} <small>${md.total} snaps</small></h4><ol class="pg-plays">${plays}</ol></section></div>${actions ? `<div class="modal-actions pg-actions">${actions}</div>` : ""}</div>`;
+}
+
+const halftimeShown = new Set();
+/** The halftime card for the live match; repeat=false shows it only once per game. */
+export function halftimeReport(win = globalThis, { repeat = true } = {}) {
+  const st = typeof state !== "undefined" ? state : win.state; // eslint-disable-line no-undef
+  const table = typeof clubs !== "undefined" ? clubs : win.clubs || []; // eslint-disable-line no-undef
+  const m = st?.live;
+  if (!m?.halftime || typeof win.modal !== "function") return false;
+  const key = `${st.year}-${st.week}-${m.a}-${m.b}`;
+  if (!repeat && halftimeShown.has(key)) return false;
+  halftimeShown.add(key);
+  // Only the first two quarters have been played.
+  const firstHalf = { ...m, periodScores: (m.periodScores || []).slice(0, 2) };
+  const md = postgameModel(firstHalf, { club: (t) => ({ abbr: table[t]?.[0] || `T${t + 1}`, name: table[t]?.[2] || table[t]?.[1] || `Team ${t + 1}` }), user: st.team });
+  const actions = `<button class="secondary" onclick="closeModal()">Back to the sideline</button><button onclick="closeModal();halftimeTalk()">Enter the locker room →</button>`;
+  win.modal(postgameHTML(md, { logo: (t) => (typeof win.logo === "function" ? win.logo(t, "pg-logo") : ""), actions, phase: "half" }));
+  return true;
+}
+/** Called after each matchday render: pops the halftime card once, after any open dialog closes. */
+export function maybeShowHalftime(win = globalThis, tries = 0) {
+  const st = typeof state !== "undefined" ? state : win.state; // eslint-disable-line no-undef
+  const m = st?.live;
+  if (!m?.halftime || halftimeShown.has(`${st.year}-${st.week}-${m.a}-${m.b}`)) return;
+  if (win.document?.querySelector?.("dialog[open], .px-scene, .gd-cine")) {
+    if (tries < 40) win.setTimeout?.(() => maybeShowHalftime(win, tries + 1), 500);
+    return;
+  }
+  halftimeReport(win, { repeat: false });
 }
 
 /** Replace match.js's postgameReport with the pixel version (the classic one stays as the fallback). */
 export function installPostgameReport(win = globalThis) {
   const classic = win.postgameReport;
+  win.halftimeReport = () => halftimeReport(win);
   win.postgameReport = function postgameReport() {
     // game.js declares `state` and `clubs` as script-scope globals (not window properties).
     const st = typeof state !== "undefined" ? state : win.state; // eslint-disable-line no-undef
