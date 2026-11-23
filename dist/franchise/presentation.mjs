@@ -518,6 +518,8 @@ export function installPresentation({
             ["Open transactions log", "W.open('Transactions')", "database", "transactions moves signings trades log"],
             ["Careers & saves: load, import or export", "Career.open()", "briefcase", "careers saves save load switch import export backup library"],
             ["Help & tutorials", "W.help()", "search", "help tutorial tour guide glossary"],
+            ["The Gridiron Guide: how the game works", "Guide.open()", "history", "guide handbook manual rules how learn"],
+            ...(window.Guide?.chapters || []).map((c) => [`Guide: ${c.title}`, `Guide.open('${c.id}')`, "history", "guide handbook " + c.keywords]),
             ...(window.Tutorial?.tours || []).map((tour) => [`Tour: ${tour.title}`, `Tutorial.start('${tour.id}')`, "play", "tour tutorial " + tour.title]),
           ].filter(([label, , , words]) => (label + " " + words).toLowerCase().includes(commandQuery))
         : [];
