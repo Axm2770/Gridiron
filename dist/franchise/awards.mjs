@@ -283,6 +283,10 @@ export function freezeAwards(s) {
   const f = ensureCareerSystems(s);
   f.awardBallots ??= {};
   if (f.awardBallots[s.year]) return f.awardBallots[s.year];
+  // Announced ballots from earlier seasons keep their races and ballots; the full candidate
+  // snapshot (~0.5 MB a season) is only read while a ballot is open, so it is dropped.
+  for (const old of Object.values(f.awardBallots))
+    if (old?.announced && old.year < s.year) delete old.snapshot;
   const snapshot = awardsSnapshot(s),
     races = {};
   for (const award of Object.keys(AWARD_NAMES)) {

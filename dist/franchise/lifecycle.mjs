@@ -41,7 +41,7 @@ import {
   basicContract,
   bonusCharge,
 } from "./state.mjs";
-import { weekly, marketDay, settleMarketRound } from "./world.mjs";
+import { weekly, marketDay, settleMarketRound, cpuRosterUpkeep, pruneFreeAgents, frontOfficeUpkeep } from "./world.mjs";
 import { seasonAwards } from "./history.mjs";
 import { concludeOffseasonCeremonies, runCeremonies } from "./ceremonies.mjs";
 export function newSchedule(games = 17) {
@@ -413,6 +413,9 @@ export function rollSeason(s) {
         }
       }
     }
+  // Camp rosters: every CPU club starts the season with healthy active depth at each position.
+  cpuRosterUpkeep(s);
+  pruneFreeAgents(s, year);
   applyCommitteeRules(s);
 
   s.year = year;
@@ -443,5 +446,7 @@ export function rollSeason(s) {
     "Training camp opens",
     `A new ${f.rules.regularGames}-game season begins. Trim active rosters to 53 before playing.`,
   );
+  // Coordinators: the front office trims the camp roster to 53 and fills holes (world.mjs).
+  frontOfficeUpkeep(s);
   assertCanAdvance(s, { camp: true });
 }

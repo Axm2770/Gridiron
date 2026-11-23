@@ -29,6 +29,12 @@ export function movePlayer(s, id, destination) {
       s.roster.filter((p) => p.status === "practice").length >= f.rules.practice
     )
       throw Error(`The practice squad is full (${f.rules.practice}/${f.rules.practice}). Release or promote a practice-squad player first.`);
+    // The practice-squad wage replaces this year's base salary; a guarantee above it would leave
+    // an invalid contract (validate() then failed with a generic contract error).
+    const c = f.contracts[id],
+      guaranteed = c?.guarantees?.[financeYear(s) - c.start] || 0;
+    if (guaranteed > 0.4 * MILLION)
+      throw Error(`${p.name} has $${(guaranteed / MILLION).toFixed(1)}M of guaranteed salary this year, so he can't be moved to the practice squad. Release or trade him instead.`);
     p.status = "practice";
     p.salary = 0.4;
     f.contracts[id].base[financeYear(s) - f.contracts[id].start] =
@@ -129,6 +135,28 @@ export function prepare(s, intensity) {
     throw Error("Intensity must be 0–100.");
   s.franchise.preparation.intensity = n;
 }
+// NFL order: non-playoff clubs by record, then playoff clubs by the round they went out in;
+// the champion picks last and the runner-up 31st. Ties: worse record, then point differential.
+// (Sorting every club by record alone let a 13–4 champion pick ahead of 11–6 wild cards.)
+export function draftOrder(s) {
+  const exit = new Map(),
+    rounds = s.phase === "offseason" ? s.playoffs?.rounds || [] : [];
+  rounds.forEach((games, r) => {
+    for (const g of games) {
+      if (!g.score) continue;
+      const won = g.score[0] > g.score[1];
+      exit.set(won ? g.b : g.a, r + 1);
+      if (games.length === 1 && r === rounds.length - 1) exit.set(won ? g.a : g.b, r + 2);
+    }
+  });
+  return Array.from({ length: 32 }, (_, i) => i).sort(
+    (a, b) =>
+      (exit.get(a) || 0) - (exit.get(b) || 0) ||
+      s.teams[a].w - s.teams[b].w ||
+      s.teams[a].pf - s.teams[a].pa - (s.teams[b].pf - s.teams[b].pa) ||
+      a - b,
+  );
+}
 export function beginDraft(s) {
   assertCanAdvance(s);
   requireRole(s, "scout");
@@ -149,11 +177,7 @@ export function beginDraft(s) {
       ),
     );
   }
-  let order = Array.from({ length: 32 }, (_, i) => i).sort(
-    (a, b) =>
-      s.teams[a].w - s.teams[b].w ||
-      s.teams[a].pf - s.teams[a].pa - (s.teams[b].pf - s.teams[b].pa),
-  );
+  let order = draftOrder(s);
   let picks = [];
   for (let round = 1; round <= 7; round++)
     for (let team of order)
@@ -391,13 +415,47 @@ export function recruitDepth(s) {
     s.roster.push(p);
     f.contracts[p.id] = contract;
   };
+  const healthy = (pos) =>
+      active(s).filter((p) => p.pos === pos && !p.injury && !p.holdout).length,
+    activeCount = () => active(s).filter((p) => p.status === "active").length,
+    practiceRoom = () =>
+      s.roster.filter((p) => p.status === "practice").length <
+      (f.rules?.practice ?? 16);
+  // At 53 with an injury hole (e.g. three healthy OL), the old loop added nobody and still
+  // reported success. Promote a practice-squad player at the position, or move the weakest
+  // healthy surplus reserve elsewhere to the practice squad to open the spot.
   for (let [pos, n] of Object.entries(minimum))
-    while (
-      active(s).filter((p) => p.pos === pos && !p.injury && !p.holdout).length <
-        n &&
-      active(s).filter((p) => p.status === "active").length < 53
-    )
-      recruit(pos);
+    for (let guard = 0; healthy(pos) < n && guard < 12; guard++) {
+      if (activeCount() >= 53) {
+        const year = financeYear(s),
+          movable = (p) => {
+            const c = f.contracts[p.id];
+            return !c || (c.guarantees?.[year - c.start] || 0) <= 0.4 * MILLION;
+          };
+        const surplus = s.roster
+          .filter(movable)
+          .filter(
+            (p) =>
+              p.status === "active" &&
+              !p.starter &&
+              !p.injury &&
+              !p.holdout &&
+              p.pos !== pos &&
+              healthy(p.pos) > (minimum[p.pos] || 0),
+          )
+          .sort((a, b) => a.ovr - b.ovr)[0];
+        if (!surplus || !practiceRoom()) break;
+        movePlayer(s, surplus.id, "practice");
+      }
+      const practice = s.roster
+        .filter(
+          (p) =>
+            p.pos === pos && p.status === "practice" && !p.injury && !p.holdout,
+        )
+        .sort((a, b) => b.ovr - a.ovr)[0];
+      if (practice) movePlayer(s, practice.id, "active");
+      else recruit(pos);
+    }
   while (active(s).filter((p) => p.status === "active").length < 53)
     recruit(POS[s.roster.length % 22]);
   log(

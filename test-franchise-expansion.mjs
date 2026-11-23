@@ -295,7 +295,7 @@ s.franchise.world.rumors.push({
   deadline: 0,
 });
 E.processRumors(s, "r1");
-assert.equal(s.franchise.world.rumors[0].status, "Resolved");
+assert.equal(s.franchise.world.rumors.find((r) => r.id === "missing").status, "Resolved");
 const fan = s.franchise.clubs[s.team].fanApproval;
 K.fanReaction(s, "trade", 2, "A meaningful trade", { topic: "Trades" });
 K.fanReaction(s, "trade", 2, "A meaningful trade");

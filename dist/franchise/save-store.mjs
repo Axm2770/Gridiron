@@ -1,4 +1,6 @@
 export const CAREER_DB = "gridiron-careers-v1";
+// Long careers export 40–60 MB (a 40 MB cap rejected backups of six-season careers).
+export const MAX_IMPORT_BYTES = 200_000_000;
 export class CareerStore {
   constructor(indexedDB = globalThis.indexedDB) {
     this.indexedDB = indexedDB;
@@ -147,6 +149,9 @@ export function parseCareerSave(text) {
   } catch {
     throw Error("This is not a readable career JSON file.");
   }
+  // `null`, numbers or strings are valid JSON too; they used to throw a TypeError here.
+  if (!data || typeof data !== "object" || Array.isArray(data))
+    throw Error("This file is not a supported Gridiron career save.");
   const state = data.format === "GridironCareer" ? data.state : data;
   if (
     !state ||
