@@ -20,7 +20,7 @@ import {
   coachRating,
 } from "./coach-profile.mjs";
 import { clubOutlook, NEW_CAREER_YEAR } from "./club-outlook.mjs";
-import { saveMetadata, parseCareerSave, careerId } from "./save-store.mjs";
+import { saveMetadata, parseCareerSave, careerId, MAX_IMPORT_BYTES } from "./save-store.mjs";
 import { CharacterStage } from "./character-stage.mjs";
 import { coachBadge, coachPixelAvatar } from "./coach-avatar.mjs";
 import { TEAM_COLORS } from "../presentation/team-colors.mjs";
@@ -990,8 +990,8 @@ export async function installCareerManager({ views, isBusy, initialize }) {
       try {
         const file = input.files?.[0];
         if (!file) return;
-        if (file.size > 40_000_000)
-          throw Error("Career files must be smaller than 40 MB.");
+        if (file.size > MAX_IMPORT_BYTES)
+          throw Error(`Career files must be smaller than ${MAX_IMPORT_BYTES / 1e6} MB.`);
         const parsed = parseCareerSave(await file.text());
         S.migrate(parsed.state);
         S.validate(parsed.state);

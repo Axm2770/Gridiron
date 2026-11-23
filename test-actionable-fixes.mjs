@@ -121,14 +121,21 @@ for (const shortM of [0.1, 0.4, 1.2]) {
 }
 
 // Over the cap, a suggested waive must be one contracts.cut accepts (it refuses releases that
-// leave the club over the cap).
+// leave the club over the cap with less room than before; one that frees room is allowed).
 {
   const s = fresh();
   s.franchise.rules.cap = S.capLedger(s).used - Math.round(0.5 * S.MILLION);
   const waive = rosterSpotFixes(s).find((f) => f.kind === "waive");
   if (waive) assert.doesNotThrow(() => S.transact(s, (x) => C.cut(x, waive.playerId, false)), "the suggested waive can be completed");
-  const reserve = s.roster.find((p) => !p.starter && releaseSavings(s, s.franchise.contracts[p.id]) < Math.round(0.5 * S.MILLION) && s.franchise.contracts[p.id]);
-  if (reserve) assert.match(confirmHTML(s, { kind: "waive", playerId: reserve.id }), /disabled/, "an impossible release can't be confirmed");
+  const partial = s.roster.find((p) => !p.starter && s.franchise.contracts[p.id] && releaseSavings(s, s.franchise.contracts[p.id]) > 0 && releaseSavings(s, s.franchise.contracts[p.id]) < Math.round(0.5 * S.MILLION));
+  if (partial) assert.doesNotMatch(confirmHTML(s, { kind: "waive", playerId: partial.id }), /disabled/, "a release that frees some room can be confirmed");
+  // A release that costs more dead money than it saves can't be confirmed while over the cap.
+  const reserve = s.roster.find((p) => !p.starter && s.franchise.contracts[p.id]),
+    c = s.franchise.contracts[reserve.id];
+  c.guarantees = c.base.slice();
+  c.bonus = 30 * S.MILLION;
+  assert(releaseSavings(s, c) < 0);
+  assert.match(confirmHTML(s, { kind: "waive", playerId: reserve.id }), /disabled/, "an impossible release can't be confirmed");
 }
 
 // Every fix kind reaches an existing handler; costly ones confirm first, then run F.action.

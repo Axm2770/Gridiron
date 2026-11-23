@@ -158,7 +158,9 @@ assert(full.some((b) => /active roster would be 54\/53/.test(b.reason) && /pract
 assert.throws(() => C.offer(s, agent.id, { annual: agent.salary, years: 1, bonus: 0, guaranteed: 0 }), /54\/53/);
 s = fresh();
 const cheap = s.agents.slice().sort((a, b) => a.salary - b.salary)[0];
-while (s.roster.filter((p) => p.status === "active").length > 52) P.movePlayer(s, s.roster.find((p) => p.status === "active" && !p.starter).id, "practice") ?? null;
+// Only players without guaranteed salary above the practice-squad wage can be moved there.
+const psEligible = (p) => (s.franchise.contracts[p.id].guarantees[S.financeYear(s) - s.franchise.contracts[p.id].start] || 0) <= 0.4 * S.MILLION;
+while (s.roster.filter((p) => p.status === "active").length > 52) P.movePlayer(s, s.roster.find((p) => p.status === "active" && !p.starter && psEligible(p)).id, "practice") ?? null;
 assert.equal(C.offerBlockers(s, cheap.id).length, 0);
 C.offer(s, cheap.id, { annual: Math.max(0.8, cheap.salary * 3), years: 2, bonus: cheap.salary, guaranteed: cheap.salary });
 s.franchise.market.phase = "Open";

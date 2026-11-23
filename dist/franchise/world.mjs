@@ -18,12 +18,16 @@ import {
   basicContract,
   financeYear,
   playerSnap,
+  allowed,
+  capWorse,
 } from "./state.mjs";
 import { hireStaff } from "./staff.mjs";
 import { assertCanAdvance } from "./compliance.mjs";
 import { random, clamp } from "../engine/random.mjs";
 import { offerScore, proposal } from "./contracts.mjs";
 import { depthRank, signingEdge } from "./market.mjs";
+import { retireRecord } from "./newgens.mjs";
+import { releaseSavings, releaseDeadMoney } from "./blockers.mjs";
 // In season the calendar moves a round at a time, so free-agent decisions and waiver claims are
 // settled with each round (two market days: every offer made that week reaches its deadline).
 // Idempotent per round key; the calendar date itself is not moved.
@@ -34,6 +38,193 @@ export function settleMarketRound(s, roundKey) {
   f.market.settled.push(roundKey);
   f.market.settled = f.market.settled.slice(-60);
   for (let i = 0; i < 2; i++) marketDay(s, { calendarManaged: true, compliance: false });
+  cpuRosterUpkeep(s);
+  frontOfficeUpkeep(s);
+}
+const GAME_MINIMUM = { QB: 1, RB: 1, WR: 2, TE: 1, OL: 5, DL: 3, LB: 2, CB: 2, S: 2, K: 1 };
+// Coordinators (OC/DC careers) have no roster authority, so an injury crisis, a full camp roster
+// or a cap overage blocked every game with nothing they could do about it (compliance refuses to
+// advance). The club's front office makes those moves instead, under the normal cap rules, and
+// reports them in the inbox. Users with roster authority still make every move themselves.
+export function frontOfficeUpkeep(s) {
+  const f = s.franchise;
+  if (allowed(s, "roster") || (s.live && !s.live.finished)) return [];
+  const year = financeYear(s),
+    moves = [],
+    gameDay = (p) => p.status === "active" || p.status === "elevated",
+    healthy = (pos) => s.roster.filter((p) => p.pos === pos && gameDay(p) && !p.injury && !p.holdout).length,
+    activeN = () => s.roster.filter((p) => p.status === "active").length,
+    practiceN = () => s.roster.filter((p) => p.status === "practice").length,
+    limit = s.phase === "offseason" ? Math.min(90, f.rules.preseason || 90) : Math.min(53, f.rules.active || 53),
+    spare = (p) => p.injury || healthy(p.pos) > (GAME_MINIMUM[p.pos] || 0);
+  const release = (p) => {
+    const c = f.contracts[p.id];
+    if (c && !c.ended) {
+      const dead = releaseDeadMoney(s, c);
+      c.ended = true;
+      (c.transactions ??= []).push({ type: "released", year: s.year, frontOffice: true });
+      if (dead > 0) f.dead.push({ playerId: p.id, team: s.team, year, amount: dead, reason: "Release" });
+    }
+    s.roster = s.roster.filter((q) => q.id !== p.id);
+    p.status = "free";
+    p.starter = false;
+    s.agents.push(p);
+    moves.push(`released ${p.name} (${p.pos})`);
+  };
+  // 1. Get under the cap (with room for any depth signings) using the releases that free the most.
+  const holes = Object.entries(GAME_MINIMUM).reduce((n, [pos, min]) => n + Math.max(0, min - healthy(pos) - s.roster.filter((p) => p.pos === pos && p.status === "practice" && !p.injury).length), 0);
+  for (let guard = 0; guard < 12 && capLedger(s).room < holes * 0.8 * MILLION; guard++) {
+    const best = s.roster
+      .filter((p) => !p.starter && f.contracts[p.id])
+      .map((p) => ({ p, v: releaseSavings(s, f.contracts[p.id]) }))
+      .filter((x) => x.v > 0)
+      .sort((a, b) => b.v - a.v)[0];
+    if (!best) break;
+    release(best.p);
+  }
+  // 2. Down to the active limit: lowest-rated surplus players to the practice squad, then released.
+  for (const p of s.roster.filter((p) => p.status === "active").sort((a, b) => a.ovr - b.ovr)) {
+    if (activeN() <= limit) break;
+    if (!spare(p) || p.starter) continue;
+    if (practiceN() < Math.min(16, f.rules.practice || 16) && !p.injury) {
+      p.status = "practice";
+      moves.push(`moved ${p.name} (${p.pos}) to the practice squad`);
+    } else if (!capWorse(capLedger(s).room + releaseSavings(s, f.contracts[p.id]), capLedger(s).room)) release(p);
+  }
+  // 3. Fill match-day holes: practice squad first, then the best healthy free agent, then a reserve.
+  for (const [pos, min] of Object.entries(GAME_MINIMUM))
+    for (let guard = 0; healthy(pos) < min && guard < 4; guard++) {
+      if (activeN() >= limit) {
+        const out = s.roster.filter((p) => p.status === "active" && !p.starter && p.pos !== pos && spare(p)).sort((a, b) => a.ovr - b.ovr)[0];
+        if (!out) break;
+        if (practiceN() < Math.min(16, f.rules.practice || 16) && !out.injury) {
+          out.status = "practice";
+          moves.push(`moved ${out.name} (${out.pos}) to the practice squad`);
+        } else release(out);
+      }
+      const practice = s.roster.filter((p) => p.pos === pos && p.status === "practice" && !p.injury && !p.holdout).sort((a, b) => b.ovr - a.ovr)[0];
+      if (practice) {
+        practice.status = "active";
+        moves.push(`promoted ${practice.name} (${pos}) from the practice squad`);
+        continue;
+      }
+      if (capLedger(s).room < 0.8 * MILLION) break;
+      let p = s.agents.filter((a) => a.pos === pos && !a.injury).sort((a, b) => b.ovr - a.ovr)[0];
+      if (p) s.agents = s.agents.filter((a) => a.id !== p.id);
+      else {
+        const i = (f.spawnSerial = (f.spawnSerial || 0) + 1);
+        p = makePlayer(`reserve-${s.year}-${i}`, pos, s.year * 401 + i);
+        p.ovr = Math.min(p.ovr, 68);
+      }
+      if (capLedger(s).room < Math.round((p.salary || 0.8) * MILLION)) p.salary = 0.8;
+      Object.assign(p, { status: "active", starter: false, injury: 0, joined: { team: s.team, year: s.year } });
+      p.stats ??= {};
+      p.wear ??= { knee: 0, ankle: 0, shoulder: 0, back: 0 };
+      p.fitness ??= 100;
+      s.roster.push(p);
+      f.contracts[p.id] = basicContract(p, s.team, year);
+      moves.push(`signed ${p.name} (${pos})`);
+    }
+  if (moves.length)
+    log(s, "Front office roster moves", `With roster decisions outside your remit, the general manager ${moves.join("; ")}.`, "club");
+  return moves;
+}
+// Unsigned free agents who drift out of the league when camps open. Without this the pool grew
+// by ~250 players a season (1,800+ after six seasons, about a quarter of the save).
+export const FREE_AGENT_POOL = 450;
+export function pruneFreeAgents(s, year, limit = FREE_AGENT_POOL) {
+  if (s.agents.length <= limit) return [];
+  const keepIds = new Set([
+    ...(s.franchise.office?.scouting?.shortlist || []),
+    ...(s.franchise.market?.offers || []).map((o) => o.playerId),
+  ]);
+  const value = (p) => p.ovr + Math.max(0, (p.pot || p.ovr) - p.ovr) * (p.age <= 25 ? 0.5 : 0) - Math.max(0, p.age - 30) * 1.5;
+  const ranked = s.agents.slice().sort((a, b) => value(b) - value(a)),
+    keep = new Set(ranked.slice(0, limit).map((p) => p.id));
+  const gone = s.agents.filter((p) => !keep.has(p.id) && !keepIds.has(p.id));
+  const goneIds = new Set(gone.map((p) => p.id));
+  s.agents = s.agents.filter((p) => !goneIds.has(p.id));
+  // Anyone with a real career gets a retirement record (records, Hall of Fame ballots).
+  for (const p of gone) if (Object.keys(p.stats || {}).length) retireRecord(s, p, -1, year);
+  return gone;
+}
+// Healthy active players a CPU club keeps at each position: the match-day minimums
+// (compliance.gameEligibility) plus a backup, so injuries don't leave a club without a QB or kicker.
+export const CPU_DEPTH = { QB: 2, RB: 2, WR: 4, TE: 2, OL: 7, DL: 5, LB: 4, CB: 4, S: 3, K: 1, P: 1 };
+// CPU general managers fill holes (promote from the practice squad, sign the best healthy free
+// agent, or add a fictional reserve) and keep the active roster at 53. Runs after each settled
+// round's market days and when training camp opens. Idempotent once the roster is legal.
+export function cpuRosterUpkeep(s) {
+  const f = s.franchise,
+    year = financeYear(s);
+  for (let team = 0; team < f.clubs.length; team++) {
+    if (team === s.team || !f.clubs[team]) continue;
+    const club = f.clubs[team],
+      healthy = (pos) =>
+        club.players.filter((p) => p.pos === pos && p.status === "active" && !p.injury && !p.holdout).length;
+    for (const [pos, min] of Object.entries(CPU_DEPTH)) {
+      for (let guard = 0; healthy(pos) < min && guard < min; guard++) {
+        const practice = club.players
+          .filter((p) => p.pos === pos && p.status === "practice" && !p.injury)
+          .sort((a, b) => b.ovr - a.ovr)[0];
+        if (practice) {
+          practice.status = "active";
+          continue;
+        }
+        let p = s.agents
+          .filter((a) => a.pos === pos && !a.injury)
+          .sort((a, b) => b.ovr - a.ovr)[0];
+        if (p) {
+          s.agents = s.agents.filter((a) => a.id !== p.id);
+          // A depth signing is a one-year minimum-style deal when cap room is short.
+          if (capLedger(s, team, year).room < Math.round((p.salary || 0.8) * MILLION)) p.salary = 0.8;
+          p.joined = { team, year: s.year };
+        } else {
+          const i = (f.spawnSerial = (f.spawnSerial || 0) + 1);
+          p = makePlayer(`depth-${s.year}-${team}-${i}`, pos, s.year * 523 + team * 71 + i);
+          p.salary = 0.8;
+        }
+        p.status = "active";
+        p.starter = false;
+        p.injury = 0;
+        p.stats ??= {};
+        p.wear ??= { knee: 0, ankle: 0, shoulder: 0, back: 0 };
+        p.fitness ??= 100;
+        club.players.push(p);
+        f.contracts[p.id] = basicContract(p, team, year);
+      }
+    }
+    // Back to 53: the lowest-rated surplus players go to the practice squad, then are released.
+    const counts = () => {
+      const n = {};
+      for (const p of club.players) if (p.status === "active" && !p.injury) n[p.pos] = (n[p.pos] || 0) + 1;
+      return n;
+    };
+    let active = club.players.filter((p) => p.status === "active");
+    if (active.length <= 53) continue;
+    const n = counts();
+    for (const p of active.slice().sort((a, b) => a.ovr - b.ovr)) {
+      if (active.length <= 53) break;
+      const spare = p.injury || (n[p.pos] || 0) > (CPU_DEPTH[p.pos] || 0);
+      if (!spare) continue;
+      if (!p.injury) n[p.pos]--;
+      active = active.filter((q) => q !== p);
+      if (club.players.filter((q) => q.status === "practice").length < Math.min(16, f.rules.practice || 16)) {
+        p.status = "practice";
+        continue;
+      }
+      const c = f.contracts[p.id];
+      if (c && !c.ended) {
+        c.ended = true;
+        const amount = Math.max(0, c.start + c.prorate - year) * Math.round(c.bonus / c.prorate);
+        if (amount) f.dead.push({ team, year, amount, reason: "CPU roster move", playerId: p.id });
+      }
+      club.players = club.players.filter((q) => q.id !== p.id);
+      p.status = "free";
+      p.starter = false;
+      s.agents.push(p);
+    }
+  }
 }
 const teamName = (s, t) => s.franchise.clubs[t]?.identity?.name || (typeof clubs !== "undefined" ? clubs : globalThis.clubs)?.[t]?.[2] || `team ${t + 1}`;
 export function marketDay(s, {calendarManaged=false, compliance=true}={}) {
@@ -121,7 +312,7 @@ export function marketDay(s, {calendarManaged=false, compliance=true}={}) {
           (roster(s, o.team).filter((p) => p.status === "active").length <
             (s.phase === "offseason" ? 90 : 53) ||
             (o.team !== s.team &&
-              roster(s, o.team).some((q) => !q.starter && q.ovr < p.ovr))),
+              roster(s, o.team).some((q) => q.status === "active" && !q.starter && q.ovr < p.ovr))),
       );
       if (winning) {
         if (
@@ -129,23 +320,27 @@ export function marketDay(s, {calendarManaged=false, compliance=true}={}) {
           roster(s, winning.team).filter((q) => q.status === "active").length >=
             (s.phase === "offseason" ? 90 : 53)
         ) {
+          // The release must open an active-roster spot: cutting a practice-squad or reserve
+          // player instead left CPU clubs at 54–57 active players in season.
           let released = roster(s, winning.team)
-              .filter((q) => !q.starter)
+              .filter((q) => q.status === "active" && !q.starter)
               .sort((a, b) => a.ovr - b.ovr)[0],
             old = f.contracts[released.id];
           f.clubs[winning.team].players = f.clubs[winning.team].players.filter(
             (q) => q.id !== released.id,
           );
-          old.ended = true;
-          f.dead.push({
-            team: winning.team,
-            year: financeYear(s),
-            amount:
-              Math.max(0, old.start + old.prorate - financeYear(s)) *
-              Math.round(old.bonus / old.prorate),
-            reason: "CPU release",
-            playerId: released.id,
-          });
+          if (old && !old.ended) {
+            old.ended = true;
+            f.dead.push({
+              team: winning.team,
+              year: financeYear(s),
+              amount:
+                Math.max(0, old.start + old.prorate - financeYear(s)) *
+                Math.round(old.bonus / old.prorate),
+              reason: "CPU release",
+              playerId: released.id,
+            });
+          }
           released.status = "free";
           s.agents.push(released);
         }

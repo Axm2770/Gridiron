@@ -243,7 +243,8 @@ assert(views.Club().includes("Hire staff"));
 Hub.marketTab("Trade center");
 assert(views.Market().includes("Propose trade"), "the market opens on the multi-asset trade builder");
 Hub.mediaTab("Fan network");
-assert(views.News().includes("Two QBs"));
+// The fan network renders the feed's first page (which posts land there depends on the rosters).
+assert(socialFeed(s, clubs).slice(0, 3).every((p) => views.News().includes(p.handle)), "the fan network renders the social feed");
 assert(!views.News().includes("PRIVATE"));
 Hub.react(socialId, "socialLikes");
 assert(hubPreferences(s).socialLikes.includes(socialId));

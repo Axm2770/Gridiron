@@ -11,6 +11,8 @@ export function advanceCalendarDay(s,date){const c=ensureCalendar(s);if(date!==a
  for(const club of s.franchise.clubs)for(const project of club.stadium.projects.filter(p=>p.remaining>0)){project.daysRemaining??=project.remaining*7;project.daysRemaining--;project.remaining=Math.ceil(project.daysRemaining/7);if(project.daysRemaining<=0){club.stadium[project.area]=(club.stadium[project.area]||0)+project.gain;S.log(s,'Facility project completed',project.name,'club');}}
  if(s.phase==='offseason'){
   const dates=leagueDates(s.year,s.schedule.length);s.franchise.calendar.stage=date<dates.tampering?'League meeting':date<dates.freeAgency?'Legal tampering':date<dates.draft?'Free agency':date<dates.camp?'Offseason preparation':'Training camp';
+  // Coordinators can't release or sign: the front office keeps the club under the cap before camp.
+  W.frontOfficeUpkeep(s);
   if(date>=dates.tampering&&!c.offseasonDays['market:'+date]){W.marketDay(s,{calendarManaged:true});c.offseasonDays['market:'+date]=true;}
   if(date>=dates.camp)throw Error('Training camp is next. Choose Begin next season in the Draft room (Continue → Offseason hub) to start it.');
  }

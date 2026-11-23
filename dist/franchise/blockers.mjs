@@ -7,7 +7,7 @@
 //   { kind: "dealRemove", side, id, label } { kind: "freeAgents", pos?, label }
 // Domain modules throw blockerText(...) so the same wording appears in toasts, disabled buttons
 // and tests.
-import { MILLION, capHit, capLedger, bonusCharge, financeYear, allowed, roster, ROLE_TITLES } from "./state.mjs";
+import { MILLION, capHit, capLedger, bonusCharge, financeYear, allowed, roster, ROLE_TITLES, capWorse } from "./state.mjs";
 import { cooldownRemaining } from "./career-systems.mjs";
 
 export const moneyText = (cents) => `$${(Math.abs(cents) / MILLION).toFixed(1)}M`;
@@ -126,9 +126,9 @@ export function rosterSpotFixes(s, { exclude = [] } = {}) {
     byValue = (a, b) => (a.ovr ?? 0) - (b.ovr ?? 0) || (a.pot ?? 0) - (b.pot ?? 0),
     practiceRoom = s.roster.filter((p) => p.status === "practice").length < (f.rules?.practice ?? 16),
     practice = practiceRoom ? reserves.filter((p) => !p.injury).sort(byValue)[0] : null,
-    // A release must leave the club under the cap (contracts.cut refuses otherwise).
+    // Same rule as contracts.cut: a release may not leave the club over the cap with less room.
     room = capLedger(s).room,
-    releasable = (p) => f.debug || room + releaseSavings(s, f.contracts[p.id]) >= 0,
+    releasable = (p) => f.debug || !capWorse(room + releaseSavings(s, f.contracts[p.id]), room),
     waive = reserves.filter(releasable).sort((a, b) => byValue(a, b) || releaseDeadMoney(s, f.contracts[a.id]) - releaseDeadMoney(s, f.contracts[b.id]))[0],
     fixes = [];
   if (practice) fixes.push({ kind: "practice", playerId: practice.id, label: `Move ${practice.name} to practice squad` });

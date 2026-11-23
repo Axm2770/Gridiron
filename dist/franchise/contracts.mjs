@@ -19,6 +19,7 @@ import {
   validateContract,
   playerSnap,
   capMillions,
+  capWorse,
 } from "./state.mjs";
 export function proposal(s, p, terms) {
   let years = Number(terms.years),
@@ -96,6 +97,7 @@ export function cut(s, id, postJune = false) {
     remaining = 0,
     currentBonus = 0;
   if (c && !c.ended) {
+    const roomBefore = capLedger(s).room;
     for (let b of [
       { amount: c.bonus, year: c.start, term: c.prorate },
       ...(c.restructureBonuses || []),
@@ -128,7 +130,10 @@ export function cut(s, id, postJune = false) {
       });
     c.ended = true;
     c.transactions.push({ type: "released", year: s.year, postJune });
-    if (capLedger(s).room < 0 && !s.franchise.debug)
+    // Over the cap, a release that frees room is how a club digs out; only block a release that
+    // leaves the club over the cap *and* worse off than before.
+    const roomAfter = capLedger(s).room;
+    if (roomAfter < 0 && roomAfter < roomBefore && !s.franchise.debug)
       throw Error(
         "The release accelerates more dead money than the team can absorb.",
       );
@@ -317,6 +322,7 @@ export function trade(s, id, other, targetId) {
     s.franchise.clubs[s.team].cash < 2 * MILLION
   )
     throw Error("Ownership requires a $2M transition reserve.");
+  const roomBefore = [capLedger(s).room, capLedger(s, other).room];
   for (let [p, c, team] of [
     [a, ca, s.team],
     [b, cb, other],
@@ -350,7 +356,7 @@ export function trade(s, id, other, targetId) {
   );
   s.roster.push(b);
   s.franchise.clubs[other].players.push(a);
-  if (capLedger(s).room < 0 || capLedger(s, other).room < 0)
+  if (capWorse(capLedger(s).room, roomBefore[0]) || capWorse(capLedger(s, other).room, roomBefore[1]))
     throw Error("A team cannot absorb the trade’s cap consequences.");
   if (permit?.scope === "Compromise")
     s.franchise.clubs[s.team].cash -= 2 * MILLION;

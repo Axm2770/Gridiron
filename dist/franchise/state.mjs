@@ -41,10 +41,21 @@ export const POS = [
   "K",
   "P",
 ];
+// Callers pass consecutive seeds (year * 967 + i). The engine's LCG maps consecutive seeds to
+// almost the same first outputs, so every draft class was ~uniform (all 260 prospects within 3 OVR)
+// and alternated between weak and strong classes. Scramble the seed first (murmur3 finaliser).
+export const mixSeed = (n) => {
+  let h = (n >>> 0) ^ 0x9e3779b9;
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return (h ^ (h >>> 16)) >>> 0;
+};
 export function makePlayer(id, position, seed, rookie = false) {
-  let rng = random(seed),
+  let rng = random(mixSeed(seed)),
     r = (a, b) => Math.floor(a + rng() * (b - a + 1)),
-    ovr = r(58, 84);
+    // Draft prospects enter below the veteran range (top picks ~70–78), as in the NFL; a 58–84
+    // rookie range made first-rounders instant stars and inflated the league every season.
+    ovr = rookie ? r(52, 78) : r(58, 84);
   return {
     id,
     ...newgenIdentity(id, seed, rookie, position),
@@ -331,6 +342,9 @@ export function capLedger(s, team = s.team, year = financeYear(s)) {
     room: limit - live - dead - adjustments,
   };
 }
+// A move breaks the cap only if it leaves the club over the cap and with less room than before:
+// a club already over the cap may still release or trade players to dig itself out.
+export const capWorse = (after, before) => after < 0 && after < before;
 export function gameEligibility(s) {
   let errors = [],
     a = active(s);
