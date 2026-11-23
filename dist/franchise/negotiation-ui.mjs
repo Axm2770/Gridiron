@@ -255,7 +255,14 @@ export function installNegotiationUI({ isBusy }) {
           v = contractSummary(state, c);
         el.innerHTML = `<div><span>Total value</span><b>${money(v.total)}</b></div><div><span>Total guaranteed</span><b>${money(v.guaranteed)}</b></div><div><span>First-year cap</span><b>${money(v.cap)}</b></div><div class="${v.remaining < 0 ? "negative" : ""}"><span>Room after signing</span><b>${money(v.remaining)}</b></div>`;
       } catch (e) {
-        el.textContent = e.message;
+        // "Invalid contract structure." alone did not say which box was wrong (a negative salary,
+        // an empty field, 3.5 years): name the first field the form itself rejects.
+        const bad = [
+          ...(document.getElementById("negotiation-terms")?.elements || []),
+        ].find((i) => i.willValidate && !i.checkValidity());
+        el.textContent = bad
+          ? `${bad.getAttribute("aria-label") || bad.name}: ${bad.validationMessage}`
+          : e.message;
       }
       save();
     },

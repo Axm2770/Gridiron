@@ -119,6 +119,9 @@ body.gd-pixel .calendar-event-team strong { font-family: var(--gd-display) !impo
   .calendar-banner-actions { grid-column: 1 / -1; justify-content: flex-start; }
 }
 @media (max-width: 560px) {
+  /* The "Next matchday" card kept its desktop width and poked out of the hero on phones. */
+  .calendar-hero > * { min-width: 0; }
+  .calendar-deputy { flex: 1 1 100%; flex-shrink: 1; }
   .calendar-side { grid-template-columns: 1fr; }
   #app .calendar-day { min-height: 58px; }
   .calendar-day > img { width: 18px; height: 18px; right: 3px; top: 22px; }

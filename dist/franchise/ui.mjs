@@ -21,6 +21,7 @@ import { installClubProfile } from "./club-profile.mjs";
 import { installOfficeUI } from "./office-ui.mjs";
 import { officeCounts, ensureOffice } from "./newsroom.mjs";
 import { installCareerManager } from "./career-manager.mjs";
+import { campOpen, actionMessage } from "./action-feedback.mjs";
 import { careerSetupLocked, updateCareerAppearance } from "./coach-profile.mjs";
 import { coachAppearance, coachPixelAvatar } from "./coach-avatar.mjs";
 import * as fp from "./fo-pixel.mjs";
@@ -159,6 +160,7 @@ function mark(message) {
 }
 function action(name, ...args) {
   if (busy) return;
+  const rosterBefore = state.roster?.length ?? 0;
   try {
     if (
       state.live &&
@@ -266,6 +268,10 @@ function action(name, ...args) {
           break;
         case "camp":
           S.requireRole(s, "roster");
+          if (!campOpen(s))
+            throw Error(
+              "Camp invitations close once the regular season is under way.",
+            );
           while (s.roster.length < 90) {
             let i = s.roster.length,
               p = S.makePlayer(
@@ -320,7 +326,7 @@ function action(name, ...args) {
     mark(name);
     save();
     render();
-    toast("Franchise updated");
+    toast(actionMessage(name, (state.roster?.length ?? 0) - rosterBefore));
     return true;
   } catch (error) {
     toast(error.message);

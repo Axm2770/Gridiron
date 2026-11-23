@@ -179,8 +179,23 @@ function installToast(g) {
     el.innerHTML = `<b>${esc(title)}</b>${detail ? `<span>${esc(detail)}</span>` : ""}`;
     el.classList.toggle("gd-toast-two", !!detail);
     el.style.display = "block";
+    // A modal dialog sits in the top layer, above any z-index: a plain toast fired from inside a
+    // dialog (a refused offer, a blocked kickoff) showed up blurred behind the backdrop. As a
+    // manual popover the toast joins the top layer above whatever dialog is open now.
+    try {
+      if (typeof el.showPopover === "function") {
+        if (!el.popover) el.popover = "manual";
+        if (el.matches(":popover-open")) el.hidePopover();
+        el.showPopover();
+      }
+    } catch {}
     clearTimeout(timer);
-    timer = setTimeout(() => (el.style.display = "none"), Math.min(9000, 3000 + Math.max(0, text.length - 50) * 40));
+    timer = setTimeout(() => {
+      el.style.display = "none";
+      try {
+        if (el.matches?.(":popover-open")) el.hidePopover();
+      } catch {}
+    }, Math.min(9000, 3000 + Math.max(0, text.length - 50) * 40));
   };
   upgraded.gdNotice = true;
   g.toast = upgraded;

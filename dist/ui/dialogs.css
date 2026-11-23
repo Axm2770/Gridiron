@@ -400,3 +400,5 @@ body.gd-pixel #modal .interview-option small { font-size: 12px; color: var(--gd-
 #modal .pg-tag.int, #modal .pg-tag.fum, #modal .pg-tag.saf { color: var(--gd-bad); border-color: var(--gd-bad); }
 #modal .pg-actions { margin: 0 !important; padding-top: 12px; border-top: 2px solid var(--gd-border); }
 @media (max-width: 700px) { #modal .pg-cols { grid-template-columns: minmax(0, 1fr); } #modal .pg-score b { font-size: 34px !important; } #modal .pg-team b { font-size: 17px !important; } }
+/* The toast is a manual popover (fixes.mjs) so it shows above open dialogs: undo the UA popover box. */
+#toast[popover] { inset: auto auto 24px 50%; margin: 0; overflow: visible; width: max-content; height: auto; }
