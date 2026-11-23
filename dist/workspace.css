@@ -1525,7 +1525,8 @@ dialog > label {
   font-size: 12px;
   font-weight: 400;
 }
-.command-row:hover {
+.command-row:hover,
+.command-row:focus-visible {
   background: #263b56;
   box-shadow: none;
 }

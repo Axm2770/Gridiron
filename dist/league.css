@@ -354,7 +354,7 @@ body.gd-pixel #app .lg-crest :is(img, .team-logo) { filter: none !important; }
   .lg-tx .tx-type { grid-column: 4; grid-row: 2; }
   .lg-legend > span:last-child { margin-left: 0; }
 }
-@media (max-width: 640px) { .lg-divs, .lg-shelves, .lg-champs, #app .exp-legend-grid.lg-plaques { grid-template-columns: minmax(0, 1fr); } .lg-conf { grid-template-columns: minmax(0, 1fr); } .lg-conf-name { writing-mode: horizontal-tb; transform: none; min-height: 0; padding: 4px; } }
+@media (max-width: 640px) { .lg-strip { grid-template-columns: repeat(6, minmax(0, 1fr)); } .lg-divs, .lg-shelves, .lg-champs, #app .exp-legend-grid.lg-plaques { grid-template-columns: minmax(0, 1fr); } .lg-conf { grid-template-columns: minmax(0, 1fr); } .lg-conf-name { writing-mode: horizontal-tb; transform: none; min-height: 0; padding: 4px; } }
 @media (prefers-reduced-motion: no-preference) {
   .lg-wk.next .lg-wk-res { animation: lg-blink 1.2s steps(2, end) infinite; }
 }

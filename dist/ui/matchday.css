@@ -385,6 +385,20 @@ body.gd-pixel .touch-reserve-list small { font-size: 11px; }
   body.gd-pixel .touch-score-team > .team-logo { width: 40px; height: 40px; }
   body.gd-pixel .touch-timeouts { margin-left: 0; }
 }
+@media (max-width: 560px) {
+  /* Phones: logo, name and score in one row left the club name a single letter ("C…"). Stack the
+     name under the logo and score instead, and drop the HOME/AWAY caption the colour bar already gives. */
+  body.gd-pixel .touch-scoreboard { grid-template-columns: minmax(0, 1fr) 92px minmax(0, 1fr); }
+  body.gd-pixel .touch-score-team { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "logo num" "name name"; align-items: center; gap: 4px 8px; padding: 8px 8px 8px 16px; min-height: 0; }
+  body.gd-pixel .touch-score-team.away { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "num logo" "name name"; padding: 8px 16px 8px 8px; }
+  body.gd-pixel .touch-score-team > .team-logo { grid-area: logo; width: 30px; height: 30px; }
+  body.gd-pixel .touch-score-team > span { grid-area: name; }
+  body.gd-pixel .touch-score-team > .touch-score-num { grid-area: num; font-size: 22px; min-width: 0; }
+  body.gd-pixel .touch-score-team b { font-size: 15px; }
+  body.gd-pixel .touch-score-team small { display: none; }
+  body.gd-pixel .touch-score-team.possession > span::after { margin-top: 3px; font-size: 10px; }
+  body.gd-pixel .touch-score-clock b { font-size: 16px; }
+}
 body.gd-pixel .touch-booth b { white-space: nowrap; }
 body.gd-pixel .touch-broadcast .stadium-toolbar:has(+ .live-field) { padding: 6px 12px; }
 body.gd-pixel .touch-sim-notice .link { font-size: 13px; }

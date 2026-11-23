@@ -215,6 +215,17 @@ main > :is(header, #app, footer) { max-width: 1800px; margin-inline: auto; }
   #app .sc-page .finder-filter-menu > div { max-width: calc(100vw - 48px); }
   #app .mk-seg { display: flex; flex-wrap: wrap; max-width: 100%; }
 }
+@media (max-width: 600px) {
+  /* Phone header: the toolbar used to be wider than the screen and slid over the menu button.
+     Search becomes an icon, the manual save button goes (autosave runs; Careers still saves). */
+  main > header { gap: 6px; }
+  main > header > #breadcrumb { flex: 0 0 auto; }
+  main > header > #breadcrumb .breadcrumb-trail { display: none; }
+  main > header > div { flex: 1 1 auto; min-width: 0; justify-content: flex-end; gap: 6px; }
+  main > header > div .search-trigger { width: 34px !important; height: 34px; min-width: 0; padding: 0 !important; justify-content: center; }
+  main > header > div .search-trigger > :not(.ui-icon) { display: none !important; }
+  main > header > div .career-save-button { display: none !important; }
+}
 @media (max-width: 480px) {
   main { padding: 0 12px !important; }
   #app > .title-row.gd-titlebar { margin: 12px 0 10px; }

@@ -66,3 +66,19 @@ export const hexToRgb = (hex) => {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || "");
   return m ? m.slice(1).map((x) => parseInt(x, 16)).join(", ") : "59, 108, 200";
 };
+
+// Wraps an async action so a second call while the first is still running is ignored (a
+// double-click on "Sign & begin career" or "Create separate save" must not run it twice).
+// Returns undefined for the ignored call.
+export const singleFlight = (fn) => {
+  let running = false;
+  return async function (...args) {
+    if (running) return undefined;
+    running = true;
+    try {
+      return await fn.apply(this, args);
+    } finally {
+      running = false;
+    }
+  };
+};

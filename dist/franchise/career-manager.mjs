@@ -17,6 +17,7 @@ import {
 import { clubOutlook, NEW_CAREER_YEAR } from "./club-outlook.mjs";
 import { saveMetadata, parseCareerSave, careerId } from "./save-store.mjs";
 import { CharacterStage } from "./character-stage.mjs";
+import { singleFlight } from "../ui/kit.mjs";
 import { coachBadge, coachPixelAvatar } from "./coach-avatar.mjs";
 import { TEAM_COLORS } from "../presentation/team-colors.mjs";
 import { notice } from "../ui/notice.mjs";
@@ -919,7 +920,9 @@ export async function installCareerManager({ views, isBusy, initialize }) {
           `<div class="career-small-modal"><span class="eyebrow">IMPORT CAREER</span><h2>${esc(parsed.state.coach?.name || "Imported coach")}</h2><p>${esc(clubs[parsed.state.team][1] + " " + clubs[parsed.state.team][2])} · ${parsed.state.year} · Week ${parsed.state.week + 1}</p><p>This adds a separate career to your library.</p><label>Career name<input id="import-career-name" maxlength="60" value="${esc(parsed.name)}"></label><div class="modal-actions"><button class="secondary" onclick="Career.open()">Back</button><button onclick="Career.confirmImport()">Import as new career</button></div></div>`,
         );
       } catch (e) {
-        toast(e.message);
+        // A file that parses but has the wrong shape ("null", a bare number) throws a TypeError deep
+        // in the parser; show the player the same plain message as any other unsupported file.
+        toast(e instanceof TypeError ? "This file is not a supported Gridiron career save." : e.message);
       }
       input.value = "";
     },
@@ -941,6 +944,9 @@ export async function installCareerManager({ views, isBusy, initialize }) {
       }
     },
   };
+  // Double-clicks on the library's confirm buttons must not create, branch or import a career twice.
+  for (const action of ["begin", "confirmBranch", "confirmImport", "confirmRename", "confirmDelete"])
+    Career[action] = singleFlight(Career[action]);
   views["Careers & saves"] = () =>
     `<section class="gd-actionbar"><div class="f-actions"><button onclick="Career.open()">Open career library</button><button class="secondary" onclick="Career.save()">Save this career</button><button class="secondary" onclick="Career.export()">Export backup</button></div></section>`;
   chooseClub = () => Career.open();
