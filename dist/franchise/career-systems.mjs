@@ -1,4 +1,5 @@
 import { log, roster } from "./state.mjs";
+import { coachRating } from "./coach-profile.mjs";
 const clamp = (n, a = 0, b = 99) => Math.max(a, Math.min(b, n));
 export const hash = (s) => {
   let h = 2166136261;
@@ -75,6 +76,11 @@ export function setCooldown(s, area, target = "club", days = 14) {
 }
 export function coachReputation(s) {
   return ensureCareerSystems(s).coachReputation.value;
+}
+// Your coaching ability from attributes (grows each season, staff-progression.mjs); 65 if unknown.
+export function userCoachRating(s) {
+  const a = s.franchise?.userCoach?.attributes;
+  return a ? coachRating(a) : 65;
 }
 export function coachPerks(s) {
   const r = coachReputation(s);
@@ -504,7 +510,9 @@ export function generateJobOffers(s) {
       prestige,
       role: "HC",
       status: "invited",
-      salary: Math.round((4 + r.value / 20) * 1e8),
+      // Reputation sets the market; a stronger coach (attributes) commands more.
+      salary: Math.round((4 + r.value / 20 + Math.max(-1, (userCoachRating(s) - 65) * 0.06)) * 1e8),
+      coachRating: userCoachRating(s),
     });
   log(
     s,
