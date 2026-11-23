@@ -42,7 +42,7 @@ assert.throws(
       ...coach,
       attributes: { ...coach.attributes, development: 25 },
     }),
-  /104/,
+  /between 1 and 20/,
 );
 assert.throws(
   () =>

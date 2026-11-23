@@ -13,6 +13,11 @@ import {
   PHILOSOPHY,
   coachArchetype,
   autoSaveName,
+  COACH_CREATION,
+  coachCreationIssues,
+  coachCreationNotes,
+  validateNewCoach,
+  coachRating,
 } from "./coach-profile.mjs";
 import { clubOutlook, NEW_CAREER_YEAR } from "./club-outlook.mjs";
 import { saveMetadata, parseCareerSave, careerId } from "./save-store.mjs";
@@ -288,10 +293,41 @@ export async function installCareerManager({ views, isBusy, initialize }) {
   const chip = (text, tone) => `<span class="nw-chip" data-tone="${tone || "neutral"}">${esc(text)}</span>`;
   const toneOfTier = (o) =>
     o.expectation === "Contender" ? "good" : o.expectation === "Rebuild" ? "bad" : o.expectation === "Playoff push" ? "accent" : "neutral";
-  const identityError = () =>
-    !String(wizard.name || "").trim() || !Number.isInteger(Number(wizard.age)) || wizard.age < 25 || wizard.age > 80
-      ? "Enter a coach name and an age from 25 to 80."
-      : "";
+  // Creation limits (coach-profile coachCreationIssues): each issue names the step that fixes it.
+  const issues = () => coachCreationIssues(wizard);
+  const issuesBefore = (target) => issues().filter((x) => x.step < target);
+  const fieldIssue = (field) => issues().find((x) => x.field === field)?.message || "";
+  const ageMin = () => COACH_CREATION.ageMin[wizard.role] ?? 28;
+  // Inline message under a field: errors in the kit's bad tone, soft notes in warn.
+  const fieldMsg = (field, note = "") => {
+    const err = fieldIssue(field);
+    return `<small class="nw-field-msg${err ? " is-error" : note ? " is-note" : ""}" data-err="${field}" id="nw-err-${field}" aria-live="polite">${esc(err || note)}</small>`;
+  };
+  // The Continue / Sign button says what still needs fixing on the way forward.
+  const footState = () => {
+    const next = document.getElementById("wizard-next"),
+      hint = document.getElementById("wizard-error");
+    if (!next) return;
+    const blocking = wizardStep === 4 ? issues() : issuesBefore(wizardStep + 1);
+    next.classList.toggle("is-blocked", blocking.length > 0);
+    next.setAttribute("aria-disabled", blocking.length ? "true" : "false");
+    next.title = blocking.length ? "Fix first: " + blocking.map((x) => x.message).join(" ") : "";
+    if (hint) hint.textContent = blocking.length ? `${blocking.length === 1 ? "To continue" : `${blocking.length} things to fix`}: ${blocking[0].message}` : "";
+  };
+  // Update inline messages and the footer without repainting (typing keeps focus).
+  const refreshValidation = () => {
+    for (const el of document.querySelectorAll("#nw [data-err]")) {
+      const field = el.dataset.err,
+        err = fieldIssue(field);
+      el.textContent = err;
+      el.classList.toggle("is-error", !!err);
+      el.closest(".nw-field")?.classList.toggle("has-error", !!err);
+      el.closest(".nw-field")?.querySelector("input")?.setAttribute("aria-invalid", err ? "true" : "false");
+    }
+    const note = document.querySelector('#nw [data-note="age"]');
+    if (note) note.textContent = fieldIssue("age") ? "" : coachCreationNotes(wizard)[0] || "";
+    footState();
+  };
   const budgetLeft = () => COACH_BUDGET - COACH_ATTRIBUTES.reduce((n, k) => n + Number(wizard.attributes[k] || 0), 0);
   const topAttribute = (attrs) => COACH_ATTRIBUTES.reduce((a, k) => (attrs[k] > attrs[a] ? k : a), COACH_ATTRIBUTES[0]);
 
@@ -341,7 +377,7 @@ export async function installCareerManager({ views, isBusy, initialize }) {
       )
       .join("")}</tbody></table>`;
   const identityStep = () =>
-    `<p class="nw-intro">Name your coach and choose the job. Everything else has a sensible default, so you can skip straight to the contract.</p><div class="nw-form"><label class="nw-field nw-field-name"><span>Coach name</span><input id="nw-name" data-k="name" type="text" maxlength="40" autocomplete="off" spellcheck="false" value="${esc(wizard.name)}" oninput="Career.change('name',this.value)"></label><label class="nw-field nw-field-age"><span>Age</span><input data-k="age" type="number" min="25" max="80" value="${esc(wizard.age)}" oninput="Career.change('age',this.value)"></label><label class="nw-field"><span>Nationality</span><input data-k="nationality" type="text" maxlength="40" list="nw-nations" value="${esc(wizard.nationality)}" oninput="Career.change('nationality',this.value)"><datalist id="nw-nations">${NATIONS.map((n) => `<option value="${esc(n)}"></option>`).join("")}</datalist></label></div><h3 class="nw-label">Your job <small>Locked once the career begins</small></h3><div class="nw-roles" role="radiogroup" aria-label="Career role">${["HC", "Owner", "GM", "OC", "DC"].map(roleCard).join("")}</div>${roleMatrix()}`;
+    `<p class="nw-intro">Name your coach and choose the job. Everything else has a sensible default, so you can skip straight to the contract.</p><div class="nw-form"><label class="nw-field nw-field-name${fieldIssue("name") ? " has-error" : ""}"><span>Coach name <em>${COACH_CREATION.nameMin}–${COACH_CREATION.nameMax} letters</em></span><input id="nw-name" data-k="name" type="text" maxlength="${COACH_CREATION.nameMax}" autocomplete="off" spellcheck="false" aria-describedby="nw-err-name" aria-invalid="${fieldIssue("name") ? "true" : "false"}" value="${esc(wizard.name)}" oninput="Career.change('name',this.value)" onblur="Career.tidyName()">${fieldMsg("name")}</label><label class="nw-field nw-field-age${fieldIssue("age") ? " has-error" : ""}"><span>Age <em>${ageMin()}–${COACH_CREATION.ageMax}</em></span><input data-k="age" type="number" inputmode="numeric" step="1" min="${ageMin()}" max="${COACH_CREATION.ageMax}" aria-describedby="nw-err-age" aria-invalid="${fieldIssue("age") ? "true" : "false"}" value="${esc(wizard.age)}" oninput="Career.change('age',this.value)">${fieldMsg("age")}</label><label class="nw-field${fieldIssue("nationality") ? " has-error" : ""}"><span>Nationality</span><input data-k="nationality" type="text" maxlength="40" list="nw-nations" aria-describedby="nw-err-nationality" value="${esc(wizard.nationality)}" oninput="Career.change('nationality',this.value)"><datalist id="nw-nations">${NATIONS.map((n) => `<option value="${esc(n)}"></option>`).join("")}</datalist>${fieldMsg("nationality")}</label></div><p class="nw-form-note" data-note="age" aria-live="polite">${esc(fieldIssue("age") ? "" : coachCreationNotes(wizard)[0] || "")}</p><h3 class="nw-label">Your job <small>Locked once the career begins</small></h3><div class="nw-roles" role="radiogroup" aria-label="Career role">${["HC", "Owner", "GM", "OC", "DC"].map(roleCard).join("")}</div>${roleMatrix()}`;
 
   const swatchRow = (key, label) => {
     const value = wizard.appearance[key],
@@ -365,7 +401,7 @@ export async function installCareerManager({ views, isBusy, initialize }) {
           .join("")}</div></div>`,
     ).join(
       "",
-    )}<div class="nw-look-row"><span class="nw-look-label">Height</span><div class="nw-range"><input type="range" data-k="ap-height" min="160" max="205" value="${a.height}" aria-label="Height in centimetres" oninput="this.nextElementSibling.textContent=this.value+' cm'" onchange="Career.appearance('height',Number(this.value))"><output>${a.height} cm</output></div></div></div><div class="nw-look-col">${swatchRow("skin", "Skin")}${swatchRow("hair", "Hair colour")}${swatchRow("jacket", "Jacket")}<div class="nw-look-row"><span class="nw-look-label">Extras</span><div class="nw-seg nw-seg-toggles"><button type="button" data-k="ap-glasses" ${pressed(a.glasses)} onclick="Career.appearance('glasses',${!a.glasses})">Glasses</button><button type="button" data-k="ap-headset" ${pressed(a.headset)} onclick="Career.appearance('headset',${!a.headset})">Headset</button></div></div><button type="button" class="secondary small nw-shuffle" data-k="ap-shuffle" onclick="Career.shuffleLook()">Shuffle look</button></div></div>`;
+    )}<div class="nw-look-row"><span class="nw-look-label">Height</span><div class="nw-range"><input type="range" data-k="ap-height" min="${COACH_CREATION.heightMin}" max="${COACH_CREATION.heightMax}" step="1" value="${a.height}" aria-label="Height in centimetres" oninput="this.nextElementSibling.textContent=this.value+' cm'" onchange="Career.appearance('height',Number(this.value))"><output>${a.height} cm</output></div></div></div><div class="nw-look-col">${swatchRow("skin", "Skin")}${swatchRow("hair", "Hair colour")}${swatchRow("jacket", "Jacket")}<div class="nw-look-row"><span class="nw-look-label">Extras</span><div class="nw-seg nw-seg-toggles"><button type="button" data-k="ap-glasses" ${pressed(a.glasses)} onclick="Career.appearance('glasses',${!a.glasses})">Glasses</button><button type="button" data-k="ap-headset" ${pressed(a.headset)} onclick="Career.appearance('headset',${!a.headset})">Headset</button></div></div><button type="button" class="secondary small nw-shuffle" data-k="ap-shuffle" onclick="Career.shuffleLook()">Shuffle look</button></div></div>`;
   };
 
   const optionGroup = (key, label, note = "") =>
@@ -378,10 +414,12 @@ export async function installCareerManager({ views, isBusy, initialize }) {
       .join("")}</div></div>`;
   const philosophyStep = () => {
     const left = budgetLeft();
-    return `<div class="nw-philosophy"><div class="nw-choices">${optionGroup("background", "Background", "Resets your attributes")}${optionGroup("experience", "Experience")}${optionGroup("style", "Offensive style", "Adjustable later in Game plan")}${optionGroup("personality", "Personality")}</div><section class="nw-attrs" aria-labelledby="nw-attrs-title"><div class="nw-attrs-head"><h3 id="nw-attrs-title" class="nw-label">Coach attributes</h3><span id="coach-points-left" class="nw-budget"></span></div>${COACH_ATTRIBUTES.map((k) => {
-      const v = Number(wizard.attributes[k]) || 0;
-      return `<div class="nw-attr"><span>${nice(k)}</span><button type="button" class="nw-step-btn" data-k="attr-${k}-down" aria-label="Lower ${k}" onclick="Career.nudge('${k}',-1)" ${v <= 1 ? "disabled" : ""}>−</button><i class="nw-bar" aria-hidden="true"><em style="width:${v * 5}%"></em></i><b aria-label="${k} ${v} of 20">${v}</b><button type="button" class="nw-step-btn" data-k="attr-${k}-up" aria-label="Raise ${k}" onclick="Career.nudge('${k}',1)" ${v >= 20 || left <= 0 ? "disabled" : ""}>+</button></div>`;
-    }).join("")}<p class="nw-archetype">Archetype <b>${esc(coachArchetype(wizard.attributes))}</b></p><p class="nw-footnote">Development, motivation, discipline and medical feed weekly training and recovery. Development, offense and defense set your archetype and coaching skills; the average sets your rating as head coach.</p></section></div>`;
+    const L = COACH_CREATION;
+    return `<div class="nw-philosophy"><div class="nw-choices">${optionGroup("background", "Background", "Resets your attributes")}${optionGroup("experience", "Experience")}${optionGroup("style", "Offensive style", "Adjustable later in Game plan")}${optionGroup("personality", "Personality")}</div><section class="nw-attrs" aria-labelledby="nw-attrs-title"><div class="nw-attrs-head"><h3 id="nw-attrs-title" class="nw-label">Coach attributes</h3><span id="coach-points-left" class="nw-budget"></span></div><p class="nw-limits">Each ${L.attrMin}–${L.attrMax} to start · grows to 20 with results</p>${COACH_ATTRIBUTES.map((k) => {
+      const v = Number(wizard.attributes[k]) || 0,
+        out = v < L.attrMin || v > L.attrMax;
+      return `<div class="nw-attr${out ? " is-out" : ""}"><span>${nice(k)}</span><button type="button" class="nw-step-btn" data-k="attr-${k}-down" aria-label="Lower ${k}" onclick="Career.nudge('${k}',-1)" ${v <= L.attrMin ? "disabled" : ""}>−</button><i class="nw-bar" aria-hidden="true"><em style="width:${Math.min(100, v * 5)}%"></em><s style="left:${L.attrMax * 5}%"></s></i><b aria-label="${k} ${v}, starting range ${L.attrMin} to ${L.attrMax}">${v}</b><button type="button" class="nw-step-btn" data-k="attr-${k}-up" aria-label="Raise ${k}" onclick="Career.nudge('${k}',1)" ${v >= L.attrMax || left <= 0 ? "disabled" : ""}>+</button></div>`;
+    }).join("")}${fieldMsg("attributes")}<p class="nw-archetype">Archetype <b>${esc(coachArchetype(wizard.attributes))}</b></p><p class="nw-archetype nw-rating-row">Head-coach rating <b>${coachRating(wizard.attributes)}</b></p><p class="nw-footnote">Development, motivation, discipline and medical feed weekly training and recovery. Development, offense and defense set your archetype and coaching skills; the average sets your rating as head coach.</p></section></div>`;
   };
 
   const lede = () => {
@@ -400,7 +438,7 @@ export async function installCareerManager({ views, isBusy, initialize }) {
         ["Board expects", o ? `${o.expectation} · ~${o.projected} wins` : "Set in your first meeting"],
         ["Difficulty", o ? o.difficulty.label : "—"],
       ];
-    return `<article class="nw-release" aria-labelledby="nw-release-title"><div class="nw-release-band"><span class="nw-release-logo">${logo(wizard.team)}</span><span>Official announcement</span><span>${esc(clubs[wizard.team][3])} · ${NEW_CAREER_YEAR}</span></div><div class="nw-release-body"><div class="nw-release-art">${coachPixelAvatar(wizard.appearance, { label: wizard.name + " portrait", seed: "wizard" })}</div><div class="nw-release-copy"><span class="eyebrow">${esc(clubFull(wizard.team))}</span><h2 id="nw-release-title">${esc(String(wizard.name).trim() || "Your coach")} takes charge in ${esc(clubs[wizard.team][1])}</h2><p class="nw-release-sub">Named ${esc(roleName(wizard.role).toLowerCase())} of the ${esc(clubFull(wizard.team))}</p><p class="nw-release-lede">${lede()}</p><dl class="nw-release-facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl></div></div><div class="nw-release-foot"><label class="nw-field nw-field-save"><span>Career save name</span><input data-k="saveName" type="text" maxlength="60" value="${esc(wizard.saveName)}" oninput="Career.change('saveName',this.value)"></label><div class="nw-sign"><span class="nw-sign-name">${esc(String(wizard.name).trim() || "—")}</span><small>${esc(roleName(wizard.role))} · signature</small></div></div></article>`;
+    return `<article class="nw-release" aria-labelledby="nw-release-title"><div class="nw-release-band"><span class="nw-release-logo">${logo(wizard.team)}</span><span>Official announcement</span><span>${esc(clubs[wizard.team][3])} · ${NEW_CAREER_YEAR}</span></div><div class="nw-release-body"><div class="nw-release-art">${coachPixelAvatar(wizard.appearance, { label: wizard.name + " portrait", seed: "wizard" })}</div><div class="nw-release-copy"><span class="eyebrow">${esc(clubFull(wizard.team))}</span><h2 id="nw-release-title">${esc(String(wizard.name).trim() || "Your coach")} takes charge in ${esc(clubs[wizard.team][1])}</h2><p class="nw-release-sub">Named ${esc(roleName(wizard.role).toLowerCase())} of the ${esc(clubFull(wizard.team))}</p><p class="nw-release-lede">${lede()}</p><dl class="nw-release-facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl></div></div><div class="nw-release-foot"><label class="nw-field nw-field-save${fieldIssue("saveName") ? " has-error" : ""}"><span>Career save name</span><input data-k="saveName" type="text" maxlength="60" aria-describedby="nw-err-saveName" value="${esc(wizard.saveName)}" oninput="Career.change('saveName',this.value)">${fieldMsg("saveName")}</label><div class="nw-sign"><span class="nw-sign-name">${esc(String(wizard.name).trim() || "—")}</span><small>${esc(roleName(wizard.role))} · signature</small></div></div></article>`;
   };
 
   const report = () => {
@@ -463,6 +501,7 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     setHTML("nw-foot", footer());
     if (wizardStep >= 1 && wizardStep <= 3 && !avatar) mountAvatar();
     Career.budget();
+    footState();
     if (focusKey) root.querySelector(`[data-k="${CSS.escape(focusKey)}"]`)?.focus();
   };
   // Focus the natural first control of a step after navigating to it.
@@ -561,17 +600,32 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     },
     change(key, value) {
       if (!wizard) return;
-      if (["team", "age"].includes(key)) value = Number(value);
+      if (key === "team") value = Number(value);
+      // Age keeps what was typed until it is a whole number, so the message can explain it.
+      if (key === "age") value = /^\s*\d+\s*$/.test(String(value)) ? Number(value) : String(value);
       wizard[key] = value;
       if (key === "saveName") saveNameAuto = false;
       if ((key === "name" || key === "team") && saveNameAuto)
         wizard.saveName = autoSaveName(wizard.name, clubs[wizard.team][2]);
       if (key === "background") wizard.attributes = { ...BACKGROUNDS[value] };
-      const err = document.getElementById("wizard-error");
-      if (err) err.textContent = "";
       // Choices repaint the step; typed fields only refresh the summary so focus stays put.
       if (["background", "experience", "style", "personality", "role"].includes(key)) paint();
-      else setHTML("nw-summary", summary());
+      else {
+        setHTML("nw-summary", summary());
+        refreshValidation();
+      }
+    },
+    // Trim and collapse spaces once the name field loses focus.
+    tidyName() {
+      if (!wizard) return;
+      const tidy = String(wizard.name || "").trim().replace(/\s+/g, " ");
+      if (tidy === wizard.name) return;
+      wizard.name = tidy;
+      const input = document.getElementById("nw-name");
+      if (input) input.value = tidy;
+      if (saveNameAuto) wizard.saveName = autoSaveName(wizard.name, clubs[wizard.team][2]);
+      setHTML("nw-summary", summary());
+      refreshValidation();
     },
     team(id) {
       if (!wizard) return;
@@ -599,13 +653,20 @@ export async function installCareerManager({ views, isBusy, initialize }) {
       paint();
       mountAvatar();
     },
+    // Programmatic set (devtools, tests): whole numbers clamped to the starting range and budget.
     attribute(key, value) {
-      wizard.attributes[key] = value;
-      Career.budget();
+      if (!wizard || !COACH_ATTRIBUTES.includes(key)) return;
+      const L = COACH_CREATION,
+        v = Math.round(Number(value));
+      if (!Number.isFinite(v)) return;
+      const others = COACH_ATTRIBUTES.reduce((n, k) => n + (k === key ? 0 : Number(wizard.attributes[k]) || 0), 0);
+      wizard.attributes[key] = Math.max(L.attrMin, Math.min(L.attrMax, v, L.budget - others));
+      paint();
     },
     nudge(key, delta) {
-      const v = Number(wizard.attributes[key]) || 0,
-        next = Math.max(1, Math.min(20, v + delta));
+      const L = COACH_CREATION,
+        v = Number(wizard.attributes[key]) || 0,
+        next = Math.max(L.attrMin, Math.min(L.attrMax, v + delta));
       if (next === v || (delta > 0 && budgetLeft() <= 0)) return;
       wizard.attributes[key] = next;
       paint();
@@ -618,17 +679,27 @@ export async function installCareerManager({ views, isBusy, initialize }) {
         el.textContent = remaining < 0 ? `${-remaining} over budget` : remaining === 1 ? "1 point left" : `${remaining} points left`;
         el.classList.toggle("over-budget", remaining < 0);
       }
-      if (next) next.disabled = remaining < 0;
+      // Never hard-disabled: the button explains what to fix (footState) and routes there.
+      if (next) next.disabled = false;
     },
     goto(target) {
       if (!wizard) return;
       target = Math.max(0, Math.min(4, Number(target)));
       if (target === wizardStep) return;
-      const error = target > 1 ? identityError() : "";
-      wizardStep = error ? 1 : target;
+      // Moving forward (Continue, Skip to contract, the step bar) stops at the first step with a
+      // problem and points at it; going back is always allowed.
+      const blocker = target > wizardStep ? issuesBefore(Math.min(target, 4))[0] || null : null;
+      wizardStep = blocker ? blocker.step : target;
       paint();
       focusStep();
-      if (error) document.getElementById("wizard-error").textContent = error;
+      if (blocker) Career.showIssue(blocker);
+    },
+    // Show an issue in the footer and move focus to the control that fixes it.
+    showIssue(issue) {
+      const el = document.getElementById("wizard-error");
+      if (el) el.textContent = issue.message;
+      const key = issue.field === "attributes" ? "attr-offense-down" : issue.field === "height" ? "ap-height" : issue.field;
+      document.querySelector(`#nw [data-k="${key}"]`)?.focus?.();
     },
     step(delta) {
       if (wizardStep === 0 && delta < 0) {
@@ -639,7 +710,7 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     },
     next() {
       if (wizardStep === 4) Career.begin();
-      else if (!document.getElementById("wizard-next")?.disabled) Career.step(1);
+      else Career.step(1);
     },
     // Enter continues from anywhere in the wizard; arrow keys move across the club board.
     key(e) {
@@ -683,7 +754,19 @@ export async function installCareerManager({ views, isBusy, initialize }) {
     async begin() {
       if (!safe()) return;
       try {
-        validateCoach(wizard);
+        Career.tidyName();
+        try {
+          validateNewCoach(wizard);
+        } catch (e) {
+          const first = e.issues?.[0];
+          if (!first) throw e;
+          if (first.step !== wizardStep) {
+            wizardStep = first.step;
+            paint();
+          }
+          Career.showIssue(first);
+          return;
+        }
         if (!store)
           throw Error("Enable site storage before creating a career.");
         await flush();
