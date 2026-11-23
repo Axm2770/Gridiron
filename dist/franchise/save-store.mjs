@@ -159,6 +159,8 @@ export function parseCareerSave(text) {
     state.team < 0 ||
     state.team > 31 ||
     !Number.isInteger(state.year) ||
+    // A text week ("abc") used to load and show as "Week abc1".
+    (state.week !== undefined && (!Number.isInteger(state.week) || state.week < 0 || state.week > 60)) ||
     !Array.isArray(state.schedule) ||
     !Array.isArray(state.roster) ||
     !Array.isArray(state.teams) ||

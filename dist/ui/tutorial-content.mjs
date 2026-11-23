@@ -187,6 +187,8 @@ export const TOURS = [
         art: "sim",
       },
       {
+        // Mid-game this points at the banner's "Halftime report" button; before kickoff, at the entry cards.
+        target: [".touch-break-actions", ".touch-entry-grid"],
         title: "Halftime report card",
         body: "At the break a report card pops up with the score, the Q1/Q2 line, first-half stats and key plays. Reopen it from the halftime banner.",
         art: "matchday",

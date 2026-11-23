@@ -51,3 +51,18 @@ import { campOpen, actionMessage } from "./dist/franchise/action-feedback.mjs";
 }
 
 console.log("bughunt-ui ok");
+
+// Imports with a non-numeric week are rejected instead of showing "Week abc1".
+{
+  const { parseCareerSave } = await import("./dist/franchise/save-store.mjs");
+  const base = { team: 3, year: 2026, week: 2, schedule: [], roster: [], teams: Array.from({ length: 32 }, () => ({})) };
+  parseCareerSave(JSON.stringify(base));
+  let threw = false;
+  try {
+    parseCareerSave(JSON.stringify({ ...base, week: "abc" }));
+  } catch (e) {
+    threw = /not a supported/.test(e.message);
+  }
+  if (!threw) throw Error("a text week should be rejected");
+  console.log("PASS: career import rejects a non-numeric week.");
+}
