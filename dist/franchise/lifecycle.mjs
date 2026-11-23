@@ -13,7 +13,8 @@ import {
   processComparisons,
   applyCommitteeRules,
 } from "./world-events.mjs";
-import { runStaffCarousel } from "./staff.mjs";
+import { runStaffCarousel, ensureStaff } from "./staff.mjs";
+import { progressStaff, snapshotStaffBaseline, fillCpuVacancies } from "./staff-progression.mjs";
 import { assertCanAdvance } from "./compliance.mjs";
 import { processNewsRound } from "./newsroom.mjs";
 import { processBoardRound, startSeasonExpectations } from "./board-meetings.mjs";
@@ -41,7 +42,7 @@ import {
   basicContract,
   bonusCharge,
 } from "./state.mjs";
-import { weekly, marketDay, settleMarketRound } from "./world.mjs";
+import { weekly, marketDay, settleMarketRound, cpuRosterUpkeep, pruneFreeAgents, frontOfficeUpkeep } from "./world.mjs";
 import { seasonAwards } from "./history.mjs";
 import { concludeOffseasonCeremonies, runCeremonies } from "./ceremonies.mjs";
 export function newSchedule(games = 17) {
@@ -353,7 +354,11 @@ export function rollSeason(s) {
     if (existingAgentIds.has(p.id)) offseasonDevelopment(p, s.year, 0);
     return true;
   });
+  // Coaches age, progress and retire once per season, before the carousel uses their ratings.
+  ensureStaff(s);
+  progressStaff(s);
   runStaffCarousel(s);
+  fillCpuVacancies(s);
   // NFL Honors and the Hall of Fame class/enshrinement (ceremonies.mjs) settle before the year turns.
   concludeOffseasonCeremonies(s);
   for (let team = 0; team < 32; team++)
@@ -413,6 +418,9 @@ export function rollSeason(s) {
         }
       }
     }
+  // Camp rosters: every CPU club starts the season with healthy active depth at each position.
+  cpuRosterUpkeep(s);
+  pruneFreeAgents(s, year);
   applyCommitteeRules(s);
 
   s.year = year;
@@ -438,10 +446,13 @@ export function rollSeason(s) {
   f.tagYear = null;
   capturePreseason(s, false);
   startSeasonExpectations(s);
+  snapshotStaffBaseline(s);
   log(
     s,
     "Training camp opens",
     `A new ${f.rules.regularGames}-game season begins. Trim active rosters to 53 before playing.`,
   );
+  // Coordinators: the front office trims the camp roster to 53 and fills holes (world.mjs).
+  frontOfficeUpkeep(s);
   assertCanAdvance(s, { camp: true });
 }

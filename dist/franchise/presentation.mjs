@@ -476,14 +476,45 @@ export function installPresentation({
       );
     },
     command() {
+      // Ctrl+K used to replace whatever dialog was open: it wiped a half-filled new-career wizard
+      // and, on a first run, dismissed the career library that must stay up until a career exists.
+      const open = document.getElementById("modal");
+      if (
+        open?.open &&
+        open.classList.contains("career-modal") &&
+        (open.classList.contains("wizard-modal") ||
+          window.Career?.canDismiss?.() === false)
+      )
+        return;
       closeModal();
       commandQuery = "";
       modal(
-        `<div class="command-search">${icon("search")}<input id="command-input" type="search" placeholder="Find a player, a screen or an action…" aria-label="Search players and screens" oninput="W.search(this.value)"><kbd>ESC</kbd></div><div id="command-results"></div><div class="command-hint">Search your entire league · Click a result to open it</div>`,
+        `<div class="command-search">${icon("search")}<input id="command-input" type="search" placeholder="Find a player, a screen or an action…" aria-label="Search players and screens" oninput="W.search(this.value)" onkeydown="W.searchKeys(event)"><kbd>ESC</kbd></div><div id="command-results" onkeydown="W.searchKeys(event)"></div><div class="command-hint">Search your entire league · <kbd>↑</kbd><kbd>↓</kbd> choose · <kbd>Enter</kbd> open</div>`,
       );
       document.getElementById("modal").classList.add("command-dialog");
       W.search("");
       document.getElementById("command-input").focus();
+    },
+    // Keyboard use of the search box: Enter opens the top result, the arrows walk the results.
+    searchKeys(e) {
+      const input = document.getElementById("command-input"),
+        rows = [...document.querySelectorAll("#command-results .command-row")];
+      if (!input || e.isComposing) return;
+      const at = rows.indexOf(document.activeElement);
+      if (e.key === "Enter" && e.target === input) {
+        if (!rows.length) return;
+        e.preventDefault();
+        rows[0].click();
+      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        if (!rows.length) return;
+        e.preventDefault();
+        const next = e.key === "ArrowDown" ? at + 1 : at - 1;
+        if (next < 0) input.focus();
+        else rows[Math.min(next, rows.length - 1)].focus();
+      } else if (at >= 0 && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Typing while a result is focused keeps searching.
+        input.focus();
+      }
     },
     search(value) {
       commandQuery = value.toLowerCase().trim();
@@ -495,15 +526,15 @@ export function installPresentation({
         ].filter((r) =>
           (r[0] + " " + r[1]).toLowerCase().includes(commandQuery),
         ),
+        // Punctuation or emoji alone normalizes to "", which every name "includes": no player rows.
+        nameKey = searchKey(commandQuery),
         players =
-          commandQuery.length > 1
+          nameKey.length > 1
             ? Array.from({ length: 32 }, (_, team) =>
                 S.roster(state, team).map((p) => ({ p, team })),
               )
                 .flat()
-                .filter(({ p }) =>
-                  searchKey(p.name).includes(searchKey(commandQuery)),
-                )
+                .filter(({ p }) => searchKey(p.name).includes(nameKey))
                 .slice(0, 18)
             : [],
         // Clubs by city, nickname or abbreviation open the club profile (W.club).
@@ -518,6 +549,8 @@ export function installPresentation({
             ["Open transactions log", "W.open('Transactions')", "database", "transactions moves signings trades log"],
             ["Careers & saves: load, import or export", "Career.open()", "briefcase", "careers saves save load switch import export backup library"],
             ["Help & tutorials", "W.help()", "search", "help tutorial tour guide glossary"],
+            ["The Gridiron Guide: how the game works", "Guide.open()", "history", "guide handbook manual rules how learn"],
+            ...(window.Guide?.chapters || []).map((c) => [`Guide: ${c.title}`, `Guide.open('${c.id}')`, "history", "guide handbook " + c.keywords]),
             ...(window.Tutorial?.tours || []).map((tour) => [`Tour: ${tour.title}`, `Tutorial.start('${tour.id}')`, "play", "tour tutorial " + tour.title]),
           ].filter(([label, , , words]) => (label + " " + words).toLowerCase().includes(commandQuery))
         : [];

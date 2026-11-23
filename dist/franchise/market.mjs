@@ -4,7 +4,7 @@
 // contracts.mjs/state.mjs and are reused here, never re-implemented.
 import { random, clamp } from "../engine/random.mjs";
 import { identitySeed } from "./newgens.mjs";
-import { MILLION, capLedger, capHit, roster, log, financeYear, bonusCharge, playerSnap } from "./state.mjs";
+import { MILLION, capLedger, capHit, roster, log, financeYear, bonusCharge, playerSnap, capWorse } from "./state.mjs";
 import { setCooldown, cooldownRemaining, fanReaction, coachReputation } from "./career-systems.mjs";
 import { reactTo } from "./social-engine.mjs";
 import { ensureCalendar, leagueDates, seasonAnchor, addDays } from "./calendar-core.mjs";
@@ -414,8 +414,8 @@ export function tradeBlockers(s, proposal) {
   for (const a of get) if (a.kind === "player" && s.franchise.contracts[a.id]?.noTrade) out.push({ reason: `${a.player.name} has a no-trade clause and cannot be acquired.`, fix: "Choose a different player.", fixes: [{ kind: "dealRemove", side: "get", id: a.id, label: `Remove ${a.player.name}` }] });
   const capUs = capLedger(s).room - capDelta(s, s.team, get, give),
     capThem = capLedger(s, partner).room - capDelta(s, partner, give, get);
-  if (capUs < 0) out.push(capShortfall(s, -capUs, { exclude: giveIds }));
-  if (capThem < 0) out.push({ reason: `The ${clubName(s, partner)} would be ${moneyText(-capThem)} over the cap.`, fix: "Take more salary back from them, or send a cheaper player." });
+  if (capWorse(capUs, capLedger(s).room)) out.push(capShortfall(s, -capUs, { exclude: giveIds }));
+  if (capWorse(capThem, capLedger(s, partner).room)) out.push({ reason: `The ${clubName(s, partner)} would be ${moneyText(-capThem)} over the cap.`, fix: "Take more salary back from them, or send a cheaper player." });
   const moving = (list) => list.filter((a) => a.kind === "player" && (!a.player.status || a.player.status === "active")).length,
     full = rosterFull(s, activeCount(s) - moving(give) + moving(get), { exclude: giveIds });
   if (full) out.push({ reason: full.reason, fix: `${full.fix.replace(/ first\.$/, "")}, or add more of your players to the deal.`, fixes: full.fixes });
@@ -637,9 +637,10 @@ export function executeTrade(s, proposal, { aiOffer = false } = {}) {
     else roster(s, to).push(p);
     return p;
   };
+  const roomBefore = [capLedger(s).room, capLedger(s, partner).room];
   const sent = (proposal.give || []).map((id) => move(id, s.team, partner)).filter(Boolean),
     received = (proposal.get || []).map((id) => move(id, partner, s.team)).filter(Boolean);
-  if (capLedger(s).room < 0 || capLedger(s, partner).room < 0) throw Error("A team cannot absorb the trade's cap consequences.");
+  if (capWorse(capLedger(s).room, roomBefore[0]) || capWorse(capLedger(s, partner).room, roomBefore[1])) throw Error("A team cannot absorb the trade's cap consequences.");
   const limit = s.phase === "offseason" ? 90 : 53;
   if (s.roster.filter((p) => !p.status || p.status === "active").length > limit) throw Error(`Make roster room first: this trade would put you over ${limit} players.`);
   const describe = (ids, team) => ids.map((id) => (id.startsWith("pk-") ? pickLabel(s, ensurePickLedger(s).find((x) => x.id === id)) : (team === s.team ? s.roster : roster(s, team)).find((x) => x.id === id)?.name ?? id)).join(", ");

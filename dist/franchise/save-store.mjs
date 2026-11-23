@@ -1,4 +1,6 @@
 export const CAREER_DB = "gridiron-careers-v1";
+// Long careers export 40–60 MB (a 40 MB cap rejected backups of six-season careers).
+export const MAX_IMPORT_BYTES = 200_000_000;
 export class CareerStore {
   constructor(indexedDB = globalThis.indexedDB) {
     this.indexedDB = indexedDB;
@@ -147,6 +149,9 @@ export function parseCareerSave(text) {
   } catch {
     throw Error("This is not a readable career JSON file.");
   }
+  // `null`, numbers or strings are valid JSON too; they used to throw a TypeError here.
+  if (!data || typeof data !== "object" || Array.isArray(data))
+    throw Error("This file is not a supported Gridiron career save.");
   const state = data.format === "GridironCareer" ? data.state : data;
   if (
     !state ||
@@ -154,6 +159,8 @@ export function parseCareerSave(text) {
     state.team < 0 ||
     state.team > 31 ||
     !Number.isInteger(state.year) ||
+    // A text week ("abc") used to load and show as "Week abc1".
+    (state.week !== undefined && (!Number.isInteger(state.week) || state.week < 0 || state.week > 60)) ||
     !Array.isArray(state.schedule) ||
     !Array.isArray(state.roster) ||
     !Array.isArray(state.teams) ||

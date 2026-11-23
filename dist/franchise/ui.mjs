@@ -7,6 +7,7 @@ import { installExpansionUI } from "./expansion-ui.mjs";
 import { installCeremoniesUI } from "./ceremonies-ui.mjs";
 import { migrateImmersion } from "./immersion.mjs";
 import { installStaffUI } from "./staff-ui.mjs";
+import { coachGrowthPanel, trendBadge } from "./staff-progression-ui.mjs";
 import { ensureStaff } from "./staff.mjs";
 import { assertCanAdvance, complianceReport } from "./compliance.mjs";
 import { installTouchlineUI } from "./touchline-ui.mjs";
@@ -20,6 +21,7 @@ import { installClubProfile } from "./club-profile.mjs";
 import { installOfficeUI } from "./office-ui.mjs";
 import { officeCounts, ensureOffice } from "./newsroom.mjs";
 import { installCareerManager } from "./career-manager.mjs";
+import { campOpen, actionMessage } from "./action-feedback.mjs";
 import { careerSetupLocked, updateCareerAppearance } from "./coach-profile.mjs";
 import { coachAppearance, coachPixelAvatar } from "./coach-avatar.mjs";
 import * as fp from "./fo-pixel.mjs";
@@ -158,6 +160,7 @@ function mark(message) {
 }
 function action(name, ...args) {
   if (busy) return;
+  const rosterBefore = state.roster?.length ?? 0;
   try {
     if (
       state.live &&
@@ -265,6 +268,10 @@ function action(name, ...args) {
           break;
         case "camp":
           S.requireRole(s, "roster");
+          if (!campOpen(s))
+            throw Error(
+              "Camp invitations close once the regular season is under way.",
+            );
           while (s.roster.length < 90) {
             let i = s.roster.length,
               p = S.makePlayer(
@@ -319,7 +326,7 @@ function action(name, ...args) {
     mark(name);
     save();
     render();
-    toast("Franchise updated");
+    toast(actionMessage(name, (state.roster?.length ?? 0) - rosterBefore));
     return true;
   } catch (error) {
     toast(error.message);
@@ -501,9 +508,9 @@ function careerView() {
   const look2 = `<div class="fp-look"><span class="fp-coach-bust small">${coachPixelAvatar(look, { label: "Avatar preview" })}</span><div class="f-form-grid fp-look-form"><label>Avatar shirt<input type="color" id="career-shirt" value="${esc(look.jacket)}"></label><label>Avatar skin<input type="color" id="career-skin" value="${esc(look.skin)}"></label></div>${button("Save appearance", "F.action('profile',{avatar:{shirt:document.getElementById('career-shirt').value,skin:document.getElementById('career-skin').value}})")}</div>`;
   const dept = `<ul class="fp-people">${staff
     .slice(0, 5)
-    .map((p) => `<li>${staffBust(p, { size: 36, team: state.team, appearance: p.userControlled ? look : null })}<span><small>${esc(p.role)}</small><b>${esc(p.name)}</b></span><span class="fp-ovr">${p.rating}</span></li>`)
+    .map((p) => `<li>${staffBust(p, { size: 36, team: state.team, appearance: p.userControlled ? look : null })}<span><small>${esc(p.role)}${Number.isInteger(p.age) ? " · " + p.age : ""}</small><b>${esc(p.name)}</b></span><span class="sp-ovr-pair">${trendBadge(p)}<span class="fp-ovr">${p.rating}</span></span></li>`)
     .join("")}</ul><p class="fp-note">Review your staff, conduct interviews and manage appointments in the dedicated staff hub.</p><button onclick="W.open('Staff')">Open coaching staff →</button>`;
-  return `<div class="fp-page fp-career"><div class="fp-grid-21">${fp.panel({ kicker: "YOUR CAREER", title: "Coach card", body: card })}<div class="fp-stack-col">${fp.panel({ kicker: "CAREER", title: "Dossier", body: `<p class="fp-note">Your record, reputation ledger, relationships and head-coaching offers.</p><button class="secondary small" onclick="W.open('Career dossier')">Open career dossier →</button>` })}${fp.panel({ kicker: "PEOPLE", title: "Coaching department", body: dept })}</div></div><div class="fp-grid-21">${fp.panel({ kicker: "SKILL TREE", title: "Coaching skills", body: skills, extra: fp.chip(points ? points + " point" + (points === 1 ? "" : "s") + " ready" : c.xp + " XP", points ? "good" : "") })}${fp.panel({ kicker: "APPEARANCE", title: "Your look", body: look2 })}</div></div>`;
+  return `<div class="fp-page fp-career"><div class="fp-grid-21"><div class="fp-stack-col">${fp.panel({ kicker: "YOUR CAREER", title: "Coach card", body: card })}${coachGrowthPanel(state)}</div><div class="fp-stack-col">${fp.panel({ kicker: "CAREER", title: "Dossier", body: `<p class="fp-note">Your record, reputation ledger, relationships and head-coaching offers.</p><button class="secondary small" onclick="W.open('Career dossier')">Open career dossier →</button>` })}${fp.panel({ kicker: "PEOPLE", title: "Coaching department", body: dept })}</div></div><div class="fp-grid-21">${fp.panel({ kicker: "SKILL TREE", title: "Coaching skills", body: skills, extra: fp.chip(points ? points + " point" + (points === 1 ? "" : "s") + " ready" : c.xp + " XP", points ? "good" : "") })}${fp.panel({ kicker: "APPEARANCE", title: "Your look", body: look2 })}</div></div>`;
 }
 
 function contractsView() {

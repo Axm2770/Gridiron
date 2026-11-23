@@ -9,6 +9,26 @@ export const COACH_ATTRIBUTES = [
   "adaptability",
 ];
 export const COACH_BUDGET = 104;
+// Attributes are on a 1–20 scale. A new coach starts inside COACH_CREATION limits (no one
+// arrives elite at everything); seasons of growth can later take an attribute to the cap.
+export const COACH_ATTRIBUTE_CAP = 20;
+export const COACH_CREATION = {
+  attrMin: 5,
+  attrMax: 18,
+  budget: COACH_BUDGET,
+  ageMax: 75,
+  ageMin: { HC: 30, Owner: 30, GM: 28, OC: 28, DC: 28 },
+  nameMin: 2,
+  nameMax: 40,
+  heightMin: 160,
+  heightMax: 205,
+};
+// Head-coach rating from attributes: the mean × 5 (a 13 average is a 65 coach).
+export function coachRating(attributes = {}) {
+  return Math.round(
+    (COACH_ATTRIBUTES.reduce((n, k) => n + (Number(attributes[k]) || 0), 0) / COACH_ATTRIBUTES.length) * 5,
+  );
+}
 export const BACKGROUNDS = {
   "Former Player": {
     offense: 14,
@@ -69,6 +89,8 @@ export function defaultCoach(team = 16) {
     appearance: { ...DEFAULT_APPEARANCE },
   };
 }
+// Validates a stored career profile (loading, importing, applying). Careers age and grow, so the
+// bounds are wider than at creation; new careers also pass validateNewCoach.
 export function validateCoach(profile) {
   if (
     !profile ||
@@ -81,9 +103,9 @@ export function validateCoach(profile) {
   if (
     !Number.isInteger(Number(profile.age)) ||
     profile.age < 25 ||
-    profile.age > 80
+    profile.age > 99
   )
-    throw Error("Coach age must be between 25 and 80.");
+    throw Error("Coach age must be between 25 and 99.");
   if (
     !Number.isInteger(Number(profile.team)) ||
     profile.team < 0 ||
@@ -105,12 +127,9 @@ export function validateCoach(profile) {
     throw Error("Choose a supported coaching background and style.");
   const values = COACH_ATTRIBUTES.map((k) => Number(profile.attributes[k]));
   if (
-    values.some((n) => !Number.isInteger(n) || n < 1 || n > 20) ||
-    values.reduce((a, b) => a + b, 0) > COACH_BUDGET
+    values.some((n) => !Number.isInteger(n) || n < 1 || n > COACH_ATTRIBUTE_CAP)
   )
-    throw Error(
-      "Distribute at most 104 points, with each attribute between 1 and 20.",
-    );
+    throw Error("Each coach attribute must be between 1 and 20.");
   const a = profile.appearance;
   if (
     !a ||
@@ -124,6 +143,61 @@ export function validateCoach(profile) {
   )
     throw Error("Choose a valid coach appearance.");
   return true;
+}
+// Every reason a new coach can't be created yet. step: the wizard step that fixes it
+// (1 Identity, 2 Look, 3 Philosophy, 4 Review); field: the control to point at.
+export function coachCreationIssues(profile) {
+  const L = COACH_CREATION,
+    out = [],
+    add = (step, field, message) => out.push({ step, field, message });
+  if (!profile || typeof profile !== "object") return [{ step: 1, field: "name", message: "Create your coach first." }];
+  const name = String(profile.name ?? "").trim().replace(/\s+/g, " ");
+  if (!name) add(1, "name", "Enter your coach's name.");
+  else if (name.length < L.nameMin) add(1, "name", `The name needs at least ${L.nameMin} characters.`);
+  else if (name.length > L.nameMax) add(1, "name", `Keep the name to ${L.nameMax} characters.`);
+  else if (!/^\p{L}[\p{L}\p{M}'’. -]*$/u.test(name)) add(1, "name", "Use letters, spaces, apostrophes, hyphens or full stops in the name.");
+  const ageText = String(profile.age ?? "").trim(),
+    age = Number(ageText),
+    min = L.ageMin[profile.role] ?? 28,
+    roleName = { HC: "head coach", Owner: "owner", GM: "general manager", OC: "coordinator", DC: "coordinator" }[profile.role] || "coach";
+  if (!ageText || !Number.isInteger(age)) add(1, "age", "Enter the coach's age as a whole number.");
+  else if (age < min || age > L.ageMax) add(1, "age", `A ${roleName} must be ${min}–${L.ageMax} years old.`);
+  const nation = String(profile.nationality ?? "").trim();
+  if (!nation) add(1, "nationality", "Enter a nationality.");
+  else if (nation.length > 40) add(1, "nationality", "Keep the nationality to 40 characters.");
+  const h = Number(profile.appearance?.height);
+  if (!Number.isInteger(h) || h < L.heightMin || h > L.heightMax) add(2, "height", `Height must be ${L.heightMin}–${L.heightMax} cm.`);
+  const attrs = profile.attributes || {},
+    values = COACH_ATTRIBUTES.map((k) => Number(attrs[k])),
+    bad = COACH_ATTRIBUTES.filter((k, i) => !Number.isInteger(values[i]) || values[i] < L.attrMin || values[i] > L.attrMax);
+  if (bad.length)
+    add(3, "attributes", `New coaches start each attribute at ${L.attrMin}–${L.attrMax}. Adjust ${bad.map((k) => k[0].toUpperCase() + k.slice(1)).join(", ")}.`);
+  const total = values.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
+  if (total > L.budget) add(3, "attributes", `You've spent ${total} of ${L.budget} attribute points. Remove ${total - L.budget}.`);
+  const save = String(profile.saveName ?? "").trim();
+  if (!save) add(4, "saveName", "Name this career save.");
+  else if (save.length > 60) add(4, "saveName", "Keep the save name to 60 characters.");
+  return out;
+}
+// Soft notes for unusual but allowed choices (shown, never blocking).
+export function coachCreationNotes(profile) {
+  const age = Number(profile?.age),
+    notes = [];
+  if (Number.isInteger(age) && age >= 28 && age <= 32)
+    notes.push("Very young for the job: years of growth ahead, but the league will be watching.");
+  if (Number.isInteger(age) && age >= 66 && age <= 75)
+    notes.push("A late-career appointment: experience counts, but abilities tend to slip with age and retirement talk will follow.");
+  return notes;
+}
+// The strict gate for a brand-new career (the wizard's Sign & begin).
+export function validateNewCoach(profile) {
+  const issues = coachCreationIssues(profile);
+  if (issues.length) {
+    const e = Error(issues[0].message);
+    e.issues = issues;
+    throw e;
+  }
+  return validateCoach(profile);
 }
 export function applyCoach(s, p) {
   validateCoach(p);
@@ -161,11 +235,8 @@ export function applyCoach(s, p) {
     const hc = staff?.find((c) => c.role === "HC");
     if (hc) {
       hc.name = p.name;
-      hc.rating = Math.round(
-        (Object.values(p.attributes).reduce((a, b) => a + b, 0) /
-          COACH_ATTRIBUTES.length) *
-          5,
-      );
+      hc.rating = coachRating(p.attributes);
+      hc.age = Number(p.age);
     }
   }
   c.skills = {

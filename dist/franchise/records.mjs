@@ -304,6 +304,11 @@ export function recordRound(s, results, info) {
   if (b.seen.includes(info.key)) return false;
   b.seen.push(info.key);
   b.seen = b.seen.slice(-1000);
+  // lastTotals only diffs the current season; earlier seasons' entries (~2,200 a year) were never read.
+  if (b.lastTotalsYear !== s.year) {
+    for (const key of Object.keys(b.lastTotals)) if (Number(key.slice(0, key.indexOf(":"))) < s.year) delete b.lastTotals[key];
+    b.lastTotalsYear = s.year;
+  }
   const regular = info.phase === "season";
   b.regularTotals[s.year] ??= {};
   b.coverage[s.year] ??= "Complete";

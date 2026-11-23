@@ -103,8 +103,12 @@ W.marketDay(s);
 assert(s.franchise.market.offers.every((o) => o.playerId !== free.id));
 assert(S.validate(s));
 // Roster designations and IR absence checks.
-let reserve = s.roster.find((p) => !p.starter);
+// A player with guaranteed salary above the practice-squad wage can't be moved there.
+const guaranteedReserve = s.roster.find((p) => !p.starter && (s.franchise.contracts[p.id].guarantees[S.financeYear(s) - s.franchise.contracts[p.id].start] || 0) > 0.4 * S.MILLION);
+if (guaranteedReserve) assert.throws(() => P.movePlayer(s, guaranteedReserve.id, "practice"), /guaranteed/);
+let reserve = s.roster.find((p) => !p.starter && (s.franchise.contracts[p.id].guarantees[S.financeYear(s) - s.franchise.contracts[p.id].start] || 0) <= 0.4 * S.MILLION);
 P.movePlayer(s, reserve.id, "practice");
+assert(S.validate(s), "the practice-squad move leaves a valid contract");
 P.protect(s, reserve.id);
 P.movePlayer(s, reserve.id, "elevated");
 W.weekly(s);

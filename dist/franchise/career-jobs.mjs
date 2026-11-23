@@ -4,6 +4,7 @@ import {
   ensureCareerSystems,
   generateJobOffers,
   coachReputation,
+  userCoachRating,
   hash,
   changeCoachReputation,
 } from "./career-systems.mjs";
@@ -61,7 +62,8 @@ export function answerJobInterview(s, id, step, index) {
       fit =
         (o.answers[0] === 2 && owner.trait === "Patient Rebuilder" ? -10 : 8) +
         (o.answers[1] === 2 && owner.trait === "Meddler" ? -12 : 8);
-    o.assessment = coachReputation(s) + fit + (hash(id) % 13) - 6;
+    // Ownership weighs reputation first, then the coach's ability (rating from attributes).
+    o.assessment = coachReputation(s) + fit + (hash(id) % 13) - 6 + Math.round((userCoachRating(s) - 65) * 0.3);
     o.status = o.assessment >= 72 ? "offered" : "declined";
     o.line =
       o.status === "offered"

@@ -29,7 +29,35 @@ Every file in this release was built by GitHub Actions from this tag, passed the
 
 If you have 0.24.1 or later, the game offers this update in-game: choose **Download now**, then **Restart now**. Your careers are untouched. On 0.23.0 or earlier, download this version once from this page.
 
-## New in 0.31.1: updates that just work
+## New in 0.32.0: coaches who change, a game guide and a big bug sweep
+
+### Coaches and staff change over time
+- Every coach's rating moves once a season. Age sets a tendency (young coaches improve, veterans slowly slip), but results against expectations, playoff runs, how much the players they coach improve, scheme fit and continuity all count, so an older coach on a winning, improving team can still get better.
+- Coaches retire (more often past their early 60s or after bad seasons), fired coaches take a hit, and new young candidates join the hiring pool every offseason.
+- Staff cards show age, a ▲/▼ trend with last season's change and the reasons. Coaching staff has a season review strip.
+- Your coach grows too: a few attribute points a season depending on results and your role, shown in a Season review message and on Coach career. Job offers use your updated rating.
+- The coach creator now has realistic limits: age 28–75 (head coaches and owners 30+), height 160–205 cm, an attribute budget with a 5–18 range, and a proper name. It tells you exactly what to fix.
+
+### Tutorials and the Gridiron Guide
+- Twelve short visual tours, starting with "Your first week", that point at the real screen with pixel diagrams. Replay any tour from Help & tutorials; a "First time here?" chip appears on screens you haven't toured.
+- The Gridiron Guide: an in-game pixel handbook with 12 chapters (simulation, roster building, tactics, the salary cap, trades, the draft, player happiness, the board, staff, awards, saves…), each with pictures, key points, pro tips and a button that opens the right screen. Search it, or open it from Ctrl+K.
+
+### Halftime report
+- When a game reaches halftime, live or simulated, a pixel halftime card shows the score, the Q1/Q2 line, first-half stats and key plays. Reopen it from the halftime banner.
+
+### Bug fixes
+- Coordinator careers no longer get stuck in season 2 with too many players: when you don't control the roster, the front office trims it, fills gaps and clears the cap, and tells you what it did.
+- Computer-run clubs stay at 53 players with a healthy quarterback and kicker.
+- Being over the cap no longer blocks cuts and trades that free up room.
+- The draft order now accounts for the playoffs (the champion picks last).
+- Veterans decline realistically after their prime, so the league no longer fills up with ever-better 33-year-olds.
+- Draft classes have a real spread of talent again (they were almost identical).
+- Save files stay much smaller over long careers.
+- Double-clicking career library buttons no longer creates duplicates. Search (Ctrl+K) no longer wipes a half-finished new career. Toasts appear above dialogs.
+- Contract errors name the exact field to fix. Imports reject broken files with a clear message.
+- Phone layouts fixed for the header, Tactics, Boardroom, Locker room, the calendar, the live scoreboard and the match intro.
+
+## Also new in 0.31.1: updates that just work
 
 **If you're on 0.31.0 or earlier, download this version once from the table above.** Older versions can't install this update by themselves. From 0.31.1 on, updates install and restart on their own.
 

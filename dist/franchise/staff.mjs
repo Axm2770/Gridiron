@@ -5,6 +5,7 @@ import {
   dialogueConsequences,
 } from "./career-systems.mjs";
 import { MILLION, log, financeYear, migrate } from "./state.mjs";
+import { ensureStaffMember, ensureStaffProgression, markDismissed } from "./staff-progression.mjs";
 
 export const STAFF_ROLES = {
   HC: "Head coach",
@@ -118,6 +119,8 @@ function enrich(c, team, year) {
     Math.abs(c.rating || 70) % 3
   ];
   c.specialty ??= STAFF_ROLES[c.role] || c.role;
+  // Age, experience and rating history (staff-progression.mjs); derived once for older saves.
+  ensureStaffMember(c, year);
   return c;
 }
 export function ensureStaff(s) {
@@ -234,6 +237,7 @@ export function ensureStaff(s) {
       own.compEligible = false;
     }
   }
+  ensureStaffProgression(s);
   return f;
 }
 export function staffOfferSalary(s, c) {
@@ -623,7 +627,7 @@ export function hireStaff(s, role, id) {
   const agreedSalary = staffOfferSalary(s, c);
   if (old) {
     club.cash -= Math.round(old.salary * Math.max(1, old.years) * 0.5);
-    f.staffPool.push({ ...old, employer: null, tenure: 0 });
+    f.staffPool.push(markDismissed({ ...old, employer: null, tenure: 0, poolSince: s.year }));
   }
   awardStaffCompensation(s, c, from, s.team, role);
   for (const team of f.clubs)
@@ -680,7 +684,7 @@ export function fireStaff(s, id) {
     throw Error("Ownership cannot fund the severance payment.");
   club.cash -= severance;
   club.staff = club.staff.filter((q) => q.id !== id);
-  s.franchise.staffPool.push({ ...c, employer: null, tenure: 0 });
+  s.franchise.staffPool.push(markDismissed({ ...c, employer: null, tenure: 0, poolSince: s.year }));
   const x = currentSearch(s, c.role);
   if (x?.status === "open") x.status = "closed";
   log(
@@ -758,6 +762,8 @@ export function runStaffCarousel(s) {
       }
       hireStaff(s, "HC", c.id, { boardDelegated: true });
       arrivals.add(club.id);
+    } catch {
+      // The committee could not complete this appointment (budget, interviews); the incumbent stays.
     } finally {
       s.team = originalTeam;
       f.role = originalRole;

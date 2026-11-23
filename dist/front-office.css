@@ -9,6 +9,9 @@
   --fo-border: var(--gd-border, var(--line));
   --fo-text-2: var(--gd-text-2, var(--muted));
   display: grid;
+  /* One column that may shrink: an implicit auto track grew to the widest child, so on a phone
+     the Tactics page ran 850px wide and its right half was cut off. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-bottom: 24px;
 }

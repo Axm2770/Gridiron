@@ -72,3 +72,15 @@ win.postgameReport();
 assert.equal(classicCalls, 1);
 
 console.log("PASS: postgame report — scoreboard, stat comparison, key plays from engine prefixes, sparse and classic fallbacks");
+
+// Halftime card: same model on the live match, first-half quarters only, state-of-play chip.
+{
+  const { postgameModel: model, postgameHTML: html } = await import("./dist/ui/postgame-report.mjs");
+  const live = { a: 3, b: 7, score: [10, 7], periodScores: [[3, 0], [7, 7], [0, 0], [0, 0]], stats: [{ yards: 180 }, { yards: 150 }], events: [], plays: 60, halftime: true };
+  const md = model({ ...live, periodScores: live.periodScores.slice(0, 2) }, { user: 7 });
+  const out = html(md, { phase: "half" });
+  if (!/Halftime report/.test(out) || !/TRAILING/.test(out) || !/>Half</.test(out) || /Q3/.test(out) || /Final/.test(out)) throw Error("halftime card markup: " + out.slice(0, 300));
+  const lead = html(model({ ...live, periodScores: live.periodScores.slice(0, 2) }, { user: 3 }), { phase: "half" });
+  if (!/LEADING/.test(lead)) throw Error("leading chip");
+  console.log("PASS: halftime report card (first-half quarters, LEADING/TRAILING chip, no Final).");
+}

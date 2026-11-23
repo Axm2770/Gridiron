@@ -333,6 +333,12 @@ export function developWeek(
   };
   d.history.push(report);
   d.history = d.history.slice(-26);
+  // Only the last four reports' reasons and attribute directions are read (progression-view);
+  // older entries keep the numbers the trend chart needs. Saves ~40% of every player record.
+  for (const old of d.history.slice(0, -4)) {
+    delete old.reasons;
+    delete old.attributeDirections;
+  }
   d.lastReport = report;
   if (d.rehab && !wasInjured) d.rehab--;
   return report;
@@ -369,13 +375,18 @@ export function offseasonDevelopment(p, year, coaching = 0) {
     r = ensurePlayerRatings(p);
   if (d.lastOffseason === year) return;
   d.lastOffseason = year;
-  const gain = p.injury
-    ? -0.1
-    : p.age <= peak(p)
-      ? 0.2 + coaching / 100
-      : p.age > peak(p) + 3
-        ? -0.18
-        : 0;
+  // Past the prime (peak + 3) decline speeds up each year, scaled by a fixed per-player
+  // durability (0.6–1.4). The old flat −0.18 let 34–37-year-olds keep 85+ and the league's
+  // average active rating climb from 75 to 82 in six seasons.
+  const over = p.age - peak(p) - 3,
+    durability = 0.6 + random(identitySeed(`${p.id}:aging`))() * 0.8,
+    gain = p.injury
+      ? -0.1
+      : p.age <= peak(p)
+        ? 0.2 + coaching / 100
+        : over > 0
+          ? -(0.8 + (over - 1) * 0.9) * durability
+          : 0;
   r.development = round(
     clamp((r.development || 0) + gain, 35 - r.base, p.pot - r.base),
   );

@@ -60,6 +60,7 @@ const CSS = `
 .gd-match-intro .mi-team p{margin:0;display:flex;gap:12px;font-size:clamp(14px,1.8vw,20px);font-weight:700}
 .gd-match-intro .mi-team p span:first-child{color:#ffd34d}
 .gd-match-intro .mi-vs{font-size:clamp(22px,3vw,36px);font-weight:900;color:#9fb3c8}
+@media (max-width:640px){.gd-match-intro .mi-matchup{flex-direction:column;flex-wrap:nowrap}}
 .gd-match-intro .mi-kickoff{animation:mi-scene 1.9s 5.2s both}
 .gd-match-intro .mi-kickoff h1{font-size:clamp(48px,11vw,150px);background:linear-gradient(90deg,var(--away),#fff,var(--home));-webkit-background-clip:text;background-clip:text;color:transparent}
 .gd-match-intro .mi-skip{position:absolute;right:16px;bottom:16px;z-index:2}
